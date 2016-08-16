@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vivadoHLSLog:LogRoot xmlns:vivadoHLSLog="www.xilinx.com/vivadoHLSLog">
+  <errorLogs>
+    <logs>
+      <synLog/>
+      <simLog/>
+      <mgLog/>
+      <packageLog/>
+      <csimLog/>
+    </logs>
+  </errorLogs>
+  <warningLogs>
+    <logs>
+      <synLog>
+        <logs message="@W [SCHED-69] Unable to schedule 'load' operation ('buff_load_8', udp/sources/udp.cpp:28) on array 'buff' due to limited memory ports." projectName="udp" solutionName="solution1" date="2014-02-27T18:22:43.066+0000" type="Warning"/>
+        <logs message="@W [SCHED-68] Unable to enforce a carried dependency constraint (II = 2, distance = 1)&#xA;   between 'load' operation ('buff_load', udp/sources/udp.cpp:28) on array 'buff' and 'store' operation (udp/sources/udp.cpp:17) of constant 0 on array 'buff'." projectName="udp" solutionName="solution1" date="2014-02-27T18:22:42.747+0000" type="Warning"/>
+        <logs message="@W [SCHED-68] Unable to enforce a carried dependency constraint (II = 1, distance = 1)&#xA;   between 'load' operation ('buff_load', udp/sources/udp.cpp:28) on array 'buff' and 'store' operation (udp/sources/udp.cpp:17) of constant 0 on array 'buff'." projectName="udp" solutionName="solution1" date="2014-02-27T18:22:42.712+0000" type="Warning"/>
+      </synLog>
+      <simLog/>
+      <mgLog/>
+      <packageLog/>
+      <csimLog/>
+    </logs>
+  </warningLogs>
+</vivadoHLSLog:LogRoot>
