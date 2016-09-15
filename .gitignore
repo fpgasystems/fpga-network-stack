@@ -1,0 +1,51 @@
+#implementation folders
+csim/
+impl/
+sim/
+syn/
+Debug/
+vivado/**/proj/
+solution*/
+doc/
+
+#project folders
+*_prj/
+
+#logs files
+*.log
+*.jou
+
+#temp files
+*~
+*.swp
+
+#hidden files
+.*
+
+#tcl, directive files
+*.app
+*.aps
+*.directive
+
+#vivado ip files
+*.xml
+hdl/
+misc/
+sim/
+synth/
+*_stub.v
+*_stub.vhdl
+*_funcsim.v
+*_funcsim.vhdl
+*.upgrade_log
+#checkpoints
+*.dcp
+
+#test input/output files
+*.dat
+*.old
+*.bk
+*.bak
+*.csv
+*.out
+

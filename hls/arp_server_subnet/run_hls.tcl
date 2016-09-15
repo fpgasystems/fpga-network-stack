@@ -1,9 +1,9 @@
-open_project arp_server_prj
+open_project arp_server_subnet_prj
 
-set_top arp_server
+set_top arp_server_subnet
 
-add_files arp_server.cpp
-add_files -tb test_arp_server.cpp
+add_files arp_server_subnet.cpp
+add_files -tb test_arp_server_subnet.cpp
 
 open_solution "solution1"
 set_part {xc7vx690tffg1761-2}

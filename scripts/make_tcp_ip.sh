@@ -28,6 +28,9 @@ eval cp -r ../../hls ./
 eval cd ./hls/arp_server
 eval vivado_hls -f run_hls.tcl
 
+eval cd ./hls/arp_server_subnet
+eval vivado_hls -f run_hls.tcl
+
 eval cd ../dhcp_client
 eval vivado_hls -f run_hls.tcl
 
