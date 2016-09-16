@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "../toe/toe.hpp"
 
 using namespace hls;
@@ -40,5 +41,5 @@ void echo_server_application(stream<ap_uint<16> >& listenPort, stream<bool>& lis
 								stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
 								stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
 								stream<ap_uint<16> >& closeConnection,
-								stream<ap_uint<16> >& txMetaData, stream<axiWord>& txData,
+								stream<appTxMeta>& txMetaData, stream<axiWord>& txData,
 								stream<ap_int<17> >& txStatus);

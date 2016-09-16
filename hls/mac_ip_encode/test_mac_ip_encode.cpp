@@ -26,81 +26,112 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "mac_ip_encode.hpp"
 
 using namespace hls;
-using namespace std;
 
 int main()
 {
 #pragma HLS inline region off
 	axiWord inData;
 	axiWord outData;
-	stream<axiWord> inFIFO;
+	stream<axiWord> arpFIFO;
+	stream<axiWord> icmpFIFO;
+	stream<axiWord> udpFIFO;
+	stream<axiWord> tcpFIFO;
 	stream<axiWord> outFIFO;
 	//stream<ap_uint<16> > checksumFIFO;
 	stream<ap_uint<32> > arpTableIn;
 	stream<arpTableReply> arpTableOut;
-	ap_uint<32>		regSubNetMask		= 0x00FFFFFF;
-	ap_uint<32>		regDefaultGateway	= 0x01010101;
-	int				errCount 			= 0;
-	unsigned int	idleCounter			= 0;
+	ap_uint<32>					regSubNetMask;
+	ap_uint<32>					regDefaultGateway;
+	ap_uint<48>					regMacAddress;
+
+
+	regMacAddress = 0xE59D02350A00;
+	regSubNetMask = 0x00FFFFFF;
+	regDefaultGateway = 0x01010101;
 
 	//ap_uint<32> ipAddress = 0x0a010101;
 	ap_uint<32> requestIpAddress;
 	//ap_uint<48> macAddress = 0x699a45dd6000;
 
-	ifstream inputFile;
-	ifstream goldenFile;
-	ofstream outputFile;
+	//std::ifstream icmpFile;
+	std::ifstream tcpFile;
+	std::ofstream outputFile;
 
-	inputFile.open("../../../../in.dat");
-	if (!inputFile)	{
-		cout << "Error: could not open input vector file." << endl;
+	/*icmpFile.open("/home/dsidler/workspace/toe/hls/mac_ip_encode/icmp.in");
+	if (!icmpFile)
+	{
+		std::cout << "Error: could not open icmp input file." << std::endl;
+		return -1;
+	}*/
+
+	tcpFile.open("/home/dasidler/toe/hls/mac_ip_encode/tcp.in");
+	if (!tcpFile)
+	{
+		std::cout << "Error: could not open tcp input file." << std::endl;
 		return -1;
 	}
-	outputFile.open("../../../../out.dat");
-	if (!outputFile) {
-		cout << "Error: could not open output vector file." << endl;
-	}
-	goldenFile.open("../../../../out.gold");
-	if (!goldenFile) {
-		cout << "Error: could not open golden output vector file." << endl;
+
+	outputFile.open("/home/dasidler/toe/hls/mac_ip_encode/tcp.out");
+	if (!outputFile)
+	{
+		std::cout << "Error: could not open test output file." << std::endl;
 	}
 
-	uint16_t keepTemp;
+	uint16_t strbTemp;
 	uint64_t dataTemp;
 	uint16_t lastTemp;
 	int count = 0;
 
-	while (inputFile >> hex >> dataTemp >> keepTemp >> lastTemp) {
+	/*while (icmpFile >> std::hex >> dataTemp >> strbTemp >> lastTemp)
+	{
 		inData.data = dataTemp;
-		inData.keep = keepTemp;
+		inData.keep = strbTemp;
 		inData.last = lastTemp;
-		inFIFO.write(inData);
+		icmpFIFO.write(inData);
+	}*/
+	while (tcpFile >> std::hex >> dataTemp >> strbTemp >> lastTemp)
+	{
+		inData.data = dataTemp;
+		inData.keep = strbTemp;
+		inData.last = lastTemp;
+		tcpFIFO.write(inData);
 	}
 
 	int numbLookup = 0;
-	while (count < 250) {
-		if (idleCounter == 0) {
-			mac_ip_encode(inFIFO, arpTableOut, outFIFO, arpTableIn, regSubNetMask, regDefaultGateway, 0xE59D02350A00);
-			if (!arpTableIn.empty()) {
-				idleCounter = 10;
-				arpTableIn.read(requestIpAddress);
-				if (requestIpAddress == 0x0a010101) {
-					arpTableOut.write(arpTableReply(0x699a45dd6000, true));
-				}
-				else if (requestIpAddress == 0x01010101)
-					arpTableOut.write(arpTableReply(0xab8967452301, true));
-				numbLookup++;
+	while (count < 250)
+	{
+		mac_ip_encode(tcpFIFO, arpTableOut, outFIFO, arpTableIn, regMacAddress, regSubNetMask, regDefaultGateway);
+		if (!arpTableIn.empty())
+		{
+			// Make sure ARP request goes out
+			int countArp = 0;
+			while (countArp < 50)
+			{
+				mac_ip_encode(tcpFIFO, arpTableOut, outFIFO, arpTableIn, regMacAddress, regSubNetMask, regDefaultGateway);
+				countArp++;
 			}
+			arpTableIn.read(requestIpAddress);
+			if (requestIpAddress == 0x0a010101)
+			{
+				//arpTableOut.write(arpTableReply(0x699a45dd6000, (numbLookup != 0)));
+				arpTableOut.write(arpTableReply(0x699a45dd6000, true));
+			}
+			else if (requestIpAddress == 0x01010101)
+			{
+				arpTableOut.write(arpTableReply(0xab8967452301, true));
+			}
+			numbLookup++;
 		}
-		else
-			idleCounter--;
 		count++;
 	}
 
-	while (!outFIFO.empty()) {
+
+	while (!(outFIFO.empty()))
+	{
 		outFIFO.read(outData);
 		outputFile << std::hex << std::noshowbase;
 		outputFile << std::setfill('0');
@@ -108,26 +139,7 @@ int main()
 		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
 		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
 		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
-		goldenFile >> std::hex >> dataTemp >> keepTemp >> lastTemp;
+	}
 
-		if (outData.data != dataTemp || outData.keep != keepTemp || outData.last != lastTemp) { // Compare results
-			errCount++;
-			cerr << "X";
-		} else {
-			cerr << ".";
-		}
-	}
-	inputFile.close();
-	outputFile.close();
-	goldenFile.close();
-	cerr << " done." << endl << endl;
-	if (errCount == 0) {
-	    cerr << "*** Test Passed ***" << endl << endl;
-	    return 0;
-	} else {
-	   	cerr << "!!! TEST FAILED -- " << errCount << " mismatches detected !!!";
-	   	cerr << endl << endl;
-	   	return -1;
-	}
 	return 0;
 }

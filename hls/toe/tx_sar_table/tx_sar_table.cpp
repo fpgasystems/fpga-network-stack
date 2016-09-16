@@ -2,30 +2,31 @@
 Copyright (c) 2016, Xilinx, Inc.
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, 
+1. Redistributions of source code must retain the above copyright notice,
 this list of conditions and the following disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice, 
-this list of conditions and the following disclaimer in the documentation 
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
 and/or other materials provided with the distribution.
 
-3. Neither the name of the copyright holder nor the names of its contributors 
-may be used to endorse or promote products derived from this software 
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software
 without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "tx_sar_table.hpp"
 
 using namespace hls;
@@ -50,6 +51,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 					stream<txSarAckPush>&			txSar2txApp_ack_push)
 {
 #pragma HLS PIPELINE II=1
+
 	static txSarEntry tx_table[MAX_SESSIONS];
 	#pragma HLS DEPENDENCE variable=tx_table inter false
 	#pragma HLS RESOURCE variable=tx_table core=RAM_T2P_BRAM
@@ -59,35 +61,53 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 	rxTxSarQuery tst_rxEngUpdate;
 	txAppTxSarPush push;
 
-	if (!txEng2txSar_upd_req.empty()) { // TX Engine
+	// TX Engine
+	if (!txEng2txSar_upd_req.empty())
+	{
 		txEng2txSar_upd_req.read(tst_txEngUpdate);
-		if (tst_txEngUpdate.write) {
-			if (!tst_txEngUpdate.isRtQuery)	{
+		if (tst_txEngUpdate.write)
+		{
+			if (!tst_txEngUpdate.isRtQuery)
+			{
 				tx_table[tst_txEngUpdate.sessionID].not_ackd = tst_txEngUpdate.not_ackd;
-				if (tst_txEngUpdate.init) {
+				if (tst_txEngUpdate.init)
+				{
 					tx_table[tst_txEngUpdate.sessionID].app = tst_txEngUpdate.not_ackd;
 					tx_table[tst_txEngUpdate.sessionID].ackd = tst_txEngUpdate.not_ackd-1;
 					tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS)
 					tx_table[tst_txEngUpdate.sessionID].slowstart_threshold = 0xFFFF;
-					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 1)); // Init ACK to txAppInterface
+					tx_table[tst_txEngUpdate.sessionID].finReady = tst_txEngUpdate.finReady;
+					tx_table[tst_txEngUpdate.sessionID].finSent = tst_txEngUpdate.finSent;
+					// Init ACK to txAppInterface
+					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 1));
 				}
 				if (tst_txEngUpdate.finReady)
+				{
 					tx_table[tst_txEngUpdate.sessionID].finReady = tst_txEngUpdate.finReady;
+				}
 				if (tst_txEngUpdate.finSent)
+				{
 					tx_table[tst_txEngUpdate.sessionID].finSent = tst_txEngUpdate.finSent;
+				}
 			}
-			else {
+			else
+			{
 				txEngRtUpdate = tst_txEngUpdate;
 				tx_table[tst_txEngUpdate.sessionID].slowstart_threshold = txEngRtUpdate.getThreshold();
 				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS) TODO is this correct or less, eg. 1/2 * MSS
 			}
 		}
-		else { // Read
+		else // Read
+		{
 			ap_uint<16> minWindow;
 			if (tx_table[tst_txEngUpdate.sessionID].cong_window < tx_table[tst_txEngUpdate.sessionID].recv_window)
+			{
 				minWindow = tx_table[tst_txEngUpdate.sessionID].cong_window;
+			}
 			else
+			{
 				minWindow = tx_table[tst_txEngUpdate.sessionID].recv_window;
+			}
 			txSar2txEng_upd_rsp.write(txTxSarReply(	tx_table[tst_txEngUpdate.sessionID].ackd,
 													tx_table[tst_txEngUpdate.sessionID].not_ackd,
 													minWindow,
@@ -96,26 +116,27 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 													tx_table[tst_txEngUpdate.sessionID].finSent));
 		}
 	}
-
-	else if (!txApp2txSar_app_push.empty()) { // TX App Stream If, write only
+	// TX App Stream If
+	else if (!txApp2txSar_app_push.empty()) //write only
+	{
 		txApp2txSar_app_push.read(push);
 		tx_table[push.sessionID].app = push.app;
 	}
-	else if (!rxEng2txSar_upd_req.empty()) { // RX Engine
+	// RX Engine
+	else if (!rxEng2txSar_upd_req.empty())
+	{
 		rxEng2txSar_upd_req.read(tst_rxEngUpdate);
-		if (tst_rxEngUpdate.write) {
+		if (tst_rxEngUpdate.write)
+		{
 			tx_table[tst_rxEngUpdate.sessionID].ackd = tst_rxEngUpdate.ackd;
 			tx_table[tst_rxEngUpdate.sessionID].recv_window = tst_rxEngUpdate.recv_window;
 			tx_table[tst_rxEngUpdate.sessionID].cong_window = tst_rxEngUpdate.cong_window;
 			tx_table[tst_rxEngUpdate.sessionID].count = tst_rxEngUpdate.count;
-			if (tst_rxEngUpdate.init == 1) {
-				tx_table[tst_rxEngUpdate.sessionID].finReady = false;
-				tx_table[tst_rxEngUpdate.sessionID].finSent = false;
-			}
 			// Push ACK to txAppInterface
 			txSar2txApp_ack_push.write(txSarAckPush(tst_rxEngUpdate.sessionID, tst_rxEngUpdate.ackd));
 		}
-		else {
+		else
+		{
 			txSar2rxEng_upd_rsp.write(rxTxSarReply(	tx_table[tst_rxEngUpdate.sessionID].ackd,
 													tx_table[tst_rxEngUpdate.sessionID].not_ackd,
 													tx_table[tst_rxEngUpdate.sessionID].cong_window,

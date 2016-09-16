@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "port_table.hpp"
 
 using namespace hls;
@@ -44,7 +45,8 @@ using namespace hls;
 void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 							stream<ap_uint<15> >&	pt_portCheckListening_req_fifo,
 							stream<bool>&			portTable2rxApp_listen_rsp,
-							stream<bool>&			pt_portCheckListening_rsp_fifo) {
+							stream<bool>&			pt_portCheckListening_rsp_fifo)
+{
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
@@ -54,17 +56,25 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 
 	ap_uint<16> currPort;
 
-	if (!rxApp2portTable_listen_req.empty()) { //check range, TODO make sure currPort is not equal in 2 consecutive cycles
+	if (!rxApp2portTable_listen_req.empty()) //check range, TODO make sure currPort is not equal in 2 consecutive cycles
+	{
 		rxApp2portTable_listen_req.read(currPort);
-		if (!listeningPortTable[currPort(14, 0)] && currPort < 32768) {
+		if (!listeningPortTable[currPort(14, 0)] && currPort < 32768)
+		{
 			listeningPortTable[currPort] = true;
 			portTable2rxApp_listen_rsp.write(true);
 		}
 		else
+		{
 			portTable2rxApp_listen_rsp.write(false);
+		}
 	}
 	else if (!pt_portCheckListening_req_fifo.empty())
+	{
+		//pt_portCheckListening_req_fifo.read(checkPort15);
+		//pt_portCheckListening_rsp_fifo.write(listeningPortTable[checkPort15]);
 		pt_portCheckListening_rsp_fifo.write(listeningPortTable[pt_portCheckListening_req_fifo.read()]);
+	}
 }
 /** @ingroup port_table
  *  Assumption: We are never going to run out of free ports, since 10K session <<< 32K ports
@@ -79,103 +89,140 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
  */
 void free_port_table(	stream<ap_uint<16> >&	sLookup2portTable_releasePort,
 						stream<ap_uint<15> >&	pt_portCheckUsed_req_fifo,
-						stream<ap_uint<1> >&	txApp2portTable_port_req,
+						//stream<ap_uint<1> >&	txApp2portTable_port_req,
 						stream<bool>&			pt_portCheckUsed_rsp_fifo,
-						stream<ap_uint<16> >&	portTable2txApp_port_rsp) {
-	#pragma HLS PIPELINE II=1
-	#pragma HLS INLINE off
+						stream<ap_uint<16> >&	portTable2txApp_port_rsp)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
-	static bool freePortTable[32768]; //= {false};
+	static bool freePortTable[32768];
 	#pragma HLS RESOURCE variable=freePortTable core=RAM_T2P_BRAM
 	#pragma HLS DEPENDENCE variable=freePortTable inter false
 
-	static ap_uint<15>	freePort = 0;
-	static bool searching 	= false;
-	static bool eval		= false;
-	static bool temp		= false;
-	#pragma HLS DEPENDENCE variable=temp inter false
 
-	if (searching) {
-		temp = freePortTable[freePort];
-		eval = true;
-		searching = false;
-	}
-	else if (eval) {
-		if (!temp) {
-			freePortTable[freePort] = true;
-			portTable2txApp_port_rsp.write(freePort);
+	// Free Ports Cache
+	//static stream<ap_uint<16> > pt_freePortsFifo("pt_freePortsFifo");
+	//#pragma HLS STREAM variable=pt_freePortsFifo depth=8
+
+	static ap_uint<15>	pt_cursor = 0;
+
+	ap_uint<16>			currPort;
+	ap_uint<16>			freePort;
+
+	if (!sLookup2portTable_releasePort.empty()) //check range, TODO make sure no acces to same location in 2 consecutive cycles
+	{
+		sLookup2portTable_releasePort.read(currPort);
+		if (currPort >= 32768)
+		{
+			freePortTable[currPort(14, 0)] = false; //shift
 		}
-		else
-			searching = true;
-		eval = false;
-		freePort++;
 	}
 	else if (!pt_portCheckUsed_req_fifo.empty())
+	{
 		pt_portCheckUsed_rsp_fifo.write(freePortTable[pt_portCheckUsed_req_fifo.read()]);
-	else if (!txApp2portTable_port_req.empty()) {
-		txApp2portTable_port_req.read();
-		searching = true;
 	}
-	else if (!sLookup2portTable_releasePort.empty()) { //check range, TODO make sure no access to same location in 2 consecutive cycles
-		ap_uint<16>		currPort = sLookup2portTable_releasePort.read();
-		if (currPort.bit(15) == 1)
-			freePortTable[currPort.range(14, 0)] = false; //shift
+	else
+	{
+		if (!freePortTable[pt_cursor] && !portTable2txApp_port_rsp.full()) //This is not perfect, but yeah
+		{
+			freePort(14, 0) = pt_cursor;
+			freePort[15] = 1;
+			freePortTable[pt_cursor] = true;
+			portTable2txApp_port_rsp.write(freePort);
+		}
+	}
+	pt_cursor++;
+
+	/*if (!txApp2portTable_port_req.empty()) //Fixme this!!!
+	{
+		txApp2portTable_port_req.read();
+	}*/
+}
+
+
+void check_in_multiplexer(	stream<ap_uint<16> >&		rxEng2portTable_check_req,
+							stream<ap_uint<15> >&		pt_portCheckListening_req_fifo,
+							stream<ap_uint<15> >&		pt_portCheckUsed_req_fifo,
+							stream<bool>&				pt_dstFifoOut)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
+	static const bool LT = true;
+	static const bool FT = false;
+	static bool	dst = LT;
+	ap_uint<16>			checkPort;
+	ap_uint<16>			swappedCheckPort;
+
+	// Forward request according to port number, store table to keep order
+	if (!rxEng2portTable_check_req.empty())
+	{
+		rxEng2portTable_check_req.read(checkPort);
+		swappedCheckPort(7, 0) = checkPort(15, 8);
+		swappedCheckPort(15, 8) = checkPort(7, 0);
+		if (swappedCheckPort < 32768)
+		{
+			pt_portCheckListening_req_fifo.write(swappedCheckPort);
+			pt_dstFifoOut.write(LT);
+		}
+		else
+		{
+			pt_portCheckUsed_req_fifo.write(swappedCheckPort);
+			pt_dstFifoOut.write(FT);
+		}
 	}
 }
 
 /** @ingroup port_table
  *
  */
+void check_out_multiplexer(	stream<bool>&				pt_dstFifoIn,
+							stream<bool>&				pt_portCheckListening_rsp_fifo,
+							stream<bool>&				pt_portCheckUsed_rsp_fifo,
+							stream<bool>&				portTable2rxEng_check_rsp)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
-void checkMuxInput(stream<ap_uint<16> >&		rxEng2portTable_check_req,
-				   stream<ap_uint<15> >&		pt_portCheckListening_req_fifo,
-				   stream<ap_uint<15> >&		pt_portCheckUsed_req_fifo,
-				   stream<bool>&   				pt_dstFifo) {
-	#pragma HLS PIPELINE II=1
-	#pragma HLS INLINE off
+	//enum portCheckDstType {LT, FT};
+	static const bool LT = true;
+	static const bool FT = false;
+	//static stream<bool> pt_dstFifo("pt_dstFifo");
+	//#pragma HLS STREAM variable=pt_dstFifo depth=4
 
-	// Forward request according to port number, store table to keep order
-	if (!rxEng2portTable_check_req.empty()) {
-		ap_uint<16>			checkPort = rxEng2portTable_check_req.read();
-		checkPort = byteSwap16(checkPort);
-		if (checkPort < 32768) {
-			pt_portCheckListening_req_fifo.write(checkPort.range(14, 0));
-			pt_dstFifo.write(true); ////
-			}
-		else {
-			pt_portCheckUsed_req_fifo.write(checkPort.range(14, 0));
-			pt_dstFifo.write(false);
-		}
-	}
-}
+	static bool	dst = LT;
 
-void checkMuxOutput(stream<bool>&  pt_dstFifo,
-					stream<bool>&  pt_portCheckListening_rsp_fifo,
-					stream<bool>&  pt_portCheckUsed_rsp_fifo,
-					stream<bool>&  portTable2rxEng_check_rsp) {
-	#pragma HLS PIPELINE II=1
-	#pragma HLS INLINE off
 
-	enum cmFsmStateType {READ_DST = 0, READ_LISTENING, READ_USED}; // Read out responses from tables in order and merge them
+	// Read out responses from tables in order and merge them
+	enum cmFsmStateType {READ_DST, READ_LISTENING, READ_USED};
 	static cmFsmStateType cm_fsmState = READ_DST;
-	switch (cm_fsmState) {
-	case READ_DST:
-		if (!pt_dstFifo.empty()) { ////
-			bool	dst = pt_dstFifo.read();
-			if (dst == true)
+	switch (cm_fsmState)
+	{
+	case 0:
+		if (!pt_dstFifoIn.empty())
+		{
+			pt_dstFifoIn.read(dst);
+			if (dst == LT)
+			{
 				cm_fsmState = READ_LISTENING;
+			}
 			else
+			{
 				cm_fsmState = READ_USED;
+			}
 		}
 		break;
-	case READ_LISTENING:
-		if (!pt_portCheckListening_rsp_fifo.empty()) {
+	case 1:
+		if (!pt_portCheckListening_rsp_fifo.empty())
+		{
 			portTable2rxEng_check_rsp.write(pt_portCheckListening_rsp_fifo.read());
 			cm_fsmState = READ_DST;
 		}
 		break;
-	case READ_USED:
-		if (!pt_portCheckUsed_rsp_fifo.empty()) {
+	case 2:
+		if (!pt_portCheckUsed_rsp_fifo.empty())
+		{
 			portTable2rxEng_check_rsp.write(pt_portCheckUsed_rsp_fifo.read());
 			cm_fsmState = READ_DST;
 		}
@@ -183,21 +230,6 @@ void checkMuxOutput(stream<bool>&  pt_dstFifo,
 	}
 }
 
-void check_multiplexer(	stream<ap_uint<16> >&		rxEng2portTable_check_req,
-						stream<ap_uint<15> >&		pt_portCheckListening_req_fifo,
-						stream<ap_uint<15> >&		pt_portCheckUsed_req_fifo,
-						stream<bool>&				pt_portCheckListening_rsp_fifo,
-						stream<bool>&				pt_portCheckUsed_rsp_fifo,
-						stream<bool>&				portTable2rxEng_check_rsp) {
-//#pragma HLS PIPELINE II=1
-#pragma HLS INLINE
-
-	static stream<bool> pt_dstFifo("pt_dstFifo");
-	#pragma HLS STREAM variable=pt_dstFifo depth=4
-
-	checkMuxInput(rxEng2portTable_check_req, pt_portCheckListening_req_fifo, pt_portCheckUsed_req_fifo, pt_dstFifo);
-	checkMuxOutput(pt_dstFifo, pt_portCheckListening_rsp_fifo, pt_portCheckUsed_rsp_fifo, portTable2rxEng_check_rsp);
-}
 
 /** @ingroup port_table
  *  The @ref port_table contains an array of 65536 entries, one for each port number.
@@ -214,15 +246,22 @@ void check_multiplexer(	stream<ap_uint<16> >&		rxEng2portTable_check_req,
  */
 void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
 				stream<ap_uint<16> >&		rxApp2portTable_listen_req,
-				stream<ap_uint<1> >&		txApp2portTable_port_req,
+				//stream<ap_uint<1> >&		txApp2portTable_port_req,
 				stream<ap_uint<16> >&		sLookup2portTable_releasePort,
 				stream<bool>&				portTable2rxEng_check_rsp,
 				stream<bool>&				portTable2rxApp_listen_rsp,
 				stream<ap_uint<16> >&		portTable2txApp_port_rsp)
 {
-//#pragma HLS dataflow interval=1
-//#pragma HLS PIPELINE II=1
+//#pragma HLS DATAFLOW
 #pragma HLS INLINE
+
+#pragma HLS DATA_PACK variable=rxEng2portTable_check_req
+#pragma HLS DATA_PACK variable=rxApp2portTable_listen_req
+#pragma HLS DATA_PACK variable=sLookup2portTable_releasePort
+#pragma HLS DATA_PACK variable=portTable2rxEng_check_rsp
+#pragma HLS DATA_PACK variable=portTable2rxApp_listen_rsp
+#pragma HLS DATA_PACK variable=portTable2txApp_port_rsp
+
 	/*
 	 * Fifos necessary for multiplexing Check requests
 	 */
@@ -235,6 +274,9 @@ void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
 	static stream<bool> pt_portCheckUsed_rsp_fifo("pt_portCheckUsed_rsp_fifo");
 	#pragma HLS STREAM variable=pt_portCheckListening_rsp_fifo depth=2
 	#pragma HLS STREAM variable=pt_portCheckUsed_rsp_fifo depth=2
+
+	static stream<bool> pt_dstFifo("pt_dstFifo");
+	#pragma HLS STREAM variable=pt_dstFifo depth=4
 
 	/*
 	 * Listening PortTable
@@ -249,17 +291,19 @@ void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
 	 */
 	free_port_table(sLookup2portTable_releasePort,
 						pt_portCheckUsed_req_fifo,
-						txApp2portTable_port_req,
+						//txApp2portTable_port_req,
 						pt_portCheckUsed_rsp_fifo,
 						portTable2txApp_port_rsp);
 
 	/*
 	 * Multiplex this query
 	 */
-	check_multiplexer(rxEng2portTable_check_req,
-			pt_portCheckListening_req_fifo,
-			pt_portCheckUsed_req_fifo,
-			pt_portCheckListening_rsp_fifo,
-			pt_portCheckUsed_rsp_fifo,
-			portTable2rxEng_check_rsp);
+	check_in_multiplexer(	rxEng2portTable_check_req,
+							pt_portCheckListening_req_fifo,
+							pt_portCheckUsed_req_fifo,
+							pt_dstFifo);
+	check_out_multiplexer(	pt_dstFifo,
+							pt_portCheckListening_rsp_fifo,
+							pt_portCheckUsed_rsp_fifo,
+							portTable2rxEng_check_rsp);
 }

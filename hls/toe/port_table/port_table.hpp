@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "../toe.hpp"
 
 using namespace hls;
@@ -44,7 +45,7 @@ struct portTableEntry
  */
 void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
 				stream<ap_uint<16> >&		rxApp2portTable_listen_req,
-				stream<ap_uint<1> >&		txApp2portTable_port_req,
+				//stream<ap_uint<1> >&		txApp2portTable_port_req,
 				stream<ap_uint<16> >&		sLookup2portTable_releasePort,
 				stream<bool>&				portTable2rxEng_check_rsp,
 				stream<bool>&				portTable2rxApp_listen_rsp,

@@ -64,5 +64,5 @@ void retransmit_timer(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetrans
 						stream<txRetransmitTimerSet>&		txEng2timer_setRetransmitTimer,
 						stream<event>&						rtTimer2eventEng_setEvent,
 						stream<ap_uint<16> >&				rtTimer2stateTable_releaseState,
-						stream<openStatus>&					rtTimer2txApp_notification,
-						stream<appNotification>&			rtTimer2rxApp_notification);
+						stream<appNotification>&			rtTimer2rxApp_notification,
+						stream<openStatus>&					rtTimer2txApp_notification);

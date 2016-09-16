@@ -2,30 +2,31 @@
 Copyright (c) 2016, Xilinx, Inc.
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, 
+1. Redistributions of source code must retain the above copyright notice,
 this list of conditions and the following disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice, 
-this list of conditions and the following disclaimer in the documentation 
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
 and/or other materials provided with the distribution.
 
-3. Neither the name of the copyright holder nor the names of its contributors 
-may be used to endorse or promote products derived from this software 
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software
 without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "toe.hpp"
 
 #include "session_lookup_controller/session_lookup_controller.hpp"
@@ -46,8 +47,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 #include "rx_app_if/rx_app_if.hpp"
 #include "rx_app_stream_if/rx_app_stream_if.hpp"
 #include "tx_app_interface/tx_app_interface.hpp"
-//#include "tx_app_if/tx_app_if.hpp"
-//#include "tx_app_stream_if/tx_app_stream_if.hpp"
+
 
 ap_uint<16> byteSwap16(ap_uint<16> inputVector) {
 	return (inputVector.range(7,0), inputVector(15, 8));
@@ -57,31 +57,106 @@ ap_uint<32> byteSwap32(ap_uint<32> inputVector) {
 	return (inputVector.range(7,0), inputVector(15, 8), inputVector.range(23,16), inputVector(31, 24));
 }
 
-ap_uint<4> keepMapping(ap_uint<8> keepValue) { 		// This function counts the number of 1s in an 8-bit value
-	ap_uint<4> counter = 0;
-	for (ap_uint<4> i=0;i<8;++i) {
-		if (keepValue.bit(i) == 1)
-			counter++;
-	}
-	return counter;
+ap_uint<4> keepToLen(ap_uint<8> keepValue)
+{
+  switch (keepValue)
+  {
+  case 0x01:
+    return 0x1;
+    break;
+  case 0x3:
+    return 0x2;
+    break;
+  case 0x07:
+    return 0x3;
+    break;
+  case 0x0F:
+    return 0x4;
+    break;
+  case 0x1F:
+    return 0x5;
+    break;
+  case 0x3F:
+    return 0x6;
+    break;
+  case 0x7F:
+    return 0x7;
+    break;
+  case 0xFF:
+    return 0x8;
+    break;
+  }
 }
 
-ap_uint<8> returnKeep(ap_uint<4> length) {
-	ap_uint<8> keep = 0;
-	for (uint8_t i=0;i<8;++i) {
-		if (i < length)
-			keep.bit(i) = 1;
-	}
-	return keep;
+ap_uint<8> lenToKeep(ap_uint<4> length)
+{
+  switch(length)
+  {
+  case 1:
+    return 0x01;
+    break;
+  case 2:
+    return 0x03;
+    break;
+  case 3:
+    return 0x07;
+    break;
+  case 4:
+    return 0x0F;
+    break;
+  case 5:
+    return 0x1F;
+    break;
+  case 6:
+    return 0x3F;
+    break;
+  case 7:
+    return 0x7F;
+    break;
+  case 8:
+    return 0xFF;
+    break;
+  }
 }
 
-template<typename T> void mergeFunction(stream<T>& in1, stream<T>& in2, stream<T>& out) {
-#pragma HLS PIPELINE II=1 enable_flush
-#pragma HLS INLINE off
+/** @ingroup timer
+ *
+ */
+void timerCloseMerger(stream<ap_uint<16> >& in1, stream<ap_uint<16> >& in2, stream<ap_uint<16> >& out)
+{
+#pragma HLS PIPELINE II=1
+
+	ap_uint<16> sessionID;
+
 	if (!in1.empty())
-		out.write(in1.read());
+	{
+		in1.read(sessionID);
+		out.write(sessionID);
+	}
 	else if (!in2.empty())
+	{
+		in2.read(sessionID);
+		out.write(sessionID);
+	}
+}
+
+/** @ingroup tcp_module
+ * Generic stream merger function
+ */
+template <typename T>
+void stream_merger(stream<T>& in1, stream<T>& in2, stream<T>& out)
+{
+#pragma HLS PIPELINE II=1
+
+
+	if (!in1.empty())
+	{
+		out.write(in1.read());
+	}
+	else if (!in2.empty())
+	{
 		out.write(in2.read());
+	}
 }
 
 /** @defgroup timer Timers
@@ -101,10 +176,11 @@ void timerWrapper(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetransmitT
 					stream<ap_uint<16> >&				rxEng2timer_setCloseTimer,
 					stream<ap_uint<16> >&				timer2stateTable_releaseState,
 					stream<event>&						timer2eventEng_setEvent,
-					stream<openStatus>&					rtTimer2txApp_notification,
-					stream<appNotification>&			rtTimer2rxApp_notification)
+					stream<appNotification>&			rtTimer2rxApp_notification,
+					stream<openStatus>&					rtTimer2txApp_notification)
 {
-	#pragma HLS INLINE
+	#pragma HLS INLINE off
+	#pragma HLS PIPELINE II=1
 	
 	static stream<ap_uint<16> > closeTimer2stateTable_releaseState("closeTimer2stateTable_releaseState");
 	static stream<ap_uint<16> > rtTimer2stateTable_releaseState("rtTimer2stateTable_releaseState");
@@ -117,28 +193,27 @@ void timerWrapper(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetransmitT
 	#pragma HLS stream variable=probeTimer2eventEng_setEvent	depth=2
 
 	// Merge Events, Order: rtTimer has to be before probeTimer
-	//eventMerger(rtTimer2eventEng_setEvent, probeTimer2eventEng_setEvent, timer2eventEng_setEvent);
-	mergeFunction(rtTimer2eventEng_setEvent, probeTimer2eventEng_setEvent, timer2eventEng_setEvent);
+	stream_merger(rtTimer2eventEng_setEvent, probeTimer2eventEng_setEvent, timer2eventEng_setEvent);
+
 	retransmit_timer(	rxEng2timer_clearRetransmitTimer,
 						txEng2timer_setRetransmitTimer,
 						rtTimer2eventEng_setEvent,
 						rtTimer2stateTable_releaseState,
-						rtTimer2txApp_notification,
-						rtTimer2rxApp_notification);
+						rtTimer2rxApp_notification,
+						rtTimer2txApp_notification);
 	probe_timer(rxEng2timer_clearProbeTimer,
 				txEng2timer_setProbeTimer,
 				probeTimer2eventEng_setEvent);
 	close_timer(rxEng2timer_setCloseTimer,
 				closeTimer2stateTable_releaseState);
-	mergeFunction(closeTimer2stateTable_releaseState,rtTimer2stateTable_releaseState, timer2stateTable_releaseState);
-	/*timerCloseMerger(	closeTimer2stateTable_releaseState,
+	stream_merger(		closeTimer2stateTable_releaseState,
 						rtTimer2stateTable_releaseState,
-						timer2stateTable_releaseState);*/
+						timer2stateTable_releaseState);
 }
-
 void rxAppMemAccessBreakdown(stream<mmCmd> &inputMemAccess, stream<mmCmd> &outputMemAccess, stream<ap_uint<1> > &rxAppDoubleAccess) {
-#pragma HLS PIPELINE II=1 enable_flush
+#pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
+
 	static bool rxAppBreakdown = false;
 	static mmCmd rxAppTempCmd;
 	static ap_uint<16> rxAppAccLength = 0;
@@ -168,8 +243,9 @@ void rxAppMemAccessBreakdown(stream<mmCmd> &inputMemAccess, stream<mmCmd> &outpu
 	}
 }
 
+#if !(RX_DDR_BYPASS)
 void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxDataRsp, stream<ap_uint<1> > &rxAppDoubleAccess) {
-#pragma HLS PIPELINE II=1 enable_flush
+#pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
 	static axiWord rxAppMemRdRxWord = axiWord(0, 0, 0);
@@ -183,7 +259,7 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 			//rxAppMemRdOffset = 0;
 			rxAppDoubleAccessFlag = rxAppDoubleAccess.read();
 			rxBufferReadData.read(rxAppMemRdRxWord);
-			rxAppMemRdOffset = keepMapping(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
+			rxAppMemRdOffset = keepToLen(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
 			if (rxAppMemRdRxWord.last == 1 && rxAppDoubleAccessFlag == 1) {		// If this is the last word and this access was broken down
 				rxAppMemRdRxWord.last = ~rxAppDoubleAccessFlag;					// Negate the last flag inn the axiWord and determine if there's an offset
 				if (rxAppMemRdOffset == 8) {									// No need to offset anything
@@ -210,7 +286,7 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 	case RXAPP_STREAM:															// This state outputs the all the data words in the 1st memory access of a segment but the 1st one.
 		if (!rxBufferReadData.empty() && !rxDataRsp.full()) {					// Verify that there's data in the input and space in the output
 			rxBufferReadData.read(rxAppMemRdRxWord);							// Read the data word in
-			rxAppMemRdOffset = keepMapping(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
+			rxAppMemRdOffset = keepToLen(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
 			if (rxAppMemRdRxWord.last == 1 && rxAppDoubleAccessFlag == 1) {		// If this is the last word and this access was broken down
 				rxAppMemRdRxWord.last = ~rxAppDoubleAccessFlag;					// Negate the last flag inn the axiWord and determine if there's an offset
 				if (rxAppMemRdOffset == 8) {									// No need to offset anything
@@ -248,11 +324,11 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range((rxAppMemRdOffset * 8) - 1, 0);	// In any case, insert the data of the new data word in the old one. Here we don't pay attention to the exact number of bytes in the new data word. In case they don't fill the entire remaining gap, there will be garbage in the output but it doesn't matter since the KEEP signal indicates which bytes are valid.
 			rxAppMemRdRxWord = rxBufferReadData.read();
 			temp.data.range(63, (rxAppMemRdOffset * 8)) = rxAppMemRdRxWord.data.range(((8 - rxAppMemRdOffset) * 8) - 1, 0);				// Buffer & realign temp into rxAppmemRdRxWord (which is a static variable)
-			ap_uint<4> tempCounter = keepMapping(rxAppMemRdRxWord.keep);					// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
+			ap_uint<4> tempCounter = keepToLen(rxAppMemRdRxWord.keep);					// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
 			rxAppOffsetBuffer = tempCounter - (8 - rxAppMemRdOffset);				// Calculate the number of bytes to go into the next & final data word
 			if (rxAppMemRdRxWord.last == 1) {
 				if ((tempCounter + rxAppMemRdOffset) <= 8) {						// Check if the residue from the 1st segment and the data in the 1st data word of the 2nd segment fill this data word. If not...
-					temp.keep = returnKeep(tempCounter + rxAppMemRdOffset);	// then set the KEEP value of the output to the sum of the 2 data word's bytes
+					temp.keep = lenToKeep(tempCounter + rxAppMemRdOffset);	// then set the KEEP value of the output to the sum of the 2 data word's bytes
 					temp.last = 1;									// also set the LAST to 1, since this is going to be the final word of this segment
 					rxAppState = RXAPP_IDLE;									// And go back to idle when finished with this state
 				}
@@ -271,11 +347,11 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range(63, ((8 - rxAppMemRdOffset) * 8));
 			rxAppMemRdRxWord = rxBufferReadData.read();							// Read the new data word in
 			temp.data.range(63, (rxAppMemRdOffset * 8)) = rxAppMemRdRxWord.data.range(((8 - rxAppMemRdOffset) * 8) - 1, 0);
-			ap_uint<4> tempCounter = keepMapping(rxAppMemRdRxWord.keep);			// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
+			ap_uint<4> tempCounter = keepToLen(rxAppMemRdRxWord.keep);			// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
 			rxAppOffsetBuffer = tempCounter - (8 - rxAppMemRdOffset);				// Calculate the number of bytes to go into the next & final data word
 			if (rxAppMemRdRxWord.last == 1) {
 				if ((tempCounter + rxAppMemRdOffset) <= 8) {							// Check if the residue from the 1st segment and the data in the 1st data word of the 2nd segment fill this data word. If not...
-					temp.keep = returnKeep(tempCounter + rxAppMemRdOffset);			// then set the KEEP value of the output to the sum of the 2 data word's bytes
+					temp.keep = lenToKeep(tempCounter + rxAppMemRdOffset);			// then set the KEEP value of the output to the sum of the 2 data word's bytes
 					temp.last = 1;													// also set the LAST to 1, since this is going to be the final word of this segment
 					rxAppState = RXAPP_IDLE;										// And go back to idle when finished with this state
 				}
@@ -288,7 +364,7 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 		break;
 	case RXAPP_RESIDUE:
 		if (!rxDataRsp.full()) {
-			axiWord temp = axiWord(0, returnKeep(rxAppOffsetBuffer), 1);
+			axiWord temp = axiWord(0, lenToKeep(rxAppOffsetBuffer), 1);
 			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range(63, ((8 - rxAppMemRdOffset) * 8));
 			rxDataRsp.write(temp);												// And finally write the data word to the output
 			//std::cerr << "Mem.Data: " << std::hex << temp.data << " - " << temp.keep << " - " << temp.last << std::endl;
@@ -297,6 +373,43 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 		break;
 	}
 }
+#else
+void rxAppMemDataRead(	stream<ap_uint<1> >&	rxBufferReadCmd,
+						stream<axiWord>&		rxBufferReadData,
+						stream<axiWord>&		rxDataRsp)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
+	static ap_uint<1> ramdr_fsmState = 0;
+	axiWord currWord;
+
+	switch(ramdr_fsmState)
+	{
+	case 0:
+		if (!rxBufferReadCmd.empty())
+		{
+			rxBufferReadCmd.read();
+			ramdr_fsmState = 1;
+		}
+		break;
+	case 1:
+		if (!rxBufferReadData.empty() && !rxDataRsp.full())
+		{
+			rxBufferReadData.read(currWord);
+			rxDataRsp.write(currWord);
+			if (currWord.last)
+			{
+				ramdr_fsmState = 0;
+			}
+		}
+		break;
+	}
+
+}
+#endif
+
+
 
 
 void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
@@ -307,7 +420,9 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 					stream<appNotification>&		timer2rxApp_notification,
 					stream<ap_uint<16> >&			appRxDataRspMetadata,
 					stream<rxSarAppd>&				rxApp2rxSar_upd_req,
+#if !(RX_DDR_BYPASS)
 					stream<mmCmd>&					rxBufferReadCmd,
+#endif
 					stream<bool>&					appListenPortRsp,
 					stream<ap_uint<16> >& 			rxApp2portTable_listen_req,
 					stream<appNotification>&		appNotification,
@@ -315,20 +430,37 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 					stream<axiWord> 				&rxDataRsp)
 {
 	#pragma HLS INLINE
-	static stream<mmCmd> rxAppStreamIf2memAccessBreakdown("rxAppStreamIf2memAccessBreakdown");
-	static stream<ap_uint<1> > rxAppDoubleAccess("rxAppDoubleAccess");
+	#pragma HLS PIPELINE II=1
+
+	static stream<mmCmd>			rxAppStreamIf2memAccessBreakdown("rxAppStreamIf2memAccessBreakdown");
+	static stream<ap_uint<1> >		rxAppDoubleAccess("rxAppDoubleAccess");
 	#pragma HLS stream variable=rxAppStreamIf2memAccessBreakdown	depth=16
 	#pragma HLS stream variable=rxAppDoubleAccess					depth=16
+
+#if (RX_DDR_BYPASS)
+	static stream<ap_uint<1> >		rxBufferReadCmd("rxBufferReadCmd");
+	#pragma HLS stream variable=rxBufferReadCmd					depth=4
+#endif
+
 	 // RX Application Stream Interface
+#if !(RX_DDR_BYPASS)
 	rx_app_stream_if(appRxDataReq, rxSar2rxApp_upd_rsp, appRxDataRspMetadata,
-					rxApp2rxSar_upd_req, rxAppStreamIf2memAccessBreakdown);
+						rxApp2rxSar_upd_req, rxAppStreamIf2memAccessBreakdown);
 	rxAppMemAccessBreakdown(rxAppStreamIf2memAccessBreakdown, rxBufferReadCmd, rxAppDoubleAccess);
 	rxAppMemDataRead(rxBufferReadData, rxDataRsp, rxAppDoubleAccess);
+#else
+	rx_app_stream_if(appRxDataReq, rxSar2rxApp_upd_rsp, appRxDataRspMetadata,
+						rxApp2rxSar_upd_req, rxBufferReadCmd);
+	rxAppMemDataRead(rxBufferReadCmd, rxBufferReadData, rxDataRsp);
+#endif
+
 	// RX Application Interface
 	rx_app_if(	appListenPortReq, portTable2rxApp_listen_rsp,
+
+
 		 	 	appListenPortRsp, rxApp2portTable_listen_req);
-	//notificationMerger(rxEng2rxApp_notification, timer2rxApp_notification, appNotification);
-	mergeFunction(rxEng2rxApp_notification, timer2rxApp_notification, appNotification);
+
+	stream_merger(rxEng2rxApp_notification, timer2rxApp_notification, appNotification);
 }
 
 /** @defgroup tcp_module TCP Module
@@ -395,7 +527,7 @@ void toe(	// Data & Memory Interface
 			stream<appReadRequest>&					rxDataReq,
 			stream<ipTuple>&						openConnReq,
 			stream<ap_uint<16> >&					closeConnReq,
-			stream<ap_uint<16> >&					txDataReqMeta,
+			stream<appTxMeta>&					   txDataReqMeta,
 			stream<axiWord>&						txDataReq,
 
 			stream<bool>&							listenPortRsp,
@@ -404,10 +536,10 @@ void toe(	// Data & Memory Interface
 			stream<axiWord>&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
 			stream<ap_int<17> >&					txDataRsp,
+
 			//IP Address Input
 			ap_uint<32>								regIpAddress,
 			//statistic
-			ap_uint<16>&							relSessionCount,
 			ap_uint<16>&							regSessionCount)
 {
 #pragma HLS DATAFLOW
@@ -438,10 +570,8 @@ void toe(	// Data & Memory Interface
 	#pragma HLS DATA_PACK variable=txBufferWriteCmd
 	#pragma HLS DATA_PACK variable=txBufferReadCmd
 
-	#pragma HLS resource core=AXI4Stream variable=rxDataReq metadata="-bus_bundle s_axis_rx_data_req"
-	#pragma HLS resource core=AXI4Stream variable=rxDataRspMeta metadata="-bus_bundle m_axis_rx_data_rsp_metadata"
 
-	#pragma HLS DATA_PACK variable=rxDataReq
+
 
 	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteStatus metadata="-bus_bundle s_axis_rxwrite_sts"
 	#pragma HLS resource core=AXI4Stream variable=txBufferWriteStatus metadata="-bus_bundle s_axis_txwrite_sts"
@@ -481,15 +611,15 @@ void toe(	// Data & Memory Interface
 	#pragma HLS resource core=AXI4Stream variable=txDataReq metadata="-bus_bundle s_axis_tx_data_req"
 	#pragma HLS resource core=AXI4Stream variable=txDataRsp metadata="-bus_bundle m_axis_tx_data_rsp"
 	#pragma HLS DATA_PACK variable=notification
+	#pragma HLS DATA_PACK variable=rxDataReq
 	#pragma HLS DATA_PACK variable=openConnReq
 	#pragma HLS DATA_PACK variable=openConnRsp
 	//#pragma HLS DATA_PACK variable=rxDataRspMeta
-	//#pragma HLS DATA_PACK variable=txDataReqMeta
+	#pragma HLS DATA_PACK variable=txDataReqMeta
 	//#pragma HLS DATA_PACK variable=txData
 
-	#pragma HLS INTERFACE ap_none register port=regIpAddress
-	#pragma HLS INTERFACE ap_none register port=regSessionCount
-	#pragma HLS INTERFACE ap_none register port=relSessionCount
+#pragma HLS INTERFACE ap_none register port=regIpAddress
+#pragma HLS INTERFACE ap_vld port=regSessionCount
 
 	/*
 	 * FIFOs
@@ -528,7 +658,7 @@ void toe(	// Data & Memory Interface
 	#pragma HLS stream variable=txApp2stateTable_req				depth=2
 	#pragma HLS stream variable=stateTable2txApp_rsp				depth=2
 	#pragma HLS stream variable=stateTable2sLookup_releaseSession	depth=2
-	//#pragma HLS DATA_PACK variable=rxEng2stateTable_upd_req
+	#pragma HLS DATA_PACK variable=rxEng2stateTable_upd_req
 	#pragma HLS DATA_PACK variable=txApp2stateTable_upd_req
 	//#pragma HLS DATA_PACK variable=txApp2stateTable_req
 
@@ -621,33 +751,32 @@ void toe(	// Data & Memory Interface
 
 	static stream<appNotification> 			rxEng2rxApp_notification("rxEng2rxApp_notification");
 	static stream<appNotification>			timer2rxApp_notification("timer2rxApp_notification");
+	static stream<openStatus>				timer2txApp_notification("timer2txApp_notification");
 	#pragma HLS stream variable=rxEng2rxApp_notification		depth=4
 	#pragma HLS stream variable=timer2rxApp_notification		depth=4
+	#pragma HLS stream variable=timer2txApp_notification		depth=4
 	#pragma HLS DATA_PACK variable=rxEng2rxApp_notification
 	#pragma HLS DATA_PACK variable=timer2rxApp_notification
+	#pragma HLS DATA_PACK variable=timer2txApp_notification
 
 	// Port Table
 	static stream<ap_uint<16> >				rxEng2portTable_check_req("rxEng2portTable_check_req");
 	static stream<bool>						portTable2rxEng_check_rsp("portTable2rxEng_check_rsp");
 	static stream<ap_uint<16> >				rxApp2portTable_listen_req("rxApp2portTable_listen_req");
 	static stream<bool>						portTable2rxApp_listen_rsp("portTable2rxApp_listen_rsp");
-	static stream<ap_uint<1> >				txApp2portTable_port_req("txApp2portTable_port_req");
+	//static stream<ap_uint<1> >				txApp2portTable_port_req("txApp2portTable_port_req");
 	static stream<ap_uint<16> >				portTable2txApp_port_rsp("portTable2txApp_port_rsp");
 	static stream<ap_uint<16> >				sLookup2portTable_releasePort("sLookup2portTable_releasePort");
 	#pragma HLS stream variable=rxEng2portTable_check_req			depth=4
 	#pragma HLS stream variable=portTable2rxEng_check_rsp			depth=4
 	#pragma HLS stream variable=rxApp2portTable_listen_req			depth=4
 	#pragma HLS stream variable=portTable2rxApp_listen_rsp			depth=4
-	#pragma HLS stream variable=txApp2portTable_port_req			depth=4
+	//#pragma HLS stream variable=txApp2portTable_port_req			depth=4
 	#pragma HLS stream variable=portTable2txApp_port_rsp			depth=4
 	#pragma HLS stream variable=sLookup2portTable_releasePort		depth=4
-	static stream<openStatus>				rtTimer2txApp_notification("rtTimer2txApp_notifcation");
-	#pragma HLS stream variable=rtTimer2txApp_notification depth=4
-	#pragma HLS DATA_PACK variable=rtTimer2txApp_notification
 
-	//ap_uint<16> relSessionCount;
-	//ap_uint<16> regSessionCount;
-	//ap_uint<32> regIpAddress 	= 0x01010101;
+   static stream<axiWord>                 txApp2txEng_data_stream("txApp2txEng_data_stream");
+   #pragma HLS stream variable=txApp2txEng_data_stream   depth=2048
 	/*
 	 * Data Structures
 	 */
@@ -666,9 +795,7 @@ void toe(	// Data & Memory Interface
 								//sessionInsert_req,
 								//sessionDelete_req,
 								sessionUpdate_rsp,
-								relSessionCount,
 								regSessionCount);
-
 	// State Table
 	state_table(	rxEng2stateTable_upd_req,
 					txApp2stateTable_upd_req,
@@ -697,7 +824,7 @@ void toe(	// Data & Memory Interface
 	// Port Table
 	port_table(		rxEng2portTable_check_req,
 					rxApp2portTable_listen_req,
-					txApp2portTable_port_req,
+					//txApp2portTable_port_req,
 					sLookup2portTable_releasePort,
 					portTable2rxEng_check_rsp,
 					portTable2rxApp_listen_rsp,
@@ -710,8 +837,8 @@ void toe(	// Data & Memory Interface
 					rxEng2timer_setCloseTimer,
 					timer2stateTable_releaseState,
 					timer2eventEng_setEvent,
-					rtTimer2txApp_notification,
-					timer2rxApp_notification);
+					timer2rxApp_notification,
+					timer2txApp_notification);
 
 	static stream<ap_uint<1> > ackDelayFifoReadCount("ackDelayFifoReadCount");
 	#pragma HLS stream variable=ackDelayFifoReadCount		depth=2
@@ -733,7 +860,9 @@ void toe(	// Data & Memory Interface
 				portTable2rxEng_check_rsp,
 				rxSar2rxEng_upd_rsp,
 				txSar2rxEng_upd_rsp,
+#if !(RX_DDR_BYPASS)
 				rxBufferWriteStatus,
+#endif
 				rxBufferWriteData,
 				rxEng2sLookup_req,
 				rxEng2stateTable_upd_req,
@@ -743,9 +872,11 @@ void toe(	// Data & Memory Interface
 				rxEng2timer_clearRetransmitTimer,
 				rxEng2timer_clearProbeTimer,
 				rxEng2timer_setCloseTimer,
-				conEstablishedFifo,
+				conEstablishedFifo, //remove this
 				rxEng2eventEng_setEvent,
+#if !(RX_DDR_BYPASS)
 				rxBufferWriteCmd,
+#endif
 				rxEng2rxApp_notification
 				);
 	// TX Engine
@@ -753,6 +884,9 @@ void toe(	// Data & Memory Interface
 				rxSar2txEng_rsp,
 				txSar2txEng_upd_rsp,
 				txBufferReadData,
+#if (TCP_NODELAY)
+            txApp2txEng_data_stream,
+#endif
 				sLookup2txEng_rev_rsp,
 				txEng2rxSar_req,
 				txEng2txSar_upd_req,
@@ -774,9 +908,13 @@ void toe(	// Data & Memory Interface
 			 	 	timer2rxApp_notification,
 			 	 	rxDataRspMeta,
 			 	 	rxApp2rxSar_upd_req,
-			 	 	rxBufferReadCmd, listenPortRsp,
+#if !(RX_DDR_BYPASS)
+			 	 	rxBufferReadCmd,
+#endif
+			 	 	listenPortRsp,
 			 	 	rxApp2portTable_listen_req,
-			 	 	notification, rxBufferReadData,
+			 	 	notification,
+			 	 	rxBufferReadData,
 					rxDataRsp);
 
 	tx_app_interface(	txDataReqMeta,
@@ -796,13 +934,16 @@ void toe(	// Data & Memory Interface
 						//txApp2txSar_upd_req,
 						txBufferWriteCmd,
 						txBufferWriteData,
+#if (TCP_NODELAY)
+                  txApp2txEng_data_stream,
+#endif
 						txApp2txSar_push,
 						openConnRsp,
 						txApp2sLookup_req,
-						txApp2portTable_port_req,
+						//txApp2portTable_port_req,
 						txApp2stateTable_upd_req,
 						txApp2eventEng_setEvent,
-						rtTimer2txApp_notification,
+						timer2txApp_notification,
 						regIpAddress);
 
 }

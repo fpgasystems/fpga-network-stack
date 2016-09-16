@@ -2,30 +2,31 @@
 Copyright (c) 2016, Xilinx, Inc.
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, 
+1. Redistributions of source code must retain the above copyright notice,
 this list of conditions and the following disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice, 
-this list of conditions and the following disclaimer in the documentation 
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
 and/or other materials provided with the distribution.
 
-3. Neither the name of the copyright holder nor the names of its contributors 
-may be used to endorse or promote products derived from this software 
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software
 without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "tx_app_if.hpp"
 
 using namespace hls;
@@ -61,60 +62,86 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 				stream<openStatus>&				conEstablishedIn, //alter
 				stream<openStatus>&				appOpenConnRsp,
 				stream<fourTuple>&				txApp2sLookup_req,
-				stream<ap_uint<1> >&			txApp2portTable_port_req,
+				//stream<ap_uint<1> >&			txApp2portTable_port_req,
 				stream<stateQuery>&				txApp2stateTable_upd_req,
 				stream<event>&					txApp2eventEng_setEvent,
 				stream<openStatus>&				rtTimer2txApp_notification,
-				ap_uint<32>						regIpAddress) {
+				ap_uint<32>						regIpAddress)
+{
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
 	enum taiFsmStateType {IDLE, CLOSE_CONN};
 	static taiFsmStateType tai_fsmState = IDLE;
 	static ap_uint<16> tai_closeSessionID;
-	static stream<ipTuple> txAppIpTupleBuffer("txAppIpTupleBuffer");
-	#pragma HLS stream variable=txAppIpTupleBuffer			depth=4
 
-	switch (tai_fsmState) {
+	ipTuple server_addr;
+	//fourTuple tuple;
+	sessionLookupReply session;
+	sessionState state;
+	ap_uint<16> freePort;
+	openStatus openSessionStatus;
+
+	if (!appOpenConnReq.empty() && !portTable2txApp_port_rsp.empty() && !txApp2sLookup_req.full())
+	{
+		appOpenConnReq.read(server_addr);
+		portTable2txApp_port_rsp.read(freePort);
+		// Implicit creationAllowed <= true
+		txApp2sLookup_req.write(fourTuple(regIpAddress, byteSwap32(server_addr.ip_address), byteSwap16(freePort), byteSwap16(server_addr.ip_port)));
+		//tai_waitFreePort = false;
+	}
+
+	switch (tai_fsmState)
+	{
 	case IDLE:
-		if (!appOpenConnReq.empty() && !txApp2portTable_port_req.full()) {
-			txAppIpTupleBuffer.write(appOpenConnReq.read());
-			txApp2portTable_port_req.write(1);
-		}
-		else if (!sLookup2txApp_rsp.empty()) 	{
-			sessionLookupReply session = sLookup2txApp_rsp.read();							// Read session
-			if (session.hit) { 																// Get session state
+		if (!sLookup2txApp_rsp.empty())
+		{
+			// Read session
+			sLookup2txApp_rsp.read(session);
+			// Get session state
+			if (session.hit)
+			{
 				txApp2eventEng_setEvent.write(event(SYN, session.sessionID));
 				txApp2stateTable_upd_req.write(stateQuery(session.sessionID, SYN_SENT, 1));
 			}
 			else
+			{
+				// Tell application that openConnection failed
 				appOpenConnRsp.write(openStatus(0, false));
+			}
 		}
 		else if (!conEstablishedIn.empty())
-			appOpenConnRsp.write(conEstablishedIn.read());	//Maybe check if we are actually waiting for this one
+		{
+			//Maybe check if we are actually waiting for this one
+			conEstablishedIn.read(openSessionStatus);
+			appOpenConnRsp.write(openSessionStatus);
+		}
 		else if (!rtTimer2txApp_notification.empty())
+		{
 			appOpenConnRsp.write(rtTimer2txApp_notification.read());
-		else if(!closeConnReq.empty()) {	// Close Request
+		}
+		else if(!closeConnReq.empty()) // Close Request
+		{
 			closeConnReq.read(tai_closeSessionID);
 			txApp2stateTable_upd_req.write(stateQuery(tai_closeSessionID));
 			tai_fsmState = CLOSE_CONN;
 		}
-		else if (!portTable2txApp_port_rsp.empty() && !txApp2sLookup_req.full()) {
-			ap_uint<16> freePort 	= portTable2txApp_port_rsp.read() + 32768;
-			ipTuple server_addr 	= txAppIpTupleBuffer.read();
-			txApp2sLookup_req.write(fourTuple(regIpAddress, byteSwap32(server_addr.ip_address), byteSwap16(freePort), byteSwap16(server_addr.ip_port))); // Implicit creationAllowed <= true
-		}
 		break;
 	case CLOSE_CONN:
-		if (!stateTable2txApp_upd_rsp.empty()) {
-			sessionState state = stateTable2txApp_upd_rsp.read();
+		if (!stateTable2txApp_upd_rsp.empty())
+		{
+			stateTable2txApp_upd_rsp.read(state);
 			//TODO might add CLOSE_WAIT here???
-			if ((state == ESTABLISHED) || (state == FIN_WAIT_2) || (state == FIN_WAIT_1)) {	//TODO Why if FIN already SENT
+			if ((state == ESTABLISHED) || (state == FIN_WAIT_2) || (state == FIN_WAIT_1)) //TODO Why if FIN already SENT
+			{
 				txApp2stateTable_upd_req.write(stateQuery(tai_closeSessionID, FIN_WAIT_1, 1));
 				txApp2eventEng_setEvent.write(event(FIN, tai_closeSessionID));
 			}
 			else
-				txApp2stateTable_upd_req.write(stateQuery(tai_closeSessionID, state, 1)); // Have to release lock
+			{
+				// Have to release lock
+				txApp2stateTable_upd_req.write(stateQuery(tai_closeSessionID, state, 1));
+			}
 			tai_fsmState = IDLE;
 		}
 		break;
