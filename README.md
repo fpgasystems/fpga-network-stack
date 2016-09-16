@@ -91,6 +91,9 @@ Please refer to and read the [Contributing][] document for guidelines on how to 
 
 ## 9. Acknowledgements
 This project is written by developers at [Xilinx](http://www.xilinx.com/) with other contributors listed below:
+David Sidler, Systems Group, ETH Zurich (former Intern at Xilinx)
+more information about David Sidler can be found at http://davidsidler.ch and http://systems.ethz.ch
+
 
 ## 10. REVISION HISTORY
 
