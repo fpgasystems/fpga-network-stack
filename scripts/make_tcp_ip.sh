@@ -8,8 +8,6 @@
 # Vivado_hls version:
 #			2015.1
 ################################################################################
-##cadman add -t xilinx -v 2015.1 -p vivado_gsd
-##create ./build folder to store all intermediate results
 BUILDDIR="$PWD/build"
 
 echo "BUILDDIR is $BUILDDIR"
@@ -74,6 +72,7 @@ else
 fi
 
 eval cp -R ../hls/arp_server/arp_server_prj/solution1/impl/ip ./arp_server
+eval cp -R ../hls/arp_server_subnet/arp_server_subnet_prj/solution1/impl/ip ./arp_server_subnet
 eval cp -R ../hls/dhcp_client/dhcp_prj/solution1/impl/ip ./dhcp_client
 eval cp -R ../hls/echo_server_application/echo_server_prj/solution1/impl/ip ./echo_server
 eval cp -R ../hls/icmp_server/icmpServer_prj/solution1/impl/ip ./icmp_server

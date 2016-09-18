@@ -1,6 +1,6 @@
-set proj_name "tcp_ip"
+set proj_name "tcp_ip_adm7v3"
 set root_dir [pwd]
-set proj_dir $root_dir/build/proj
+set proj_dir $root_dir/build/proj_adm7v3
 set src_dir $root_dir/../rtl
 set ip_dir $root_dir/../ip
 set constraints_dir $root_dir/../constraints
@@ -23,15 +23,18 @@ set_property IP_REPO_PATHS $lib_dir [current_fileset]
 update_ip_catalog
 
 # Add sources
-add_files $src_dir
+add_files $src_dir/common
+add_files -norecurse $src_dir/7series
+add_files $src_dir/7series/adm7v3
+
 #foreach subdir [glob -type d $ip_dir/*] {
 #	import_files [glob $subdir/*.xci]
 #}
 #add_files [glob ./ip/*.xcix]
 add_files $ip_dir/mig_7series_0.dcp
 add_files $ip_dir/SmartCamCtl.dcp
-add_files $ip_dir/SmartCamCtlArp.dcp
-add_files -fileset constrs_1 $constraints_dir
+#add_files $ip_dir/SmartCamCtlArp.dcp
+add_files -fileset constrs_1 $constraints_dir/adm7v3.xdc
 
 #create ips
 create_ip -name ten_gig_eth_pcs_pma -vendor xilinx.com -library ip -version 6.0 -module_name ten_gig_eth_pcs_pma_ip
@@ -64,7 +67,7 @@ set_property -dict [list CONFIG.TDATA_NUM_BYTES {8} CONFIG.HAS_TKEEP {1} CONFIG.
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/axis_register_slice_64/axis_register_slice_64.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name toe -vendor xilinx.labs -library hls -version 1.5 -module_name toe_ip
+create_ip -name toe -vendor ethz.systems -library hls -version 1.6 -module_name toe_ip
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/toe_ip/toe_ip.xci]
 update_compile_order -fileset sources_1
 
@@ -72,7 +75,7 @@ create_ip -name udp -vendor xilinx.labs -library hls -version 1.41 -module_name 
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/udp_0/udp_0.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name ip_handler -vendor xilinx.labs -library hls -version 1.21 -module_name ip_handler_ip
+create_ip -name ip_handler -vendor ethz.systems -library hls -version 1.2 -module_name ip_handler_ip
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/ip_handler_ip/ip_handler_ip.xci]
 update_compile_order -fileset sources_1
 
@@ -125,8 +128,8 @@ set_property -dict [list CONFIG.c_m_axi_mm2s_data_width {512} CONFIG.c_m_axis_mm
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/axi_datamover_1/axi_datamover_1.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name arp_server -vendor xilinx.labs -library hls -version 1.14 -module_name arp_server_ip
-generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/arp_server_ip/arp_server_ip.xci]
+create_ip -name arp_server_subnet -vendor ethz.systems -library hls -version 1.0 -module_name arp_server_subnet_ip
+generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/arp_server_subnet_ip/arp_server_subnet_ip.xci]
 update_compile_order -fileset sources_1
 
 start_gui
