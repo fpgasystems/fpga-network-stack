@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -20,68 +21,98 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module tcp_ip(
-    // 156.25 MHz clock in
-    input                           xphy_refclk_p,
-    input                           xphy_refclk_n,
-    // Ethernet Tx & Rx Differential Pairs //  
-    output                          xphy0_txp,
-    output                          xphy0_txn,
-    input                           xphy0_rxp,
-    input                           xphy0_rxn,
+module tcp_ip_top(
+    // 212MHz clock input
+input wire                          sys_clk_p,
+input wire                         sys_clk_n,
+// 200MHz reference clock input
+input wire                         clk_ref_p,
+input wire                         clk_ref_n,
+
+//-SI5324 I2C programming interface
+inout wire                         i2c_clk,
+inout wire                         i2c_data,
+output wire                         i2c_mux_rst_n,
+output wire                        si5324_rst_n,
+// 156.25 MHz clock in
+input wire                         xphy_refclk_p,
+input wire                         xphy_refclk_n,
+
+output wire                         xphy0_txp,
+output wire                         xphy0_txn,
+input wire                          xphy0_rxp,
+input wire                          xphy0_rxn,
+
+input wire         button_north,
+input wire         button_east,
+input wire         button_west,
+
+/*  output wire                         xphy1_txp,
+output wire                         xphy1_txn,
+input wire                          xphy1_rxp,
+input wire                          xphy1_rxn,
+
+output wire                         xphy2_txp,
+output wire                         xphy2_txn,
+input wire                          xphy2_rxp,
+input wire                          xphy2_rxn,
+
+output wire                         xphy3_txp,
+output wire                         xphy3_txn,
+input wire                          xphy3_rxp,
+input wire                          xphy3_rxn,*/
+
+output wire[3:0] sfp_tx_disable,
+
+  // Connection to SODIMM-A
+  output wire [15:0]                  c0_ddr3_addr,             
+  output wire [2:0]                   c0_ddr3_ba,               
+  output wire                         c0_ddr3_cas_n,            
+  output wire                         c0_ddr3_ck_p,               
+  output wire                         c0_ddr3_ck_n,             
+  output wire                         c0_ddr3_cke,              
+  output wire                         c0_ddr3_cs_n,             
+  output wire [7:0]                   c0_ddr3_dm,               
+  inout  wire [63:0]                  c0_ddr3_dq,               
+  inout  wire [7:0]                   c0_ddr3_dqs_p,              
+  inout  wire [7:0]                   c0_ddr3_dqs_n,            
+  output wire                         c0_ddr3_odt,              
+  output wire                         c0_ddr3_ras_n,            
+  output wire                         c0_ddr3_reset_n,          
+  output wire                         c0_ddr3_we_n,             
+
+    // Connection to SODIMM-B
+  output wire [15:0]                  c1_ddr3_addr,             
+  output wire [2:0]                   c1_ddr3_ba,               
+  output wire                         c1_ddr3_cas_n,            
+  output wire                         c1_ddr3_ck_p,               
+  output wire                         c1_ddr3_ck_n,             
+  output wire                         c1_ddr3_cke,              
+  output wire                         c1_ddr3_cs_n,             
+  output wire [7:0]                   c1_ddr3_dm,               
+  inout  wire[63:0]                  c1_ddr3_dq,               
+  inout  wire[7:0]                   c1_ddr3_dqs_p,              
+  inout  wire[7:0]                   c1_ddr3_dqs_n,            
+  output wire                         c1_ddr3_odt,              
+  output wire                         c1_ddr3_ras_n,            
+  output wire                         c1_ddr3_reset_n,          
+  output wire                         c1_ddr3_we_n,
+  
+  input wire                         sys_rst_i,
+  
+  // UART
+  //input wire                          RxD,
+  //output wire                         TxD,
+  input wire   [7:0]                  gpio_switch,
+  output wire [7:0]                  led 
+    );
     
-    output[1:0]                     sfp_tx_disable,
-    output                          sfp_on,
-    input                           perst_n,
-    
-    // Connection to SODIMM-A
-    // Inouts
-    inout [71:0]                    c0_ddr3_dq,
-    inout [8:0]                     c0_ddr3_dqs_n,
-    inout [8:0]                     c0_ddr3_dqs_p,
-    output [15:0]                   c0_ddr3_addr,
-    output [2:0]                    c0_ddr3_ba,
-    output                          c0_ddr3_ras_n,
-    output                          c0_ddr3_cas_n,
-    output                          c0_ddr3_we_n,
-    output                          c0_ddr3_reset_n,
-    output [1:0]                    c0_ddr3_ck_p,
-    output [1:0]                    c0_ddr3_ck_n,
-    output [1:0]                    c0_ddr3_cke,
-    output [1:0]                    c0_ddr3_cs_n,
-    output [1:0]                    c0_ddr3_odt,
-    // Differential system clocks
-    input                           c0_sys_clk_p,
-    input                           c0_sys_clk_n,
-    // differential iodelayctrl clk (reference clock)
-    input                           clk_ref_p,
-    input                           clk_ref_n,
-    // Inouts
-    inout [71:0]                    c1_ddr3_dq,
-    inout [8:0]                     c1_ddr3_dqs_n,
-    inout [8:0]                     c1_ddr3_dqs_p,
-    output [15:0]                   c1_ddr3_addr,
-    output [2:0]                    c1_ddr3_ba,
-    output                          c1_ddr3_ras_n,
-    output                          c1_ddr3_cas_n,
-    output                          c1_ddr3_we_n,
-    output                          c1_ddr3_reset_n,
-    output [1:0]                    c1_ddr3_ck_p,
-    output [1:0]                    c1_ddr3_ck_n,
-    output [1:0]                    c1_ddr3_cke,
-    output [1:0]                    c1_ddr3_cs_n,
-    output [1:0]                    c1_ddr3_odt,
-    // Differential system clocks
-    input                           c1_sys_clk_p,
-    input                           c1_sys_clk_n,             
-    input                           pok_dram, //used as reset to ddr
-    output[8:0]                     c0_ddr3_dm,
-    output[8:0]                     c1_ddr3_dm,
-    output[1:0]                     dram_on,
-    input                           usr_sw,
-    output[5:0]                     usr_led);
-    
+wire reset;
 wire network_init;
+reg button_east_reg;
+reg[7:0] led_reg;
+wire[7:0] led_out;
+assign reset = button_east_reg;
 
 wire aresetn;
 
@@ -95,11 +126,11 @@ wire          upd_req_TDATA_out;
 wire          upd_rsp_TVALID_out;
 wire          upd_rsp_TREADY_out;
     
-//assign aresetn = network_init;
-assign sfp_on = 1'b1;
-assign dram_on = 2'b11;
-assign c0_ddr3_dm = 9'h0;
-assign c1_ddr3_dm = 9'h0;
+assign aresetn = network_init;
+//assign sfp_on = 1'b1;
+//assign dram_on = 2'b11;
+//assign c0_ddr3_dm = 9'h0;
+//assign c1_ddr3_dm = 9'h0;
 //assign aresetn = init_calib_complete_r; //reset156_25_n;
 wire axi_clk;
 wire clk_ref_200;
@@ -223,7 +254,7 @@ wire        axis_rx_data_TLAST;
 // tx data
 wire        axis_tx_metadata_TVALID;
 wire        axis_tx_metadata_TREADY;
-wire[15:0]  axis_tx_metadata_TDATA;
+wire[31:0]  axis_tx_metadata_TDATA;
 wire        axis_tx_data_TVALID;
 wire        axis_tx_data_TREADY;
 wire[63:0]  axis_tx_data_TDATA;
@@ -235,37 +266,72 @@ wire[23:0]  axis_tx_status_TDATA;
 
 wire[15:0]  regSessionCount;
 wire[15:0]  relSessionCount;
+
+
+always @(posedge axi_clk) begin
+    button_east_reg <= button_east;
+    led_reg <= led_out;
+/*    runExperiment <= button_north | vio_cmd[0];
+    dualModeEn <= vio_cmd[1];
+    useConn <= vio_cmd[15:2];
+    pkgWordCount <= vio_cmd[23:16];
+	 regIpSub0 <= vio_cmd[31:24];
+	 regIpSub1 <= vio_cmd[39:32];
+	 regIpSub2 <= vio_cmd[47:40];
+	 regIpSub3 <= vio_cmd[55:48];*/
+    //regIpAddress1 <= vio_cmd[49:18];
+    //numCons <= vio_cmd[33:18];
+end
+assign led = led_reg;
+
+
 /*
  * 10G Network Interface Module
  */
-eth10g_interface n10g_interface_inst (
-.reset(~perst_n),
-.aresetn(aresetn),
-.xphy_refclk_p(xphy_refclk_p),
-.xphy_refclk_n(xphy_refclk_n),
-.xphy0_txp(xphy0_txp),
-.xphy0_txn(xphy0_txn),
-.xphy0_rxp(xphy0_rxp),
-.xphy0_rxn(xphy0_rxn),
-//master
-.axis_i_0_tdata(AXI_S_Stream_TDATA),
-.axis_i_0_tvalid(AXI_S_Stream_TVALID),
-.axis_i_0_tlast(AXI_S_Stream_TLAST),
-.axis_i_0_tuser(),
-.axis_i_0_tkeep(AXI_S_Stream_TKEEP),
-.axis_i_0_tready(AXI_S_Stream_TREADY),
-//slave
-.axis_o_0_tdata(AXI_M_Stream_TDATA),
-.axis_o_0_tvalid(AXI_M_Stream_TVALID),
-.axis_o_0_tlast(AXI_M_Stream_TLAST),
-.axis_o_0_tuser(0),
-.axis_o_0_tkeep(AXI_M_Stream_TKEEP),
-.axis_o_0_tready(AXI_M_Stream_TREADY),    
-.sfp_tx_disable(sfp_tx_disable),
-.clk156_out(axi_clk),
-.clk_ref_200_out(clk_ref_200),
-.network_reset_done(network_init),
-.led());
+vc709_10g_interface n10g_interface_inst
+ (
+ .clk_ref_p(clk_ref_p),
+ .clk_ref_n(clk_ref_n),
+ .reset(reset),
+ .aresetn(aresetn),
+ 
+ .i2c_clk(i2c_clk),
+ .i2c_data(i2c_data),
+ .i2c_mux_rst_n(i2c_mux_rst_n),
+ .si5324_rst_n(si5324_rst_n),
+ 
+ .xphy_refclk_p(xphy_refclk_p),
+ .xphy_refclk_n(xphy_refclk_n),
+ 
+ .xphy0_txp(xphy0_txp),
+ .xphy0_txn(xphy0_txn),
+ .xphy0_rxp(xphy0_rxp),
+ .xphy0_rxn(xphy0_rxn),
+ 
+ 
+ //master
+ .axis_i_0_tdata(AXI_S_Stream_TDATA),
+ .axis_i_0_tvalid(AXI_S_Stream_TVALID),
+ .axis_i_0_tlast(AXI_S_Stream_TLAST),
+ .axis_i_0_tuser(),
+ .axis_i_0_tkeep(AXI_S_Stream_TKEEP),
+ .axis_i_0_tready(AXI_S_Stream_TREADY),
+     
+ //slave
+ .axis_o_0_tdata(AXI_M_Stream_TDATA),
+ .axis_o_0_tvalid(AXI_M_Stream_TVALID),
+ .axis_o_0_tlast(AXI_M_Stream_TLAST),
+ .axis_o_0_tuser(0),
+ .axis_o_0_tkeep(AXI_M_Stream_TKEEP),
+ .axis_o_0_tready(AXI_M_Stream_TREADY),
+     
+ .sfp_tx_disable(sfp_tx_disable),
+ .clk156_out(axi_clk),
+ .clk_ref_200_out(clk_ref_200),
+ .network_reset_done(network_init),
+ .led(led_out)
+ 
+ );
 
 /*
  * TCP/IP Wrapper Module
@@ -378,13 +444,13 @@ ila_1 mdHandlerFifo (
 	.probe2(metadataHandlerFifo_write) // input wire [0:0]  probe2
 );*/
 
-tcp_ip_wrapper tcp_ip_inst(
+network_stack network_stack_inst(
 .aclk                           (axi_clk),
 .aresetn                        (aresetn),
 .myMacAddress			        (48'hE59D02350A00),
-.inputIpAddress                 (32'h01010101),
-.dhcpEnable                     (1'b1),
-.ipAddressout                   (ipAddressOut),
+.inputIpAddress                 (32'hD1D4010A),
+.dhcpEnable                     (1'b0),
+.ipAddressOut                   (ipAddressOut),
 .regSessionCount                (regSessionCount),
 .relSessionCount                (relSessionCount),
 //////////////////////////////////////////////////
@@ -641,10 +707,10 @@ begin
 end
 
 echo_server_application_ip myEchoServer (
-  .ap_start(ap_start),                                                      // input wire ap_start
+ /* .ap_start(ap_start),                                                      // input wire ap_start
   .ap_ready(),                                                          // output wire ap_ready
   .ap_done(),                                                           // output wire ap_done
-  .ap_idle(),                                                           // output wire ap_idle
+  .ap_idle(),                                                           // output wire ap_idle*/
   .m_axis_close_connection_TVALID(axis_close_connection_TVALID),      // output wire m_axis_close_connection_TVALID
   .m_axis_close_connection_TREADY(axis_close_connection_TREADY),      // input wire m_axis_close_connection_TREADY
   .m_axis_close_connection_TDATA(axis_close_connection_TDATA),        // output wire [15 : 0] m_axis_close_connection_TDATA
@@ -781,7 +847,7 @@ udpLoopback_0 udpLoopback_inst (
 //DRAM MEM interface
 
 //wire clk156_25;
-wire reset156_25_n;
+//wire reset156_25_n;
 wire clk233;
 wire clk200, clk200_i;
 wire c0_init_calib_complete;
@@ -893,7 +959,7 @@ wire ddr3_calib_complete, init_calib_complete;
 wire toeTX_compare_error, ht_compare_error, upd_compare_error;
 
 reg rst_n_r1, rst_n_r2, rst_n_r3;
-reg reset156_25_n_r1, reset156_25_n_r2, reset156_25_n_r3;
+//reg reset156_25_n_r1, reset156_25_n_r2, reset156_25_n_r3;
 
 //registers for crossing clock domains (from 233MHz to 156.25MHz)
 reg c0_init_calib_complete_r1, c0_init_calib_complete_r2;
@@ -904,21 +970,38 @@ reg c1_init_calib_complete_r1, c1_init_calib_complete_r2;
 //localparam UPD_START_ADDR = 32'd32;
 
 
+//- 212MHz differential clock for 1866Mbps DDR3 controller
+IBUFGDS #(
+ .DIFF_TERM    ("TRUE"),
+ .IBUF_LOW_PWR ("FALSE")
+) clk_233_ibufg (
+ .I            (sys_clk_p),
+ .IB           (sys_clk_n),
+ .O            (clk233)
+);
+
+// sys_rst
+wire sys_rst;
+IBUF clk_212_bufg
+ (
+     .I                              (sys_rst_i),
+     .O                              (sys_rst) 
+ );
 
    
 //assign clk156_25 = axi_clk;
 //assign clk200 = clk_ref_200;
 
-   always @(posedge axi_clk) begin
+   /*always @(posedge axi_clk) begin
         reset156_25_n_r1 <= perst_n & pok_dram & network_init;
         reset156_25_n_r2 <= reset156_25_n_r1;
         reset156_25_n_r3 <= reset156_25_n_r2;
    end
   
    assign reset156_25_n = reset156_25_n_r3;
-    assign aresetn = reset156_25_n & network_init;
+    assign aresetn = reset156_25_n & network_init;*/
 always @(posedge axi_clk) 
-    if (~reset156_25_n) begin
+    if (~aresetn) begin
         c0_init_calib_complete_r1 <= 1'b0;
         c0_init_calib_complete_r2 <= 1'b0;
         c1_init_calib_complete_r1 <= 1'b0;
@@ -1113,8 +1196,9 @@ mem_inf_inst(
 .clk156_25(axi_clk),
 //.reset233_n(reset233_n), //active low reset signal for 233MHz clock domain
 .reset156_25_n(ddr3_calib_complete),
-//.clk233(clk233),
-//.clk200(clk_ref_200),
+.clk212(clk233),
+.clk200(clk_ref_200),
+.sys_rst(sys_rst),
 
 //ddr3 pins
 //SODIMM 0
@@ -1134,19 +1218,11 @@ mem_inf_inst(
 .c0_ddr3_ck_n(c0_ddr3_ck_n),
 .c0_ddr3_cke(c0_ddr3_cke),
 .c0_ddr3_cs_n(c0_ddr3_cs_n),
-//.c0_ddr3_dm(c0_ddr3_dm),
+.c0_ddr3_dm(c0_ddr3_dm),
 .c0_ddr3_odt(c0_ddr3_odt),
 .c0_ui_clk(),
 .c0_init_calib_complete(c0_init_calib_complete),
-  // Differential system clocks
-.c0_sys_clk_p(c0_sys_clk_p),
-.c0_sys_clk_n(c0_sys_clk_n),
- // differential iodelayctrl clk (reference clock)
-.clk_ref_p(clk_ref_p),
-.clk_ref_n(clk_ref_n),
-.c1_sys_clk_p(c1_sys_clk_p),
-.c1_sys_clk_n(c1_sys_clk_n),
-.sys_rst(perst_n & pok_dram),
+
 //SODIMM 1
 // Inouts
 .c1_ddr3_dq(c1_ddr3_dq),
@@ -1164,7 +1240,7 @@ mem_inf_inst(
 .c1_ddr3_ck_n(c1_ddr3_ck_n),
 .c1_ddr3_cke(c1_ddr3_cke),
 .c1_ddr3_cs_n(c1_ddr3_cs_n),
-//.c1_ddr3_dm(c1_ddr3_dm),
+.c1_ddr3_dm(c1_ddr3_dm),
 .c1_ddr3_odt(c1_ddr3_odt),
 .c1_ui_clk(),
 .c1_init_calib_complete(c1_init_calib_complete),
@@ -1289,10 +1365,10 @@ mem_inf_inst(
 .upd_s_axis_write_tready(upd_s_axis_write_tready)
 );
 
-assign usr_led[0] = init_calib_complete;
+/*assign usr_led[0] = init_calib_complete;
 assign usr_led[1] = perst_n & pok_dram;
 assign usr_led[2] = app_start;
-assign usr_led[5:3] = 0;
+assign usr_led[5:3] = 0;*/
 /*
 always@ (posedge axi_clk)
 begin
@@ -1352,4 +1428,7 @@ slupIla slupProbe (
 	.probe3(upd_rsp_TVALID_out), // input wire [0:0]  probe3 
 	.probe4(upd_rsp_TREADY_out) // input wire [0:0]  probe4
 );*/
+
 endmodule
+
+`default_nettype wire

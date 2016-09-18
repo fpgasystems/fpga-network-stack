@@ -20,11 +20,18 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module eth10g_interface(
+module vc709_10g_interface(
 // 200MHz reference clock input
+    input                          clk_ref_p,
+    input                          clk_ref_n,
     input                          reset,
     input                          aresetn,
-    
+
+    //-SI5324 I2C programming interface
+    inout                          i2c_clk,
+    inout                          i2c_data,
+    output                         i2c_mux_rst_n,
+    output                         si5324_rst_n,
     // 156.25 MHz clock in
     input                          xphy_refclk_p,
     input                          xphy_refclk_n,
@@ -55,10 +62,6 @@ module eth10g_interface(
     output            axis_i_0_tuser,
     output[7:0]       axis_i_0_tkeep,
     input            axis_i_0_tready,
-    //rx status
-    output           nic_rx_fifo_overflow,
-    output [29:0]   nic_rx_statistics_vector,
-    output          nic_rx_statistics_valid,
     
     input[63:0]      axis_o_0_tdata,
     input            axis_o_0_tvalid,
@@ -79,6 +82,7 @@ module eth10g_interface(
 
 
 wire                                  clk_ref_200;
+wire                                  clk_ref_200_i;
 
 wire[7:0] core0_status;
 wire[7:0] core1_status;
@@ -112,6 +116,21 @@ wire dclk_i;
 wire xphyrefclk_i;
 
 assign network_reset_done = ~core_reset;
+
+
+/*wire[63:0]      axis_i_0_tdata;
+wire            axis_i_0_tvalid;
+wire            axis_i_0_tlast;
+wire            axis_i_0_tuser;
+wire[7:0]       axis_i_0_tkeep;
+wire            axis_i_0_tready;
+
+wire[63:0]      axis_o_0_tdata;
+wire            axis_o_0_tvalid;
+wire            axis_o_0_tlast;
+//wire          axis_o_0_tuser;
+wire[7:0]       axis_o_0_tkeep;
+wire            axis_o_0_tready;*/
 
 wire[63:0]      axis_i_1_tdata;
 wire            axis_i_1_tvalid;
@@ -161,6 +180,46 @@ assign clk_ref_200_out = clk_ref_200;
 /*
  * Clocks
  */
+
+
+// 200mhz ref clk
+IBUFGDS #(
+  .DIFF_TERM    ("TRUE"),
+  .IBUF_LOW_PWR ("FALSE")
+) diff_clk_200 (
+  .I    (clk_ref_p  ),
+  .IB   (clk_ref_n  ),
+  .O    (clk_ref_200_i )  
+);
+
+BUFG u_bufg_clk_ref
+(
+  .O (clk_ref_200),
+  .I (clk_ref_200_i)
+);
+
+// 50mhz clk
+wire          clk50;
+reg [1:0]     clk_divide = 2'b00;
+
+always @(posedge clk_ref_200)
+clk_divide  <= clk_divide + 1'b1;
+
+BUFG buffer_clk50 (
+.I    (clk_divide[1]),
+.O    (clk50        )
+);
+ 
+ 
+//-SI 5324 programming
+clock_control cc_inst (
+   .i2c_clk        (i2c_clk        ),
+   .i2c_data       (i2c_data       ),
+   .i2c_mux_rst_n  (i2c_mux_rst_n  ),
+   .si5324_rst_n   (si5324_rst_n   ),
+   .rst            (reset    ),  
+   .clk50          (clk50          )
+ );    
 
 
 /*
@@ -217,16 +276,192 @@ network_module network_inst_0
 .rx_axis_tkeep(axis_i_0_tkeep),
 .rx_axis_tready(axis_i_0_tready),
 
+
 .core_reset(core_reset),
 .tx_fault(tx_fault),
 .signal_detect(signal_detect),
 .tx_ifg_delay(tx_ifg_delay),
 .tx_disable(),
-.rx_fifo_overflow(nic_rx_fifo_overflow),
-.rx_statistics_vector(nic_rx_statistics_vector),
-.rx_statistics_valid(nic_rx_statistics_valid),
 .core_status(core0_status)
 );
+
+//assign axis_o_0_tdata = axis_i_0_tdata;
+///assign axis_o_0_tvalid = axis_i_0_tvalid;
+//assign axis_o_0_tkeep = axis_i_0_tkeep;
+//assign axis_o_0_tlast = axis_i_0_tlast;
+//assign axis_o_0_tuser <= ;
+//assign axis_i_0_tready = axis_o_0_tready;
+/*
+network_module network_inst_1
+(
+.clk156 (clk156_25),
+.reset(reset),
+.dclk                             (dclk_i),
+.txusrclk                         (gt_txusrclk),
+.txusrclk2                        (gt_txusrclk2),
+.txclk322                         (),
+
+.areset_refclk_bufh               (areset_clk_156_25_bufh),
+.areset_clk156                    (areset_clk_156_25),
+.mmcm_locked_clk156              (mmcm_locked_clk156),
+.gttxreset_txusrclk2              (gttxreset_txusrclk2),
+.gttxreset                        (gttxreset),
+.gtrxreset                        (gtrxreset),
+.txuserrdy                        (gt_txuserrdy),
+.qplllock                         (gt_qplllock),
+.qplloutclk                       (gt_qplloutclk),
+.qplloutrefclk                    (gt_qplloutrefclk),
+.reset_counter_done               (reset_counter_done),
+.tx_resetdone                      (gt1_tx_resetdone),
+
+.txp(xphy1_txp),
+.txn(xphy1_txn),
+.rxp(xphy1_rxp),
+.rxn(xphy1_rxn),
+
+.tx_axis_tdata(axis_o_1_tdata),
+.tx_axis_tvalid(axis_o_1_tvalid),
+.tx_axis_tlast(axis_o_1_tlast),
+.tx_axis_tuser(1'b0),
+.tx_axis_tkeep(axis_o_1_tkeep),
+.tx_axis_tready(axis_o_1_tready),
+
+.rx_axis_tdata(axis_i_1_tdata),
+.rx_axis_tvalid(axis_i_1_tvalid),
+.rx_axis_tuser(axis_i_1_tuser),
+.rx_axis_tlast(axis_i_1_tlast),
+.rx_axis_tkeep(axis_i_1_tkeep),
+.rx_axis_tready(axis_i_1_tready),
+
+.core_reset(core_reset),
+.tx_fault(tx_fault),
+.signal_detect(signal_detect),
+.tx_ifg_delay(tx_ifg_delay),
+.tx_disable(),
+.core_status(core1_status)
+);
+
+assign axis_o_1_tdata = axis_i_1_tdata;
+assign axis_o_1_tvalid = axis_i_1_tvalid;
+assign axis_o_1_tkeep = axis_i_1_tkeep;
+assign axis_o_1_tlast = axis_i_1_tlast;
+//assign axis_o_0_tuser <= ;
+assign axis_i_1_tready = axis_o_1_tready;
+
+
+network_module network_inst_2
+(
+.clk156 (clk156_25),
+.reset(reset),
+.dclk                             (dclk_i),
+.txusrclk                         (gt_txusrclk),
+.txusrclk2                        (gt_txusrclk2),
+.txclk322                         (),
+
+.areset_refclk_bufh               (areset_clk_156_25_bufh),
+.areset_clk156                    (areset_clk_156_25),
+.mmcm_locked_clk156              (mmcm_locked_clk156),
+.gttxreset_txusrclk2              (gttxreset_txusrclk2),
+.gttxreset                        (gttxreset),
+.gtrxreset                        (gtrxreset),
+.txuserrdy                        (gt_txuserrdy),
+.qplllock                         (gt_qplllock),
+.qplloutclk                       (gt_qplloutclk),
+.qplloutrefclk                    (gt_qplloutrefclk),
+.reset_counter_done               (reset_counter_done),
+.tx_resetdone                      (gt2_tx_resetdone),
+
+.txp(xphy2_txp),
+.txn(xphy2_txn),
+.rxp(xphy2_rxp),
+.rxn(xphy2_rxn),
+
+.tx_axis_tdata(axis_o_2_tdata),
+.tx_axis_tvalid(axis_o_2_tvalid),
+.tx_axis_tlast(axis_o_2_tlast),
+.tx_axis_tuser(1'b0),
+.tx_axis_tkeep(axis_o_2_tkeep),
+.tx_axis_tready(axis_o_2_tready),
+
+.rx_axis_tdata(axis_i_2_tdata),
+.rx_axis_tvalid(axis_i_2_tvalid),
+.rx_axis_tuser(axis_i_2_tuser),
+.rx_axis_tlast(axis_i_2_tlast),
+.rx_axis_tkeep(axis_i_2_tkeep),
+.rx_axis_tready(axis_i_2_tready),
+
+.core_reset(core_reset),
+.tx_fault(tx_fault),
+.signal_detect(signal_detect),
+.tx_ifg_delay(tx_ifg_delay),
+.tx_disable(),
+.core_status(core2_status)
+);
+
+network_module network_inst_3
+(
+.clk156 (clk156_25),
+.reset(reset),
+.dclk                             (dclk_i),
+.txusrclk                         (gt_txusrclk),
+.txusrclk2                        (gt_txusrclk2),
+.txclk322                         (),
+
+.areset_refclk_bufh               (areset_clk_156_25_bufh),
+.areset_clk156                    (areset_clk_156_25),
+.mmcm_locked_clk156              (mmcm_locked_clk156),
+.gttxreset_txusrclk2              (gttxreset_txusrclk2),
+.gttxreset                        (gttxreset),
+.gtrxreset                        (gtrxreset),
+.txuserrdy                        (gt_txuserrdy),
+.qplllock                         (gt_qplllock),
+.qplloutclk                       (gt_qplloutclk),
+.qplloutrefclk                    (gt_qplloutrefclk),
+.reset_counter_done               (reset_counter_done),
+.tx_resetdone                      (gt3_tx_resetdone),
+
+.txp(xphy3_txp),
+.txn(xphy3_txn),
+.rxp(xphy3_rxp),
+.rxn(xphy3_rxn),
+
+.tx_axis_tdata(axis_o_3_tdata),
+.tx_axis_tvalid(axis_o_3_tvalid),
+.tx_axis_tlast(axis_o_3_tlast),
+.tx_axis_tuser(1'b0),
+.tx_axis_tkeep(axis_o_3_tkeep),
+.tx_axis_tready(axis_o_3_tready),
+
+.rx_axis_tdata(axis_i_3_tdata),
+.rx_axis_tvalid(axis_i_3_tvalid),
+.rx_axis_tuser(axis_i_3_tuser),
+.rx_axis_tlast(axis_i_3_tlast),
+.rx_axis_tkeep(axis_i_3_tkeep),
+.rx_axis_tready(axis_i_3_tready),
+
+.core_reset(core_reset),
+.tx_fault(tx_fault),
+.signal_detect(signal_detect),
+.tx_ifg_delay(tx_ifg_delay),
+.tx_disable(),
+.core_status(core3_status)
+);
+
+//switch btw 2 & 3
+assign axis_o_2_tdata = axis_i_2_tdata;
+assign axis_o_2_tvalid = axis_i_2_tvalid;
+assign axis_o_2_tkeep = axis_i_2_tkeep;
+assign axis_o_2_tlast = axis_i_2_tlast;
+//assign axis_o_0_tuser <= ;
+assign axis_i_2_tready = axis_o_2_tready;
+
+assign axis_o_3_tdata = axis_i_3_tdata;
+assign axis_o_3_tvalid = axis_i_3_tvalid;
+assign axis_o_3_tkeep = axis_i_3_tkeep;
+assign axis_o_3_tlast = axis_i_3_tlast;
+//assign axis_o_0_tuser <= ;
+assign axis_i_3_tready = axis_o_3_tready;
+*/
 
 //wire xphyrefclk_i;
 
@@ -287,10 +522,23 @@ begin
     l1_ctr <= l1_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
 
+/*always @(posedge gt_txclk322)
+begin
+    l2_ctr <= l2_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+
+always @(posedge user_clk2)
+begin
+    l3_ctr <= l3_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+*/
 assign led[0] = l1_ctr[LED_CTR_WIDTH-1];
 assign led[1] = l2_ctr[LED_CTR_WIDTH-1];
-//assign led[2] = reset;
-//assign led[3] = core_reset;
-assign led[2] = core0_status[0];
+assign led[2] = reset;
+assign led[3] = core_reset;
+assign led[4] = core0_status[0];
+assign led[5] = core1_status[0];
+assign led[6] = core2_status[0];
+assign led[7] = core3_status[0];
 
 endmodule

@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -20,180 +21,180 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module tcp_ip_wrapper (
-    input           aclk,
-    input           aresetn,
-    input[47:0]	    myMacAddress,
-    input[31:0]     inputIpAddress,
-    input           dhcpEnable,
-    output[31:0]    ipAddressout,
-    output[15:0]    regSessionCount,
-    output[15:0]    relSessionCount,
+module network_stack (
+    input wire           aclk,
+    input wire           aresetn,
+    input wire[47:0]	    myMacAddress,
+    input wire[31:0]     inputIpAddress,
+    input wire           dhcpEnable,
+    output wire[31:0]    ipAddressOut,
+    output wire[15:0]    regSessionCount,
+    output wire[15:0]    relSessionCount,
     // Debug signals for the session lookup //
-    output          upd_req_TVALID_out,
-    output          upd_req_TREADY_out,
-    output          upd_req_TDATA_out,
-    output          upd_rsp_TVALID_out,
-    output          upd_rsp_TREADY_out,
+    output wire          upd_req_TVALID_out,
+    output wire          upd_req_TREADY_out,
+    output wire          upd_req_TDATA_out,
+    output wire          upd_rsp_TVALID_out,
+    output wire          upd_rsp_TREADY_out,
     // network interface streams
-    output          AXI_M_Stream_TVALID,
-    input           AXI_M_Stream_TREADY,
-    output[63:0]    AXI_M_Stream_TDATA,
-    output[7:0]     AXI_M_Stream_TKEEP,
-    output          AXI_M_Stream_TLAST,
+    output wire          AXI_M_Stream_TVALID,
+    input wire           AXI_M_Stream_TREADY,
+    output wire[63:0]    AXI_M_Stream_TDATA,
+    output wire[7:0]     AXI_M_Stream_TKEEP,
+    output wire         AXI_M_Stream_TLAST,
 
-    input           AXI_S_Stream_TVALID,
-    output          AXI_S_Stream_TREADY,
-    input[63:0]     AXI_S_Stream_TDATA,
-    input[7:0]      AXI_S_Stream_TKEEP,
-    input           AXI_S_Stream_TLAST,
+    input wire           AXI_S_Stream_TVALID,
+    output wire          AXI_S_Stream_TREADY,
+    input wire[63:0]     AXI_S_Stream_TDATA,
+    input wire[7:0]      AXI_S_Stream_TKEEP,
+    input wire           AXI_S_Stream_TLAST,
     // Debug streams
-    output[7:0]     axi_debug1_tkeep,
-    output[63:0]    axi_debug1_tdata,
-    output          axi_debug1_tvalid,
-    output          axi_debug1_tready,
-    output          axi_debug1_tlast,
+    output wire[7:0]     axi_debug1_tkeep,
+    output wire[63:0]    axi_debug1_tdata,
+    output wire          axi_debug1_tvalid,
+    output wire          axi_debug1_tready,
+    output wire          axi_debug1_tlast,
     
-    output[7:0]     axi_debug2_tkeep,
-    output[63:0]    axi_debug2_tdata,
-    output          axi_debug2_tvalid,
-    output          axi_debug2_tready,
-    output          axi_debug2_tlast,
+    output wire[7:0]     axi_debug2_tkeep,
+    output wire[63:0]    axi_debug2_tdata,
+    output wire          axi_debug2_tvalid,
+    output wire          axi_debug2_tready,
+    output wire          axi_debug2_tlast,
         // memory rx cmd streams
-    output          m_axis_rxread_cmd_TVALID,
-    input           m_axis_rxread_cmd_TREADY,
-    output[71:0]    m_axis_rxread_cmd_TDATA,
-    output          m_axis_rxwrite_cmd_TVALID,
-    input           m_axis_rxwrite_cmd_TREADY,
-    output[71:0]    m_axis_rxwrite_cmd_TDATA,
+    output wire          m_axis_rxread_cmd_TVALID,
+    input wire           m_axis_rxread_cmd_TREADY,
+    output wire[71:0]    m_axis_rxread_cmd_TDATA,
+    output wire          m_axis_rxwrite_cmd_TVALID,
+    input wire           m_axis_rxwrite_cmd_TREADY,
+    output wire[71:0]    m_axis_rxwrite_cmd_TDATA,
     // memory rx sts streams
-    //input           s_axis_rxread_sts_TVALID,
-    //output          s_axis_rxread_sts_TREADY,
-    //input[7:0]      s_axis_rxread_sts_TDATA,
-    input           s_axis_rxwrite_sts_TVALID,
-    output          s_axis_rxwrite_sts_TREADY,
-    input[7:0]      s_axis_rxwrite_sts_TDATA,
+    //input wire           s_axis_rxread_sts_TVALID,
+    //output wire          s_axis_rxread_sts_TREADY,
+    //input wire[7:0]      s_axis_rxread_sts_TDATA,
+    input wire           s_axis_rxwrite_sts_TVALID,
+    output wire          s_axis_rxwrite_sts_TREADY,
+    input wire[7:0]      s_axis_rxwrite_sts_TDATA,
     // memory rx data streams  - Read status signals are not used
-    input           s_axis_rxread_data_TVALID,
-    output          s_axis_rxread_data_TREADY,
-    input[63:0]     s_axis_rxread_data_TDATA,
-    input[7:0]      s_axis_rxread_data_TKEEP,
-    input           s_axis_rxread_data_TLAST,
+    input wire           s_axis_rxread_data_TVALID,
+    output wire          s_axis_rxread_data_TREADY,
+    input wire[63:0]     s_axis_rxread_data_TDATA,
+    input wire[7:0]      s_axis_rxread_data_TKEEP,
+    input wire           s_axis_rxread_data_TLAST,
     
-    output          m_axis_rxwrite_data_TVALID,
-    input           m_axis_rxwrite_data_TREADY,
-    output[63:0]    m_axis_rxwrite_data_TDATA,
-    output[7:0]     m_axis_rxwrite_data_TKEEP,
-    output          m_axis_rxwrite_data_TLAST,
+    output wire          m_axis_rxwrite_data_TVALID,
+    input wire           m_axis_rxwrite_data_TREADY,
+    output wire[63:0]    m_axis_rxwrite_data_TDATA,
+    output wire[7:0]     m_axis_rxwrite_data_TKEEP,
+    output wire          m_axis_rxwrite_data_TLAST,
     
     // memory tx cmd streams
-    output          m_axis_txread_cmd_TVALID,
-    input           m_axis_txread_cmd_TREADY,
-    output[71:0]    m_axis_txread_cmd_TDATA,
-    output          m_axis_txwrite_cmd_TVALID,
-    input           m_axis_txwrite_cmd_TREADY,
-    output[71:0]    m_axis_txwrite_cmd_TDATA,
+    output wire          m_axis_txread_cmd_TVALID,
+    input wire           m_axis_txread_cmd_TREADY,
+    output wire[71:0]    m_axis_txread_cmd_TDATA,
+    output wire          m_axis_txwrite_cmd_TVALID,
+    input wire           m_axis_txwrite_cmd_TREADY,
+    output wire[71:0]    m_axis_txwrite_cmd_TDATA,
     // memory tx sts streams - Read status signals are not used
-    //input           s_axis_txread_sts_TVALID,
-    //output          s_axis_txread_sts_TREADY,
-    //input[7:0]      s_axis_txread_sts_TDATA,
-    input           s_axis_txwrite_sts_TVALID,
-    output          s_axis_txwrite_sts_TREADY,
-    input[7:0]      s_axis_txwrite_sts_TDATA,
+    //input wire           s_axis_txread_sts_TVALID,
+    //output wire          s_axis_txread_sts_TREADY,
+    //input wire[7:0]      s_axis_txread_sts_TDATA,
+    input wire           s_axis_txwrite_sts_TVALID,
+    output wire          s_axis_txwrite_sts_TREADY,
+    input wire[7:0]      s_axis_txwrite_sts_TDATA,
     // memory tx data streams
-    input           s_axis_txread_data_TVALID,
-    output          s_axis_txread_data_TREADY,
-    input[63:0]     s_axis_txread_data_TDATA,
-    input[7:0]      s_axis_txread_data_TKEEP,
-    input           s_axis_txread_data_TLAST,
+    input wire           s_axis_txread_data_TVALID,
+    output wire          s_axis_txread_data_TREADY,
+    input wire[63:0]     s_axis_txread_data_TDATA,
+    input wire[7:0]      s_axis_txread_data_TKEEP,
+    input wire           s_axis_txread_data_TLAST,
     
-    output          m_axis_txwrite_data_TVALID,
-    input           m_axis_txwrite_data_TREADY,
-    output[63:0]    m_axis_txwrite_data_TDATA,
-    output[7:0]     m_axis_txwrite_data_TKEEP,
-    output          m_axis_txwrite_data_TLAST,
+    output wire          m_axis_txwrite_data_TVALID,
+    input wire           m_axis_txwrite_data_TREADY,
+    output wire[63:0]    m_axis_txwrite_data_TDATA,
+    output wire[7:0]     m_axis_txwrite_data_TKEEP,
+    output wire          m_axis_txwrite_data_TLAST,
     
     //application interface streams
-    output          m_axis_listen_port_status_TVALID,
-    input           m_axis_listen_port_status_TREADY,
-    output[7:0]     m_axis_listen_port_status_TDATA,
-    output          m_axis_notifications_TVALID,
-    input           m_axis_notifications_TREADY,
-    output[87:0]    m_axis_notifications_TDATA,
-    output          m_axis_open_status_TVALID,
-    input           m_axis_open_status_TREADY,
-    output[23:0]    m_axis_open_status_TDATA,
-    output          m_axis_rx_data_TVALID,
-    input           m_axis_rx_data_TREADY,
-    output[63:0]    m_axis_rx_data_TDATA,
-    output[7:0]     m_axis_rx_data_TKEEP,
-    output          m_axis_rx_data_TLAST,
-    output          m_axis_rx_metadata_TVALID,
-    input           m_axis_rx_metadata_TREADY,
-    output[15:0]    m_axis_rx_metadata_TDATA,
-    output          m_axis_tx_status_TVALID,
-    input           m_axis_tx_status_TREADY,
-    output[23:0]    m_axis_tx_status_TDATA,
-    input           s_axis_listen_port_TVALID,
-    output          s_axis_listen_port_TREADY,
-    input[15:0]     s_axis_listen_port_TDATA,
-    //input           s_axis_close_port_TVALID,
-    //output          s_axis_close_port_TREADY,
-    //input[15:0]     s_axis_close_port_TDATA,
-    input           s_axis_close_connection_TVALID,
-    output          s_axis_close_connection_TREADY,
-    input[15:0]     s_axis_close_connection_TDATA,
-    input           s_axis_open_connection_TVALID,
-    output          s_axis_open_connection_TREADY,
-    input[47:0]     s_axis_open_connection_TDATA,
-    input           s_axis_read_package_TVALID,
-    output          s_axis_read_package_TREADY,
-    input[31:0]     s_axis_read_package_TDATA,
-    input           s_axis_tx_data_TVALID,
-    output          s_axis_tx_data_TREADY,
-    input[63:0]     s_axis_tx_data_TDATA,
-    input[7:0]      s_axis_tx_data_TKEEP,
-    input           s_axis_tx_data_TLAST,
-    input           s_axis_tx_metadata_TVALID,
-    output          s_axis_tx_metadata_TREADY,
-    input[15:0]     s_axis_tx_metadata_TDATA, //change to 15?
+    output wire          m_axis_listen_port_status_TVALID,
+    input wire           m_axis_listen_port_status_TREADY,
+    output wire[7:0]     m_axis_listen_port_status_TDATA,
+    output wire          m_axis_notifications_TVALID,
+    input wire           m_axis_notifications_TREADY,
+    output wire[87:0]    m_axis_notifications_TDATA,
+    output wire          m_axis_open_status_TVALID,
+    input wire           m_axis_open_status_TREADY,
+    output wire[23:0]    m_axis_open_status_TDATA,
+    output wire          m_axis_rx_data_TVALID,
+    input wire           m_axis_rx_data_TREADY,
+    output wire[63:0]    m_axis_rx_data_TDATA,
+    output wire[7:0]     m_axis_rx_data_TKEEP,
+    output wire          m_axis_rx_data_TLAST,
+    output wire          m_axis_rx_metadata_TVALID,
+    input wire           m_axis_rx_metadata_TREADY,
+    output wire[15:0]    m_axis_rx_metadata_TDATA,
+    output wire          m_axis_tx_status_TVALID,
+    input wire           m_axis_tx_status_TREADY,
+    output wire[23:0]    m_axis_tx_status_TDATA,
+    input wire           s_axis_listen_port_TVALID,
+    output wire          s_axis_listen_port_TREADY,
+    input wire[15:0]     s_axis_listen_port_TDATA,
+    //input wire           s_axis_close_port_TVALID,
+    //output wire          s_axis_close_port_TREADY,
+    //input wire[15:0]     s_axis_close_port_TDATA,
+    input wire           s_axis_close_connection_TVALID,
+    output wire          s_axis_close_connection_TREADY,
+    input wire[15:0]     s_axis_close_connection_TDATA,
+    input wire           s_axis_open_connection_TVALID,
+    output wire          s_axis_open_connection_TREADY,
+    input wire[47:0]     s_axis_open_connection_TDATA,
+    input wire           s_axis_read_package_TVALID,
+    output wire          s_axis_read_package_TREADY,
+    input wire[31:0]     s_axis_read_package_TDATA,
+    input wire           s_axis_tx_data_TVALID,
+    output wire          s_axis_tx_data_TREADY,
+    input wire[63:0]     s_axis_tx_data_TDATA,
+    input wire[7:0]      s_axis_tx_data_TKEEP,
+    input wire           s_axis_tx_data_TLAST,
+    input wire           s_axis_tx_metadata_TVALID,
+    output wire          s_axis_tx_metadata_TREADY,
+    input wire[31:0]     s_axis_tx_metadata_TDATA,
     // Session Counter Output // 
-    output[15:0]    regSessionCount_V,
-    output          regSessionCount_V_ap_vld,
+    output wire[15:0]    regSessionCount_V,
+    output wire          regSessionCount_V_ap_vld,
     // UDP App Mux to UDP Loopback signals //
-    output          lbPortOpenReplyIn_TVALID,           // output wire portOpenReplyIn_TVALID
-    input           lbPortOpenReplyIn_TREADY,           // input wire portOpenReplyIn_TREADY
-    output[7:0]     lbPortOpenReplyIn_TDATA,            // output wire [7 : 0] portOpenReplyIn_TDATA
-    input           lbRequestPortOpenOut_TVALID,        // input wire requestPortOpenOut_TVALID
-    output          lbRequestPortOpenOut_TREADY,        // output wire requestPortOpenOut_TREADY
-    input[15:0]     lbRequestPortOpenOut_TDATA,         // input wire [15 : 0] requestPortOpenOut_TDATA
-    output          lbRxDataIn_TVALID,                  // output wire rxDataIn_TVALID
-    input           lbRxDataIn_TREADY,                  // input wire rxDataIn_TREADY
-    output[63:0]    lbRxDataIn_TDATA,                   // output wire [63 : 0] rxDataIn_TDATA
-    output[7:0]     lbRxDataIn_TKEEP,                   // output wire [7 : 0] rxDataIn_TKEEP
-    output          lbRxDataIn_TLAST,                   // output wire [0 : 0] rxDataIn_TLAST
-    output          lbRxMetadataIn_TVALID,              // output wire rxMetadataIn_TVALID
-    input           lbRxMetadataIn_TREADY,              // input wire rxMetadataIn_TREADY
-    output[95:0]    lbRxMetadataIn_TDATA,               // output wire [95 : 0] rxMetadataIn_TDATA
-    input           lbTxDataOut_TVALID,                 // input wire txDataOut_TVALID
-    output          lbTxDataOut_TREADY,                 // output wire txDataOut_TREADY
-    input[63:0]     lbTxDataOut_TDATA,                  // input wire [63 : 0] txDataOut_TDATA
-    input[7:0]      lbTxDataOut_TKEEP,                  // input wire [7 : 0] txDataOut_TKEEP
-    input           lbTxDataOut_TLAST,                  // input wire [0 : 0] txDataOut_TLAST
-    input           lbTxLengthOut_TVALID,               // input wire txLengthOut_TVALID
-    output          lbTxLengthOut_TREADY,               // output wire txLengthOut_TREADY
-    input[15:0]     lbTxLengthOut_TDATA,                // input wire [15 : 0] txLengthOut_TDATA
-    input           lbTxMetadataOut_TVALID,             // input wire txMetadataOut_TVALID
-    output          lbTxMetadataOut_TREADY,             // output wire txMetadataOut_TREADY
-    input[95:0]     lbTxMetadataOut_TDATA,               // input wire [95 : 0] txMetadataOut_TDATA
+    output wire          lbPortOpenReplyIn_TVALID,           // output wire portOpenReplyIn_TVALID
+    input wire           lbPortOpenReplyIn_TREADY,           // input wire portOpenReplyIn_TREADY
+    output wire[7:0]     lbPortOpenReplyIn_TDATA,            // output wire [7 : 0] portOpenReplyIn_TDATA
+    input wire           lbRequestPortOpenOut_TVALID,        // input wire requestPortOpenOut_TVALID
+    output wire          lbRequestPortOpenOut_TREADY,        // output wire requestPortOpenOut_TREADY
+    input wire[15:0]     lbRequestPortOpenOut_TDATA,         // input wire [15 : 0] requestPortOpenOut_TDATA
+    output wire          lbRxDataIn_TVALID,                  // output wire rxDataIn_TVALID
+    input wire           lbRxDataIn_TREADY,                  // input wire rxDataIn_TREADY
+    output wire[63:0]    lbRxDataIn_TDATA,                   // output wire [63 : 0] rxDataIn_TDATA
+    output wire[7:0]     lbRxDataIn_TKEEP,                   // output wire [7 : 0] rxDataIn_TKEEP
+    output wire          lbRxDataIn_TLAST,                   // output wire [0 : 0] rxDataIn_TLAST
+    output wire          lbRxMetadataIn_TVALID,              // output wire rxMetadataIn_TVALID
+    input wire           lbRxMetadataIn_TREADY,              // input wire rxMetadataIn_TREADY
+    output wire[95:0]    lbRxMetadataIn_TDATA,               // output wire [95 : 0] rxMetadataIn_TDATA
+    input wire           lbTxDataOut_TVALID,                 // input wire txDataOut_TVALID
+    output wire          lbTxDataOut_TREADY,                 // output wire txDataOut_TREADY
+    input wire[63:0]     lbTxDataOut_TDATA,                  // input wire [63 : 0] txDataOut_TDATA
+    input wire[7:0]      lbTxDataOut_TKEEP,                  // input wire [7 : 0] txDataOut_TKEEP
+    input wire           lbTxDataOut_TLAST,                  // input wire [0 : 0] txDataOut_TLAST
+    input wire           lbTxLengthOut_TVALID,               // input wire txLengthOut_TVALID
+    output wire          lbTxLengthOut_TREADY,               // output wire txLengthOut_TREADY
+    input wire[15:0]     lbTxLengthOut_TDATA,                // input wire [15 : 0] txLengthOut_TDATA
+    input wire           lbTxMetadataOut_TVALID,             // input wire txMetadataOut_TVALID
+    output wire          lbTxMetadataOut_TREADY,             // output wire txMetadataOut_TREADY
+    input wire[95:0]     lbTxMetadataOut_TDATA,               // input wire [95 : 0] txMetadataOut_TDATA
     // Debug signals //
-    output[99:0]  metadataFifo_din,    // [99:0] 
-    output        metadataFifo_full,
-    output        metadataFifo_write,
+    output wire[99:0]  metadataFifo_din,    // [99:0] 
+    output wire        metadataFifo_full,
+    output wire        metadataFifo_write,
     
-    output[15:0]  metadataHandlerFifo_din, // [15:0]
-    output        metadataHandlerFifo_full,
-    output        metadataHandlerFifo_write
+    output wire[15:0]  metadataHandlerFifo_din, // [15:0]
+    output wire        metadataHandlerFifo_full,
+    output wire        metadataHandlerFifo_write
     ////////////////////
     );
 
@@ -248,6 +249,18 @@ wire            axi_icmp_to_icmp_slice_tready;
 wire[63:0]      axi_icmp_to_icmp_slice_tdata;
 wire[7:0]       axi_icmp_to_icmp_slice_tkeep;
 wire            axi_icmp_to_icmp_slice_tlast;
+
+wire            axi_iph_to_toe_slice_tvalid;
+wire            axi_iph_to_toe_slice_tready;
+wire[63:0]      axi_iph_to_toe_slice_tdata;
+wire[7:0]       axi_iph_to_toe_slice_tkeep;
+wire            axi_iph_to_toe_slice_tlast;
+
+wire            axi_toe_slice_to_toe_tvalid;
+wire            axi_toe_slice_to_toe_tready;
+wire[63:0]      axi_toe_slice_to_toe_tdata;
+wire[7:0]       axi_toe_slice_to_toe_tkeep;
+wire            axi_toe_slice_to_toe_tlast;
 
 wire        axi_udp_to_merge_tvalid;
 wire        axi_udp_to_merge_tready;
@@ -379,8 +392,8 @@ wire[15:0]  lup_rsp_TDATA;
 wire[31:0]  dhcpAddressOut;
 
 // because read status is not used
-assign axis_rxread_sts_TREADY = 1'b1;
-assign axis_txread_sts_TREADY = 1'b1;
+//assign axis_rxread_sts_TREADY = 1'b1;
+//assign axis_txread_sts_TREADY = 1'b1;
 
 toe_ip toe_inst (
 // Data output
@@ -390,11 +403,11 @@ toe_ip toe_inst (
 .m_axis_tcp_data_TKEEP(axi_toe_to_toe_slice_tkeep), // output [7 : 0] AXI_M_Stream_TSTRB
 .m_axis_tcp_data_TLAST(axi_toe_to_toe_slice_tlast), // output [0 : 0] AXI_M_Stream_TLAST
 // Data input
-.s_axis_tcp_data_TVALID(axi_iph_to_toe_tvalid), // input AXI_S_Stream_TVALID
-.s_axis_tcp_data_TREADY(axi_iph_to_toe_tready), // output AXI_S_Stream_TREADY
-.s_axis_tcp_data_TDATA(axi_iph_to_toe_tdata), // input [63 : 0] AXI_S_Stream_TDATA
-.s_axis_tcp_data_TKEEP(axi_iph_to_toe_tkeep), // input [7 : 0] AXI_S_Stream_TKEEP
-.s_axis_tcp_data_TLAST(axi_iph_to_toe_tlast), // input [0 : 0] AXI_S_Stream_TLAST
+.s_axis_tcp_data_TVALID(axi_toe_slice_to_toe_tvalid), // input AXI_S_Stream_TVALID
+.s_axis_tcp_data_TREADY(axi_toe_slice_to_toe_tready), // output AXI_S_Stream_TREADY
+.s_axis_tcp_data_TDATA(axi_toe_slice_to_toe_tdata), // input [63 : 0] AXI_S_Stream_TDATA
+.s_axis_tcp_data_TKEEP(axi_toe_slice_to_toe_tkeep), // input [7 : 0] AXI_S_Stream_TKEEP
+.s_axis_tcp_data_TLAST(axi_toe_slice_to_toe_tlast), // input [0 : 0] AXI_S_Stream_TLAST
 // rx read commands
 .m_axis_rxread_cmd_TVALID(m_axis_rxread_cmd_TVALID),
 .m_axis_rxread_cmd_TREADY(m_axis_rxread_cmd_TREADY),
@@ -531,20 +544,23 @@ toe_ip toe_inst (
 //.metadataHandlerFifo_full(metadataHandlerFifo_full),
 //.metadataHandlerFifo_write(metadataHandlerFifo_write),
 ////////////////////
-.regIpAddress_V(32'h01010101),                                      // input wire [31 : 0] regIpAddress_V
-.relSessionCount_V(relSessionCount),                              // output wire [15 : 0] relSessionCount_V
+.regIpAddress_V(inputIpAddress),                                      // input wire [31 : 0] regIpAddress_V
+//.relSessionCount_V(relSessionCount),                              // output wire [15 : 0] relSessionCount_V
 .regSessionCount_V(regSessionCount),                              // output wire [15 : 0] regSessionCount_V
 .aclk(aclk),                                                        // input aclk
 .aresetn(aresetn)                                                   // input aresetn
 );
 
+//TODO
+assign relSessionCount = 0;
+
 SmartCamCtl SmartCamCtl_inst
 (
 .clk(aclk),
 .rst(~aresetn),
-.led0(sc_led0),
-.led1(sc_led1),
-.cam_ready(cam_ready),
+.led0(),//(sc_led0),
+.led1(),//(sc_led1),
+.cam_ready(),//(cam_ready),
 
 .lup_req_valid(lup_req_TVALID),
 .lup_req_ready(lup_req_TREADY),
@@ -619,40 +635,40 @@ udp_0 myUDP (
 );
   
 ip_handler_ip ip_handler_inst (
-  .dataIn_TVALID(AXI_S_Stream_TVALID),                  // input wire dataIn_TVALID
-  .dataIn_TREADY(AXI_S_Stream_TREADY),                  // output wire dataIn_TREADY
-  .dataIn_TDATA(AXI_S_Stream_TDATA),                    // input wire [63 : 0] dataIn_TDATA
-  .dataIn_TKEEP(AXI_S_Stream_TKEEP),                    // input wire [7 : 0] dataIn_TKEEP
-  .dataIn_TLAST(AXI_S_Stream_TLAST),                    // input wire [0 : 0] dataIn_TLAST
-  .ARPdataOut_TVALID(axi_iph_to_arp_slice_tvalid),      // output wire ARPdataOut_TVALID
-  .ARPdataOut_TREADY(axi_iph_to_arp_slice_tready),      // input wire ARPdataOut_TREADY
-  .ARPdataOut_TDATA(axi_iph_to_arp_slice_tdata),        // output wire [63 : 0] ARPdataOut_TDATA
-  .ARPdataOut_TKEEP(axi_iph_to_arp_slice_tkeep),        // output wire [7 : 0] ARPdataOut_TKEEP
-  .ARPdataOut_TLAST(axi_iph_to_arp_slice_tlast),        // output wire [0 : 0] ARPdataOut_TLAST
-  .ICMPdataOut_TVALID(axi_iph_to_icmp_slice_tvalid),    // output wire ICMPdataOut_TVALID
-  .ICMPdataOut_TREADY(axi_iph_to_icmp_slice_tready),    // input wire ICMPdataOut_TREADY
-  .ICMPdataOut_TDATA(axi_iph_to_icmp_slice_tdata),      // output wire [63 : 0] ICMPdataOut_TDATA
-  .ICMPdataOut_TKEEP(axi_iph_to_icmp_slice_tkeep),      // output wire [7 : 0] ICMPdataOut_TKEEP
-  .ICMPdataOut_TLAST(axi_iph_to_icmp_slice_tlast),      // output wire [0 : 0] ICMPdataOut_TLAST
-  .ICMPexpDataOut_TVALID(axis_ttl_to_icmp_tvalid),      // output wire ICMPexpDataOut_TVALID
-  .ICMPexpDataOut_TREADY(axis_ttl_to_icmp_tready),      // input wire ICMPexpDataOut_TREADY
-  .ICMPexpDataOut_TDATA(axis_ttl_to_icmp_tdata),        // output wire [63 : 0] ICMPexpDataOut_TDATA
-  .ICMPexpDataOut_TKEEP(axis_ttl_to_icmp_tkeep),        // output wire [7 : 0] ICMPexpDataOut_TKEEP
-  .ICMPexpDataOut_TLAST(axis_ttl_to_icmp_tlast),        // output wire [0 : 0] ICMPexpDataOut_TLAST
-  .UDPdataOut_TVALID(axi_iph_to_udp_tvalid),            // output wire UDPdataOut_TVALID
-  .UDPdataOut_TREADY(axi_iph_to_udp_tready),            // input wire UDPdataOut_TREADY
-  .UDPdataOut_TDATA(axi_iph_to_udp_tdata),              // output wire [63 : 0] UDPdataOut_TDATA
-  .UDPdataOut_TKEEP(axi_iph_to_udp_tkeep),              // output wire [7 : 0] UDPdataOut_TKEEP
-  .UDPdataOut_TLAST(axi_iph_to_udp_tlast),              // output wire [0 : 0] UDPdataOut_TLAST
-  .TCPdataOut_TVALID(axi_iph_to_toe_tvalid),            // output wire TCPdataOut_TVALID
-  .TCPdataOut_TREADY(axi_iph_to_toe_tready),            // input wire TCPdataOut_TREADY
-  .TCPdataOut_TDATA(axi_iph_to_toe_tdata),              // output wire [63 : 0] TCPdataOut_TDATA
-  .TCPdataOut_TKEEP(axi_iph_to_toe_tkeep),              // output wire [7 : 0] TCPdataOut_TKEEP
-  .TCPdataOut_TLAST(axi_iph_to_toe_tlast),              // output wire [0 : 0] TCPdataOut_TLAST
-  .regIpAddress_V(32'h01010101),                        // input wire [31 : 0] regIpAddress_V
-  .myMacAddress_V(myMacAddress),                        // input wire [47 : 0] myMacAddress_V
-  .ap_clk(aclk),                                        // input wire ap_clk
-  .ap_rst_n(aresetn)                                    // input wire ap_rst_n
+.m_axis_ARP_TVALID(axi_iph_to_arp_slice_tvalid), // output AXI4Stream_M_TVALID
+.m_axis_ARP_TREADY(axi_iph_to_arp_slice_tready), // input AXI4Stream_M_TREADY
+.m_axis_ARP_TDATA(axi_iph_to_arp_slice_tdata), // output [63 : 0] AXI4Stream_M_TDATA
+.m_axis_ARP_TKEEP(axi_iph_to_arp_slice_tkeep), // output [7 : 0] AXI4Stream_M_TSTRB
+.m_axis_ARP_TLAST(axi_iph_to_arp_slice_tlast), // output [0 : 0] AXI4Stream_M_TLAST
+
+.m_axis_ICMP_TVALID(axi_iph_to_icmp_slice_tvalid), // output AXI4Stream_M_TVALID
+.m_axis_ICMP_TREADY(axi_iph_to_icmp_slice_tready), // input AXI4Stream_M_TREADY
+.m_axis_ICMP_TDATA(axi_iph_to_icmp_slice_tdata), // output [63 : 0] AXI4Stream_M_TDATA
+.m_axis_ICMP_TKEEP(axi_iph_to_icmp_slice_tkeep), // output [7 : 0] AXI4Stream_M_TSTRB
+.m_axis_ICMP_TLAST(axi_iph_to_icmp_slice_tlast), // output [0 : 0] AXI4Stream_M_TLAST
+
+.m_axis_UDP_TVALID(axi_iph_to_udp_tvalid),          // output AXI4Stream_M_TVALID
+.m_axis_UDP_TREADY(axi_iph_to_udp_tready),          // input AXI4Stream_M_TREADY
+.m_axis_UDP_TDATA(axi_iph_to_udp_tdata),            // output [63 : 0] AXI4Stream_M_TDATA
+.m_axis_UDP_TKEEP(axi_iph_to_udp_tkeep),            // output [7 : 0] AXI4Stream_M_TSTRB
+.m_axis_UDP_TLAST(axi_iph_to_udp_tlast),            // output [0 : 0]  
+
+.m_axis_TCP_TVALID(axi_iph_to_toe_slice_tvalid), // output AXI4Stream_M_TVALID
+.m_axis_TCP_TREADY(axi_iph_to_toe_slice_tready), // input AXI4Stream_M_TREADY
+.m_axis_TCP_TDATA(axi_iph_to_toe_slice_tdata), // output [63 : 0] AXI4Stream_M_TDATA
+.m_axis_TCP_TKEEP(axi_iph_to_toe_slice_tkeep), // output [7 : 0] AXI4Stream_M_TSTRB
+.m_axis_TCP_TLAST(axi_iph_to_toe_slice_tlast), // output [0 : 0] AXI4Stream_M_TLAST
+
+.s_axis_raw_TVALID(AXI_S_Stream_TVALID), // input AXI4Stream_S_TVALID
+.s_axis_raw_TREADY(AXI_S_Stream_TREADY), // output AXI4Stream_S_TREADY
+.s_axis_raw_TDATA(AXI_S_Stream_TDATA), // input [63 : 0] AXI4Stream_S_TDATA
+.s_axis_raw_TKEEP(AXI_S_Stream_TKEEP), // input [7 : 0] AXI4Stream_S_TSTRB
+.s_axis_raw_TLAST(AXI_S_Stream_TLAST), // input [0 : 0] AXI4Stream_S_TLAST
+
+.regIpAddress_V(inputIpAddress),
+
+.aclk(aclk), // input aclk
+.aresetn(aresetn) // input aresetn
 );
 
 // ARP lookup
@@ -664,28 +680,31 @@ wire        axis_arp_lookup_reply_TREADY;
 wire[55:0]  axis_arp_lookup_reply_TDATA;
 
 mac_ip_encode_ip mac_ip_encode_inst (
-  .dataIn_TVALID(axi_intercon_to_mie_tvalid),                    // input wire dataIn_TVALID
-  .dataIn_TREADY(axi_intercon_to_mie_tready),                    // output wire dataIn_TREADY
-  .dataIn_TDATA(axi_intercon_to_mie_tdata),                      // input wire [63 : 0] dataIn_TDATA
-  .dataIn_TKEEP(axi_intercon_to_mie_tkeep),                      // input wire [7 : 0] dataIn_TKEEP
-  .dataIn_TLAST(axi_intercon_to_mie_tlast),                      // input wire [0 : 0] dataIn_TLAST
-  .arpTableIn_V_TVALID(axis_arp_lookup_reply_TVALID),        // input wire arpTableIn_V_TVALID
-  .arpTableIn_V_TREADY(axis_arp_lookup_reply_TREADY),        // output wire arpTableIn_V_TREADY
-  .arpTableIn_V_TDATA(axis_arp_lookup_reply_TDATA),          // input wire [55 : 0] arpTableIn_V_TDATA
-  .dataOut_TVALID(axi_mie_to_intercon_tvalid),                  // output wire dataOut_TVALID
-  .dataOut_TREADY(axi_mie_to_intercon_tready),                  // input wire dataOut_TREADY
-  .dataOut_TDATA(axi_mie_to_intercon_tdata),                    // output wire [63 : 0] dataOut_TDATA
-  .dataOut_TKEEP(axi_mie_to_intercon_tkeep),                    // output wire [7 : 0] dataOut_TKEEP
-  .dataOut_TLAST(axi_mie_to_intercon_tlast),                    // output wire [0 : 0] dataOut_TLAST
-  .arpTableOut_V_V_TVALID(axis_arp_lookup_request_TVALID),  // output wire arpTableOut_V_V_TVALID
-  .arpTableOut_V_V_TREADY(axis_arp_lookup_request_TREADY),  // input wire arpTableOut_V_V_TREADY
-  .arpTableOut_V_V_TDATA(axis_arp_lookup_request_TDATA),    // output wire [31 : 0] arpTableOut_V_V_TDATA
-  .regSubNetMask_V(32'h00FFFFFF),                // input wire [31 : 0] regSubNetMask_V
-  .regDefaultGateway_V(32'h01010101),        // input wire [31 : 0] regDefaultGateway_V
-  .myMacAddress_V(myMacAddress),                  // input wire [47 : 0] myMacAddress_V
-  .ap_clk(aclk),                                  // input wire ap_clk
-  .ap_rst_n(aresetn)                              // input wire ap_rst_n
+.m_axis_ip_TVALID(axi_mie_to_intercon_tvalid),
+.m_axis_ip_TREADY(axi_mie_to_intercon_tready),
+.m_axis_ip_TDATA(axi_mie_to_intercon_tdata),
+.m_axis_ip_TKEEP(axi_mie_to_intercon_tkeep),
+.m_axis_ip_TLAST(axi_mie_to_intercon_tlast),
+.m_axis_arp_lookup_request_TVALID(axis_arp_lookup_request_TVALID),
+.m_axis_arp_lookup_request_TREADY(axis_arp_lookup_request_TREADY),
+.m_axis_arp_lookup_request_TDATA(axis_arp_lookup_request_TDATA),
+.s_axis_ip_TVALID(axi_intercon_to_mie_tvalid),
+.s_axis_ip_TREADY(axi_intercon_to_mie_tready),
+.s_axis_ip_TDATA(axi_intercon_to_mie_tdata),
+.s_axis_ip_TKEEP(axi_intercon_to_mie_tkeep),
+.s_axis_ip_TLAST(axi_intercon_to_mie_tlast),
+.s_axis_arp_lookup_reply_TVALID(axis_arp_lookup_reply_TVALID),
+.s_axis_arp_lookup_reply_TREADY(axis_arp_lookup_reply_TREADY),
+.s_axis_arp_lookup_reply_TDATA(axis_arp_lookup_reply_TDATA),
+
+.regMacAddress_V(myMacAddress),                                    // input wire [47 : 0] regMacAddress_V
+.regSubNetMask_V(32'h00FFFFFF),                                    // input wire [31 : 0] regSubNetMask_V
+.regDefaultGateway_V(32'h01D4010A),                            // input wire [31 : 0] regDefaultGateway_V
+  
+.aclk(aclk), // input aclk
+.aresetn(aresetn) // input aresetn
 );
+
 // merges icmp and tcp
 axis_interconnect_3to1 ip_merger (
   .ACLK(aclk),                                  // input wire ACLK
@@ -751,7 +770,7 @@ axis_interconnect_2to1 mac_merger (
   .S00_ARB_REQ_SUPPRESS(1'b0), // input S00_ARB_REQ_SUPPRESS
   .S01_ARB_REQ_SUPPRESS(1'b0) // input S01_ARB_REQ_SUPPRESS
 );
-arpServerWrapper arpServerInst (
+/*arpServerWrapper arpServerInst (
 .axi_arp_to_arp_slice_tvalid(axi_arp_to_arp_slice_tvalid),
 .axi_arp_to_arp_slice_tready(axi_arp_to_arp_slice_tready),
 .axi_arp_to_arp_slice_tdata(axi_arp_to_arp_slice_tdata),
@@ -769,9 +788,34 @@ arpServerWrapper arpServerInst (
 .axis_arp_lookup_request_TREADY(axis_arp_lookup_request_TREADY),
 .axis_arp_lookup_request_TDATA(axis_arp_lookup_request_TDATA),
 .myMacAddress(myMacAddress),
-.myIpAddress(32'h01010101),
+.myIpAddress(inputIpAddress),
 .aclk(aclk), // input aclk
-.aresetn(aresetn)); // input aresetn
+.aresetn(aresetn)); // input aresetn*/
+
+arp_server_subnet_ip arp_server_inst(
+.m_axis_TVALID(axi_arp_to_arp_slice_tvalid),
+.m_axis_TREADY(axi_arp_to_arp_slice_tready),
+.m_axis_TDATA(axi_arp_to_arp_slice_tdata),
+.m_axis_TKEEP(axi_arp_to_arp_slice_tkeep),
+.m_axis_TLAST(axi_arp_to_arp_slice_tlast),
+.m_axis_arp_lookup_reply_TVALID(axis_arp_lookup_reply_TVALID),
+.m_axis_arp_lookup_reply_TREADY(axis_arp_lookup_reply_TREADY),
+.m_axis_arp_lookup_reply_TDATA(axis_arp_lookup_reply_TDATA),
+.s_axis_TVALID(axi_arp_slice_to_arp_tvalid),
+.s_axis_TREADY(axi_arp_slice_to_arp_tready),
+.s_axis_TDATA(axi_arp_slice_to_arp_tdata),
+.s_axis_TKEEP(axi_arp_slice_to_arp_tkeep),
+.s_axis_TLAST(axi_arp_slice_to_arp_tlast),
+.s_axis_arp_lookup_request_TVALID(axis_arp_lookup_request_TVALID),
+.s_axis_arp_lookup_request_TREADY(axis_arp_lookup_request_TREADY),
+.s_axis_arp_lookup_request_TDATA(axis_arp_lookup_request_TDATA),
+
+.regMacAddress_V(myMacAddress),
+.regIpAddress_V(inputIpAddress),
+
+.aclk(aclk), // input aclk
+.aresetn(aresetn) // input aresetn
+);
 
 assign  axi_debug1_tkeep    = axi_toe_to_toe_slice_tkeep;
 assign  axi_debug1_tdata    = axi_toe_to_toe_slice_tdata;
@@ -784,6 +828,11 @@ assign  axi_debug2_tdata    = axi_iph_to_toe_tdata;
 assign  axi_debug2_tvalid   = axi_iph_to_toe_tvalid;
 assign  axi_debug2_tready   = axi_iph_to_toe_tready;
 assign  axi_debug2_tlast    = axi_iph_to_toe_tlast;
+
+assign axis_ttl_to_icmp_tvalid = 0;
+assign axis_ttl_to_icmp_tdata = 0;
+assign axis_ttl_to_icmp_tkeep = 0;
+assign axis_ttl_to_icmp_tlast = 0;
 
 icmp_server_ip icmp_server_inst (
   .dataIn_TVALID(axi_icmp_slice_to_icmp_tvalid),    // input wire dataIn_TVALID
@@ -842,6 +891,21 @@ axis_register_slice_64 axis_register_icmp_in_slice(
   .m_axis_tdata(axi_icmp_slice_to_icmp_tdata),
   .m_axis_tkeep(axi_icmp_slice_to_icmp_tkeep),
   .m_axis_tlast(axi_icmp_slice_to_icmp_tlast)
+);
+ // TOE Input Slice
+axis_register_slice_64 axis_register_toe_in_slice(
+.aclk(aclk),
+.aresetn(aresetn),
+.s_axis_tvalid(axi_iph_to_toe_slice_tvalid),
+.s_axis_tready(axi_iph_to_toe_slice_tready),
+.s_axis_tdata(axi_iph_to_toe_slice_tdata),
+.s_axis_tkeep(axi_iph_to_toe_slice_tkeep),
+.s_axis_tlast(axi_iph_to_toe_slice_tlast),
+.m_axis_tvalid(axi_toe_slice_to_toe_tvalid),
+.m_axis_tready(axi_toe_slice_to_toe_tready),
+.m_axis_tdata(axi_toe_slice_to_toe_tdata),
+.m_axis_tkeep(axi_toe_slice_to_toe_tkeep),
+.m_axis_tlast(axi_toe_slice_to_toe_tlast)
 );
     
 udpAppMux_0 myAppMux (
@@ -968,4 +1032,76 @@ assign        upd_req_TREADY_out = upd_req_TREADY;
 assign        upd_req_TDATA_out  = upd_req_TDATA[1]; 
 assign        upd_rsp_TVALID_out = upd_rsp_TVALID;
 assign        upd_rsp_TREADY_out = upd_rsp_TREADY;
+
+
+//debug
+
+/*reg[255:0] debug_r;
+reg[255:0] debug_r2;
+always @(posedge aclk)
+begin
+   debug_r[0] <= AXI_M_Stream_TVALID;
+   debug_r[1] <= AXI_M_Stream_TREADY;
+   debug_r[65:2] <= AXI_M_Stream_TDATA;
+   debug_r[73:66] <= AXI_M_Stream_TKEEP;
+   debug_r[74] <= AXI_M_Stream_TLAST;
+   
+   debug_r[75] <= AXI_S_Stream_TVALID;
+   debug_r[76] <= AXI_S_Stream_TREADY;
+   debug_r[140:77] <= AXI_S_Stream_TDATA;
+   debug_r[148:141] <= AXI_S_Stream_TKEEP;
+   debug_r[149] <= AXI_S_Stream_TLAST;
+
+   
+   debug_r[181:150] <= ipAddressOut;
+
+   //IP Handler
+   debug_r[182] <= axi_iph_to_arp_slice_tvalid;
+   debug_r[183] <= axi_iph_to_arp_slice_tready;
+
+   debug_r[184] <= axi_iph_to_icmp_slice_tvalid;
+   debug_r[185] <= axi_iph_to_icmp_slice_tready;
+
+   debug_r[186] <= axi_arp_to_arp_slice_tvalid;
+   debug_r[187] <= axi_arp_to_arp_slice_tready;
+
+   debug_r[188] <= axis_arp_lookup_request_TVALID;
+   debug_r[189] <= axis_arp_lookup_request_TREADY;
+
+   debug_r[190] <= axis_arp_lookup_reply_TVALID;
+   debug_r[191] <= axis_arp_lookup_reply_TREADY;
+
+   //ICMP
+   debug_r[192] <= axi_icmp_to_icmp_slice_tvalid;
+   debug_r[193] <= axi_icmp_to_icmp_slice_tready;
+
+
+
+   debug_r2 <= debug_r;
+end
+wire [35:0] control0;
+wire [35:0] control1;
+wire [63:0] vio_signals;
+wire [255:0] debug_signal;
+assign debug_signal = debug_r2;
+icon icon_isnt
+(
+  .CONTROL0 (control0),
+  .CONTROL1 (control1)
+);
+ila_256 ila_inst
+(
+    .CLK (aclk),
+    .CONTROL (control0),
+    .TRIG0 (debug_signal)
+);
+vio vio_inst
+(
+    .CLK (aclk),
+    .CONTROL (control1),
+    .SYNC_OUT (vio_signals)
+);*/
+
 endmodule
+
+`default_nettype wire
