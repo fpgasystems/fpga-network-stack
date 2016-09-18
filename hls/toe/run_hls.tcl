@@ -32,7 +32,7 @@ create_clock -period 6.4 -name default
 #csim_design -clean -setup
 csynth_design
 #cosim_design -tool modelsim -rtl verilog -trace_level all -argv {../../../../testVectors/in9.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat}
-export_design -format ip_catalog -display_name "10G TCP Offload Engine" -description "TCP Offload Engine supporting 10Gbps line rate, up to 10K concurrent sessions & Out-Of-Order segments." -vendor "ethz.systems" -version "1.6"
+export_design -format ip_catalog -display_name "10G TCP Offload Engine" -description "TCP Offload Engine supporting 10Gbps line rate, up to 10K concurrent sessions." -vendor "ethz.systems" -version "1.6"
 #if {[file exists "/public/ireland/xlabs/memcached/ipRepository/toe/"] == 1} {
 #	file delete -force /public/ireland/xlabs/memcached/ipRepository/toe/ 
 #}

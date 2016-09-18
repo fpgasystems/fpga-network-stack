@@ -35,7 +35,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 void arp_pkg_receiver(stream<axiWord>&        arpDataIn,
                       stream<arpReplyMeta>&   arpReplyMetaFifo,
                       stream<arpTableEntry>&  arpTableInsertFifo,
-                      ap_uint<32>             regIpAddress)
+                      ap_uint<32>             myIpAddress)
 {
 #pragma HLS PIPELINE II=1
   static uint16_t 		wordCount = 0;
@@ -86,7 +86,7 @@ void arp_pkg_receiver(stream<axiWord>&        arpDataIn,
 		} //switch
 		if (currWord.last == 1)
 		{
-			if ((opCode == REQUEST) && (protoAddrDst == regIpAddress))
+			if ((opCode == REQUEST) && (protoAddrDst == myIpAddress))
 			{
 			  // Trigger ARP reply
 			  arpReplyMetaFifo.write(meta);
@@ -94,7 +94,7 @@ void arp_pkg_receiver(stream<axiWord>&        arpDataIn,
 			}
 			else
 			{
-				if ((opCode == REPLY) && (protoAddrDst == regIpAddress))
+				if ((opCode == REPLY) && (protoAddrDst == myIpAddress))
 				{
 					arpTableInsertFifo.write(arpTableEntry(meta.protoAddrSrc, meta.hwAddrSrc, true));
 				}
@@ -115,8 +115,8 @@ void arp_pkg_receiver(stream<axiWord>&        arpDataIn,
 void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
                     stream<ap_uint<32> >&     arpRequestMetaFifo,
                     stream<axiWord>&          arpDataOut,
-                    ap_uint<48>				  regMacAddress,
-                    ap_uint<32>               regIpAddress)
+                    ap_uint<48>				  myMacAddress,
+                    ap_uint<32>               myIpAddress)
 {
 #pragma HLS PIPELINE II=1
   enum arpSendStateType {ARP_IDLE, ARP_REPLY, ARP_SENTRQ};
@@ -148,12 +148,12 @@ void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
 		{
 			case 0:
 				sendWord.data(47, 0)  = BROADCAST_MAC;
-				sendWord.data(63, 48) = regMacAddress(15, 0);
+				sendWord.data(63, 48) = myMacAddress(15, 0);
 				sendWord.keep = 0xff;
 				sendWord.last = 0;
 				break;
 			case 1:
-				sendWord.data(31, 0)  = regMacAddress(47, 16);
+				sendWord.data(31, 0)  = myMacAddress(47, 16);
 				sendWord.data(47, 32) = 0x0608;
 				sendWord.data(63, 48) = 0x0100;
 				sendWord.keep = 0xff;
@@ -164,13 +164,13 @@ void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
 				sendWord.data(23, 16) = 6;									// HW Address Length
 				sendWord.data(31, 24) = 4;									// Protocol Address Length
 				sendWord.data(47, 32) = REQUEST;
-				sendWord.data(63, 48) = regMacAddress(15, 0);
+				sendWord.data(63, 48) = myMacAddress(15, 0);
 				sendWord.keep = 0xff;
 				sendWord.last = 0;
 				break;
 			case 3:
-				sendWord.data(31, 0)  = regMacAddress(47, 16);
-				sendWord.data(63, 32) = regIpAddress;//MY_IP_ADDR;
+				sendWord.data(31, 0)  = myMacAddress(47, 16);
+				sendWord.data(63, 32) = myIpAddress;//MY_IP_ADDR;
 				sendWord.keep = 0xff;
 				sendWord.last = 0;
 				break;
@@ -196,12 +196,12 @@ void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
 			{
 			case 0:
 				sendWord.data(47, 0)  = replyMeta.srcMac;
-				sendWord.data(63, 48) = regMacAddress(15, 0);
+				sendWord.data(63, 48) = myMacAddress(15, 0);
 				sendWord.keep = 0xff;
 				sendWord.last = 0;
 				break;
 			case 1:
-				sendWord.data(31, 0) = regMacAddress(47, 16);
+				sendWord.data(31, 0) = myMacAddress(47, 16);
 				sendWord.data(47, 32) = replyMeta.ethType;
 				sendWord.data(63, 48) = replyMeta.hwType;
 				sendWord.keep = 0xff;
@@ -212,13 +212,13 @@ void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
 				sendWord.data(23, 16) = replyMeta.hwLen;
 				sendWord.data(31, 24) = replyMeta.protoLen;
 				sendWord.data(47, 32) = REPLY;
-				sendWord.data(63, 48) = regMacAddress(15, 0);
+				sendWord.data(63, 48) = myMacAddress(15, 0);
 				sendWord.keep = 0xff;
 				sendWord.last = 0;
 				break;
 			case 3:
-				sendWord.data(31, 0)  = regMacAddress(47, 16);
-				sendWord.data(63, 32) = regIpAddress;//MY_IP_ADDR, maybe use proto instead
+				sendWord.data(31, 0)  = myMacAddress(47, 16);
+				sendWord.data(63, 32) = myIpAddress;//MY_IP_ADDR, maybe use proto instead
 				sendWord.keep = 0xff;
 				sendWord.last = 0;
 				break;
@@ -286,8 +286,8 @@ void arp_server_subnet(	stream<axiWord>&          arpDataIn,
                   	  	stream<ap_uint<32> >&     macIpEncode_req,
 				        stream<axiWord>&          arpDataOut,
 				        stream<arpTableReply>&    macIpEncode_rsp,
-				        ap_uint<48> regMacAddress,
-				        ap_uint<32> regIpAddress)
+				        ap_uint<48> myMacAddress,
+				        ap_uint<32> myIpAddress)
 {
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 	#pragma HLS DATAFLOW
@@ -298,8 +298,8 @@ void arp_server_subnet(	stream<axiWord>&          arpDataIn,
 	#pragma  HLS resource core=AXI4Stream variable=macIpEncode_rsp metadata="-bus_bundle m_axis_arp_lookup_reply"
   #pragma HLS DATA_PACK variable=macIpEncode_rsp
 
-	#pragma HLS INTERFACE ap_none register port=regMacAddress
-	#pragma HLS INTERFACE ap_none register port=regIpAddress
+	#pragma HLS INTERFACE ap_none register port=myMacAddress
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
 
   static stream<arpReplyMeta>     arpReplyMetaFifo("arpReplyMetaFifo");
   #pragma HLS STREAM variable=arpReplyMetaFifo depth=4
@@ -313,9 +313,9 @@ void arp_server_subnet(	stream<axiWord>&          arpDataIn,
   #pragma HLS STREAM variable=arpTableInsertFifo depth=4
   #pragma HLS DATA_PACK variable=arpTableInsertFifo
 
-  arp_pkg_receiver(arpDataIn, arpReplyMetaFifo, arpTableInsertFifo, regIpAddress);
+  arp_pkg_receiver(arpDataIn, arpReplyMetaFifo, arpTableInsertFifo, myIpAddress);
 
-  arp_pkg_sender(arpReplyMetaFifo, arpRequestMetaFifo, arpDataOut, regMacAddress, regIpAddress);
+  arp_pkg_sender(arpReplyMetaFifo, arpRequestMetaFifo, arpDataOut, myMacAddress, myIpAddress);
 
   arp_table(arpTableInsertFifo, macIpEncode_req, macIpEncode_rsp, arpRequestMetaFifo);
 }

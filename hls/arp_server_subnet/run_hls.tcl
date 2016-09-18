@@ -13,5 +13,5 @@ create_clock -period 6.4 -name default
 #csim_design -clean -setup
 csynth_design
 #cosim_design -tool xsim -rtl verilog -trace_level all 
-export_design -format ip_catalog -display_name "ARP Server for 10G TOE Design" -description "Replies to ARP queries and resolves IP addresses." -vendor "ethz.systems" -version "1.0"
+export_design -format ip_catalog -display_name "ARP Subnet Server for 10G TOE Design" -description "Replies to ARP queries and resolves IP addresses." -vendor "ethz.systems" -version "1.0"
 exit

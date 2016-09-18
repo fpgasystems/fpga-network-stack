@@ -274,7 +274,7 @@ void extract_ip_address(stream<axiWord>&			dataIn,
 void handle_arp_reply(	stream<axiWord>&		dataIn,
 						stream<arpTableReply>&	arpTableIn,
 						stream<axiWord>&		dataOut,
-						ap_uint<48>				regMacAddress)
+						ap_uint<48>				myMacAddress)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
@@ -308,7 +308,7 @@ void handle_arp_reply(	stream<axiWord>&		dataIn,
 				if (reply.hit)
 				{
 					sendWord.data(47, 0) =  reply.macAddress;
-					sendWord.data(63, 48) = regMacAddress(15, 0);
+					sendWord.data(63, 48) = myMacAddress(15, 0);
 					sendWord.keep = 0xff;
 					sendWord.last = 0;
 					dataOut.write(sendWord);
@@ -324,7 +324,7 @@ void handle_arp_reply(	stream<axiWord>&		dataIn,
 			if (!dataIn.empty())
 			{
 				dataIn.read(currWord);
-				sendWord.data.range(31, 0) = regMacAddress(47,16);
+				sendWord.data.range(31, 0) = myMacAddress(47,16);
 				sendWord.data(47, 32) = 0x0008;
 				sendWord.data(63, 48) = currWord.data(15, 0);
 				sendWord.keep = 0xff;
@@ -370,7 +370,7 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 					stream<arpTableReply>&		arpTableIn,
 					stream<axiWord>&			dataOut,
 					stream<ap_uint<32> >&		arpTableOut,
-					ap_uint<48>					regMacAddress,
+					ap_uint<48>					myMacAddress,
 					ap_uint<32>					regSubNetMask,
 					ap_uint<32>					regDefaultGateway)
 {
@@ -384,7 +384,7 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 #pragma HLS resource core=AXI4Stream variable=arpTableOut metadata="-bus_bundle m_axis_arp_lookup_request"
 #pragma HLS DATA_PACK variable=arpTableIn
 
-#pragma HLS INTERFACE ap_none register port=regMacAddress
+#pragma HLS INTERFACE ap_none register port=myMacAddress
 #pragma HLS INTERFACE ap_none register port=regSubNetMask
 #pragma HLS INTERFACE ap_none register port=regDefaultGateway
 
@@ -408,5 +408,5 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 
 	extract_ip_address(dataStreamBuffer1, dataStreamBuffer2, arpTableOut, regSubNetMask, regDefaultGateway);
 
-	handle_arp_reply(dataStreamBuffer2, arpTableIn, dataOut, regMacAddress);
+	handle_arp_reply(dataStreamBuffer2, arpTableIn, dataOut, myMacAddress);
 }

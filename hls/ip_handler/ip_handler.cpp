@@ -78,7 +78,6 @@ void detect_mac_protocol(stream<axiWord> &dataIn, stream<axiWord> &ARPdataOut, s
 	static ap_uint<2> dmp_wordCount = 0;
 	static ap_uint<16> dmp_macType;
 	static axiWord dmp_prevWord;
-	//static bool dmp_wasLast = false;
 	axiWord currWord;
 
 	switch (dmp_fsmState)
@@ -142,7 +141,7 @@ void detect_mac_protocol(stream<axiWord> &dataIn, stream<axiWord> &ARPdataOut, s
  *  @param[out]		ipValidFifoOut
  */
 void check_ip_checksum(stream<axiWord>&		dataIn,
-						ap_uint<32>			regIpAddress,
+						ap_uint<32>			myIpAddress,
 						stream<axiWord>&	dataOut,
 						stream<subSums>&	iph_subSumsFifoIn)
 						//stream<bool>&		ipValidFifoOut)
@@ -239,7 +238,7 @@ void check_ip_checksum(stream<axiWord>&		dataIn,
 					cics_ip_sums[0] = (cics_ip_sums[0] + (cics_ip_sums[0] >> 16)) & 0xFFFF;
 					cics_ipHeaderLen = 0;
 					//cpLen = 6;
-					iph_subSumsFifoIn.write(subSums(cics_ip_sums, ((cics_dstIpAddress == regIpAddress) || (cics_dstIpAddress == 0xFFFFFFFF))));
+					iph_subSumsFifoIn.write(subSums(cics_ip_sums, ((cics_dstIpAddress == myIpAddress) || (cics_dstIpAddress == 0xFFFFFFFF))));
 					break;
 				case 2:
 					// Sum up part 0-2
@@ -253,7 +252,7 @@ void check_ip_checksum(stream<axiWord>&		dataIn,
 					}
 					cics_ipHeaderLen = 0;
 					//tcpLen = 2;
-					iph_subSumsFifoIn.write(subSums(cics_ip_sums, ((cics_dstIpAddress == regIpAddress) || (cics_dstIpAddress == 0xFFFFFFFF))));
+					iph_subSumsFifoIn.write(subSums(cics_ip_sums, ((cics_dstIpAddress == myIpAddress) || (cics_dstIpAddress == 0xFFFFFFFF))));
 					break;
 				default:
 					// Sum up everything
@@ -537,30 +536,31 @@ void detect_ip_protocol(stream<axiWord> &dataIn,
 }
 
 /** @ingroup ip_handler
- *  @param[in]		dataIn, incoming data stream
- *  @param[in]		regIpAddress, our IP address
- *  @param[out]		ARPdataOut, outgoing ARP data stream
- *  @param[out]		ICMPdataOut, outgoing ICMP (Ping) data stream
- *  @param[out]		UDPdataOut, outgoing UDP data stream
- *  @param[out]		TCPdataOut, outgoing TCP data stream
+ *  @param[in]		s_axis_raw, incoming data stream
+ *  @param[in]		myIpAddress, our IP address
+ *  @param[out]		m_axis_ARP, outgoing ARP data stream
+ *  @param[out]		m_axis_ICMP, outgoing ICMP (Ping) data stream
+ *  @param[out]		m_axis_UDP, outgoing UDP data stream
+ *  @param[out]		m_axis_TCP, outgoing TCP data stream
  */
-void ip_handler(stream<axiWord>&		dataIn,
-				stream<axiWord>&		ARPdataOut,
-				stream<axiWord>&		ICMPdataOut,
-				stream<axiWord>&		UDPdataOut,
-				stream<axiWord>&		TCPdataOut,
-				ap_uint<32>				regIpAddress)
+void ip_handler(stream<axiWord>&		s_axis_raw,
+				stream<axiWord>&		m_axis_ARP,
+				stream<axiWord>&		m_axis_ICMP,
+				stream<axiWord>&		m_axis_UDP,
+				stream<axiWord>&		m_axis_TCP,
+				ap_uint<32>				myIpAddress)
 {
 #pragma HLS DATAFLOW
 #pragma HLS INTERFACE ap_ctrl_none register port=return
 #pragma HLS INLINE off
 
-	#pragma  HLS resource core=AXI4Stream variable=dataIn metadata="-bus_bundle s_axis_raw"
-	#pragma  HLS resource core=AXI4Stream variable=ARPdataOut metadata="-bus_bundle m_axis_ARP"
-	#pragma  HLS resource core=AXI4Stream variable=ICMPdataOut metadata="-bus_bundle m_axis_ICMP"
-	#pragma  HLS resource core=AXI4Stream variable=UDPdataOut metadata="-bus_bundle m_axis_UDP"
-	#pragma  HLS resource core=AXI4Stream variable=TCPdataOut metadata="-bus_bundle m_axis_TCP"
-	#pragma HLS INTERFACE ap_none register port=regIpAddress
+	#pragma HLS INTERFACE axis port=s_axis_raw
+	#pragma HLS INTERFACE axis port=m_axis_ARP
+	#pragma HLS INTERFACE axis port=m_axis_ICMP
+	#pragma HLS INTERFACE axis port=m_axis_UDP
+	#pragma HLS INTERFACE axis port=m_axis_TCP
+
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
 
 	static stream<axiWord>		ipDataFifo("ipDataFifo");
 	static stream<axiWord>		ipDataCheckFifo("ipDataCheckFifo");
@@ -580,9 +580,9 @@ void ip_handler(stream<axiWord>&		dataIn,
 	#pragma HLS DATA_PACK variable=iph_subSumsFifoOut
 	#pragma HLS DATA_PACK variable=ipDataCutFifo
 
-	detect_mac_protocol(dataIn, ARPdataOut, ipDataFifo);
+	detect_mac_protocol(s_axis_raw, m_axis_ARP, ipDataFifo);
 
-	check_ip_checksum(ipDataFifo, regIpAddress, ipDataCheckFifo, iph_subSumsFifoOut);
+	check_ip_checksum(ipDataFifo, myIpAddress, ipDataCheckFifo, iph_subSumsFifoOut);
 
 	iph_check_ip_checksum(iph_subSumsFifoOut, ipValidFifo);
 
@@ -590,5 +590,5 @@ void ip_handler(stream<axiWord>&		dataIn,
 
 	cut_length(ipDataDropFifo, ipDataCutFifo);
 
-	detect_ip_protocol(ipDataCutFifo, ICMPdataOut, UDPdataOut, TCPdataOut);
+	detect_ip_protocol(ipDataCutFifo, m_axis_ICMP, m_axis_UDP, m_axis_TCP);
 }

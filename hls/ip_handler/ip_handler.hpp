@@ -55,9 +55,9 @@ struct subSums
 /** @defgroup ip_handler IP handler
  *
  */
-void ip_handler(stream<axiWord>&		dataIn,
-				stream<axiWord>&		ARPdataOut,
-				stream<axiWord>&		ICMPdataOut,
-				stream<axiWord>&		UDPdataOut,
-				stream<axiWord>&		TCPdataOut,
-				ap_uint<32>				regIpAddress);
+void ip_handler(stream<axiWord>&		s_axis_raw,
+				stream<axiWord>&		m_axis_ARP,
+				stream<axiWord>&		m_axis_ICMP,
+				stream<axiWord>&		m_axis_UDP,
+				stream<axiWord>&		m_axis_TCP,
+				ap_uint<32>				myIpAddress);

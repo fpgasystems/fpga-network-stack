@@ -45,10 +45,10 @@ static const ap_uint<16> MSS=1460; //536
 static const uint16_t MAX_SESSIONS = 10000;
 
 // TCP_NODELAY flag, to disable Nagle's Algorithm
-#define TCP_NODELAY 1
+#define TCP_NODELAY 0
 
 // RX_DDR_BYPASS flag, to enable DDR bypass on RX path
-#define RX_DDR_BYPASS 1
+#define RX_DDR_BYPASS 0
 
 
 #define noOfTxSessions 1 // Number of Tx Sessions to open for testing
@@ -555,7 +555,7 @@ void toe(	// Data & Memory Interface
 			stream<openStatus>&						openConnRsp,
 			stream<ap_int<17> >&					txDataRsp,
 			//IP Address Input
-			ap_uint<32>								regIpAddress,
+			ap_uint<32>								myIpAddress,
 			//statistic
 			ap_uint<16>&							regSessionCount);
 

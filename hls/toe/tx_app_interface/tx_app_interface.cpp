@@ -231,7 +231,7 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 					stream<stateQuery>&				txApp2stateTable_upd_req,
 					stream<event>&					txApp2eventEng_setEvent,
 					stream<openStatus>&				rtTimer2txApp_notification,
-					ap_uint<32>						regIpAddress)
+					ap_uint<32>						myIpAddress)
 {
 //#pragma HLS DATAFLOW
 	#pragma HLS INLINE
@@ -308,7 +308,7 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 				txApp2stateTable_upd_req,
 				txApp2eventEng_mergeEvent,
 				rtTimer2txApp_notification,
-				regIpAddress);
+				myIpAddress);
 
 	// TX App Meta Table
 	tx_app_table(	txSar2txApp_ack_push,

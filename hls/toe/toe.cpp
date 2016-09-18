@@ -538,7 +538,7 @@ void toe(	// Data & Memory Interface
 			stream<ap_int<17> >&					txDataRsp,
 
 			//IP Address Input
-			ap_uint<32>								regIpAddress,
+			ap_uint<32>								myIpAddress,
 			//statistic
 			ap_uint<16>&							regSessionCount)
 {
@@ -618,7 +618,7 @@ void toe(	// Data & Memory Interface
 	#pragma HLS DATA_PACK variable=txDataReqMeta
 	//#pragma HLS DATA_PACK variable=txData
 
-#pragma HLS INTERFACE ap_none register port=regIpAddress
+#pragma HLS INTERFACE ap_none register port=myIpAddress
 #pragma HLS INTERFACE ap_vld port=regSessionCount
 
 	/*
@@ -944,7 +944,7 @@ void toe(	// Data & Memory Interface
 						txApp2stateTable_upd_req,
 						txApp2eventEng_setEvent,
 						timer2txApp_notification,
-						regIpAddress);
+						myIpAddress);
 
 }
 

@@ -70,4 +70,4 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 					stream<stateQuery>&				txApp2stateTable_upd_req,
 					stream<event>&					txApp2eventEng_setEvent,
 					stream<openStatus>&				rtTimer2txApp_notification,
-					ap_uint<32>						regIpAddress);
+					ap_uint<32>						myIpAddress);

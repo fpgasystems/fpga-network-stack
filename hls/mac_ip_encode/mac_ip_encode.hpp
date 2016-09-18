@@ -38,8 +38,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 using namespace hls;
 
-//const ap_uint<48> MY_MAC_ADDR 	= 0xE59D02350A00; 	// LSB first, 00:0A:35:02:9D:E5
-
 struct axiWord
 {
 	ap_uint<64>		data;
@@ -64,6 +62,6 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 					stream<arpTableReply>&		arpTableIn,
 					stream<axiWord>&			dataOut,
 					stream<ap_uint<32> >&		arpTableOut,
-					ap_uint<48>					regMacAddress,
+					ap_uint<48>					myMacAddress,
 					ap_uint<32>					regSubNetMask,
 					ap_uint<32>					regDefaultGateway);

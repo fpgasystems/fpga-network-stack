@@ -66,7 +66,7 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 				stream<stateQuery>&				txApp2stateTable_upd_req,
 				stream<event>&					txApp2eventEng_setEvent,
 				stream<openStatus>&				rtTimer2txApp_notification,
-				ap_uint<32>						regIpAddress)
+				ap_uint<32>						myIpAddress)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
@@ -87,7 +87,7 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 		appOpenConnReq.read(server_addr);
 		portTable2txApp_port_rsp.read(freePort);
 		// Implicit creationAllowed <= true
-		txApp2sLookup_req.write(fourTuple(regIpAddress, byteSwap32(server_addr.ip_address), byteSwap16(freePort), byteSwap16(server_addr.ip_port)));
+		txApp2sLookup_req.write(fourTuple(myIpAddress, byteSwap32(server_addr.ip_address), byteSwap16(freePort), byteSwap16(server_addr.ip_port)));
 		//tai_waitFreePort = false;
 	}
 
