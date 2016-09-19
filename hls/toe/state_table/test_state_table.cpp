@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "state_table.hpp"
 
 
@@ -45,28 +46,28 @@ void emptyFifos(std::ofstream& out, stream<sessionState>& rxFifoOut, stream<sess
 	while (!(rxFifoOut.empty()))
 	{
 		rxFifoOut.read(outData);
-		out << "Step " << iter << ": RX Fifo\t\t";
+		out << "Step " << std::dec << iter << ": RX Fifo\t\t";
 		out << outData << std::endl;
 	}
 
 	while (!(appFifoOut.empty()))
 	{
 		appFifoOut.read(outData);
-		out << "Step " << iter << ": App Fifo\t\t";
+		out << "Step " << std::dec << iter << ": App Fifo\t\t";
 		out << outData << std::endl;
 	}
 
 	while (!(app2FifoOut.empty()))
 	{
 		app2FifoOut.read(outData);
-		out << "Step " << iter << ": App2 Fifo\t\t";
+		out << "Step " << std::dec << iter << ": App2 Fifo\t\t";
 		out << outData << std::endl;
 	}
 
 	while (!(slupOut.empty()))
 	{
 		slupOut.read(outDataId);
-		out << "Step " << iter << ": Slup Fifo\t\t";
+		out << "Step " << std::dec << iter << ": Slup Fifo\t\t";
 		out << std::hex;
 		out << std::setfill('0');
 		out << std::setw(4) << outDataId;
@@ -211,6 +212,9 @@ int main()
 		case 5:
 			rxIn.write(stateQuery(id, ESTABLISHED, 1));
 			break;
+		case 8:
+			rxIn.write(stateQuery(id));
+			break;
 		case 10:
 			rxIn.write(stateQuery(id2));
 			break;
@@ -280,6 +284,43 @@ int main()
 		count++;
 	}
 	outputFile << "------------------------------------------------" << std::endl;
+	//BREAK
+	count = 0;
+	while (count < 200)
+	{
+		state_table(rxIn, txAppIn, txApp2In, timerIn, rxOut, txAppOut, txApp2Out, slupOut);
+		count++;
+	}
+
+	/*
+	 * Test 5: rxEng(x, ESTABLISED), timer(x), rxEng(x)
+	 */
+	//ap_uint<16> id = rand() % 100;
+	count = 0;
+	id = 0x783;
+	outputFile << "Test 5" << std::endl;
+	outputFile << "ID: " << id << std::endl;
+	while (count < 40)
+	{
+		switch (count)
+		{
+		case 1:
+			rxIn.write(stateQuery(id, ESTABLISHED, 1));
+			break;
+		case 5:
+			timerIn.write(id);
+			break;
+		case 6:
+			rxIn.write(stateQuery(id));
+			break;
+		default:
+			break;
+
+		}
+		state_table(rxIn, txAppIn, txApp2In, timerIn, rxOut, txAppOut, txApp2Out, slupOut);
+		emptyFifos(outputFile, rxOut, txAppOut, txApp2Out, slupOut, count);
+		count++;
+	}
 
 	return 0;
 }

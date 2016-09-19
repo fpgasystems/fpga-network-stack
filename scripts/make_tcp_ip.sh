@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/bin/bash
 ################################################################################
 # Author: Lisa Liu
 # Date:	2016/07/29
@@ -8,8 +8,6 @@
 # Vivado_hls version:
 #			2015.1
 ################################################################################
-##cadman add -t xilinx -v 2015.1 -p vivado_gsd
-##create ./build folder to store all intermediate results
 BUILDDIR="$PWD/build"
 
 echo "BUILDDIR is $BUILDDIR"
@@ -26,6 +24,9 @@ fi
 eval cp -r ../../hls ./
 
 eval cd ./hls/arp_server
+eval vivado_hls -f run_hls.tcl
+
+eval cd ../arp_server_subnet
 eval vivado_hls -f run_hls.tcl
 
 eval cd ../dhcp_client
@@ -71,6 +72,7 @@ else
 fi
 
 eval cp -R ../hls/arp_server/arp_server_prj/solution1/impl/ip ./arp_server
+eval cp -R ../hls/arp_server_subnet/arp_server_subnet_prj/solution1/impl/ip ./arp_server_subnet
 eval cp -R ../hls/dhcp_client/dhcp_prj/solution1/impl/ip ./dhcp_client
 eval cp -R ../hls/echo_server_application/echo_server_prj/solution1/impl/ip ./echo_server
 eval cp -R ../hls/icmp_server/icmpServer_prj/solution1/impl/ip ./icmp_server
@@ -81,5 +83,5 @@ eval cp -R ../hls/udp/udpCore/udp_prj/solution1/impl/ip ./udpCore
 eval cp -R ../hls/udp/udpLoopback/udpLoopback_prj/solution1/impl/ip ./udpLoopback
 eval cp -R ../hls/udp/udpAppMux/udpAppMux_prj/solution1/impl/ip ./
 
-echo "finished preparation for creating vivado project, please run vivado -mode batch -source create.tcl to create vivado project" 
+echo "finished preparation for creating vivado project, please run vivado -mode batch -source create_*_proj.tcl to create vivado project" 
 

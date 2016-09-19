@@ -26,18 +26,16 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
-//#include "globals.hpp"
+
 #include "arp_server.hpp"
-
-#define NO_OF_BROADCASTS 2
-
 /** @ingroup arp_server
  *
  */
-void arp_pkg_receiver(stream<axiWord>&        	arpDataIn,
-                      stream<arpReplyMeta>&   	arpReplyMetaFifo,
-                      stream<arpTableEntry>&  	arpTableInsertFifo,
-                      ap_uint<32>	      		regIpAddress) {
+void arp_pkg_receiver(stream<axiWord>&        arpDataIn,
+                      stream<arpReplyMeta>&   arpReplyMetaFifo,
+                      stream<arpTableEntry>&  arpTableInsertFifo,
+                      ap_uint<32>             myIpAddress)
+{
 #pragma HLS PIPELINE II=1
   static uint16_t 		wordCount = 0;
   static ap_uint<16>	opCode;
@@ -45,10 +43,11 @@ void arp_pkg_receiver(stream<axiWord>&        	arpDataIn,
   static ap_uint<32>	inputIP;
   static arpReplyMeta meta;
   
-  axiWord currWord = {0, 0, 0};
+  axiWord currWord;
   
   if (!arpDataIn.empty()) {
 		arpDataIn.read(currWord);
+
 		switch(wordCount) {
 		//TODO DO MAC ADDRESS Filtering somewhere, should be done in/after mac
 			case 0:
@@ -57,19 +56,19 @@ void arp_pkg_receiver(stream<axiWord>&        	arpDataIn,
 				break;
 			case 1:
 				meta.srcMac(47 ,16) = currWord.data(31, 0);
-				meta.ethType 		= currWord.data(47, 32);
-				meta.hwType 		= currWord.data(63, 48);
+				meta.ethType = currWord.data(47, 32);
+				meta.hwType = currWord.data(63, 48);
 				break;
 			case 2:
-				meta.protoType 			= currWord.data(15, 0);
-				meta.hwLen 				= currWord.data(23, 16);
-				meta.protoLen 			= currWord.data(31, 24);
-				opCode 					= currWord.data(47, 32);
-				meta.hwAddrSrc(15,0) 	= currWord.data(63, 48);
+				meta.protoType = currWord.data(15, 0);
+				meta.hwLen = currWord.data(23, 16);
+				meta.protoLen = currWord.data(31, 24);
+				opCode = currWord.data(47, 32);
+				meta.hwAddrSrc(15,0) = currWord.data(63, 48);
 				break;
 			case 3:
-				meta.hwAddrSrc(47, 16) 	= currWord.data(31, 0);
-				meta.protoAddrSrc 		= currWord.data(63, 32);
+				meta.hwAddrSrc(47, 16) = currWord.data(31, 0);
+				meta.protoAddrSrc = currWord.data(62, 32);
 				break;
 			case 4:
 				protoAddrDst(15, 0) = currWord.data(63, 48);
@@ -81,9 +80,12 @@ void arp_pkg_receiver(stream<axiWord>&        	arpDataIn,
 				break;
 		} //switch
 		if (currWord.last == 1) {
-			if ((opCode == REQUEST) && (protoAddrDst == regIpAddress))
-				arpReplyMetaFifo.write(meta);
-			arpTableInsertFifo.write(arpTableEntry(meta.hwAddrSrc, meta.protoAddrSrc, true));
+			if ((opCode == REQUEST) && (protoAddrDst == myIpAddress))
+			  arpReplyMetaFifo.write(meta);
+			else {
+				if ((opCode == REPLY) && (protoAddrDst == myIpAddress))
+					arpTableInsertFifo.write(arpTableEntry(meta.hwAddrSrc, meta.protoAddrSrc, true));
+			}
 			wordCount = 0;
 		}
 		else
@@ -94,11 +96,12 @@ void arp_pkg_receiver(stream<axiWord>&        	arpDataIn,
 /** @ingroup arp_server
  *
  */
-void arp_pkg_sender(stream<arpReplyMeta>&     	arpReplyMetaFifo,
-                    stream<ap_uint<32> >&     	arpRequestMetaFifo,
-                    stream<axiWord>&          	arpDataOut,
-                    ap_uint<32>		      		regIpAddress,
-                    ap_uint<48>					myMacAddress) {
+void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
+                    stream<ap_uint<32> >&     arpRequestMetaFifo,
+                    stream<axiWord>&          arpDataOut,
+                    ap_uint<48>				  myMacAddress,
+                    ap_uint<32>               myIpAddress)
+{
 #pragma HLS PIPELINE II=1
   enum arpSendStateType {ARP_IDLE, ARP_REPLY, ARP_SENTRQ};
   static arpSendStateType aps_fsmState = ARP_IDLE;
@@ -107,44 +110,63 @@ void arp_pkg_sender(stream<arpReplyMeta>&     	arpReplyMetaFifo,
   static arpReplyMeta		replyMeta;
   static ap_uint<32>		inputIP;
   
-  axiWord sendWord = {0, 0xFF, 0};
+  axiWord sendWord;
   
-  switch (aps_fsmState) {
+  switch (aps_fsmState)
+  {
    case ARP_IDLE:
    sendCount = 0;
-    if (!arpReplyMetaFifo.empty()) {
+    if (!arpReplyMetaFifo.empty())
+    {
       arpReplyMetaFifo.read(replyMeta);
       aps_fsmState = ARP_REPLY;
     }
-    else if (!arpRequestMetaFifo.empty()) {
+    else if (!arpRequestMetaFifo.empty())
+    {
       arpRequestMetaFifo.read(inputIP);
       aps_fsmState = ARP_SENTRQ;
     }
     break;
   case ARP_SENTRQ:
-		switch(sendCount) {
+		switch(sendCount)
+		{
 			case 0:
-				sendWord.data.range(47, 0)  = BROADCAST_MAC;
-				sendWord.data.range(63, 48) = myMacAddress.range(15, 0);
+				sendWord.data(47, 0)  = BROADCAST_MAC;
+				sendWord.data(63, 48) = myMacAddress(15, 0);
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 1:
-				sendWord.data.range(31, 0)  = myMacAddress.range(47, 16);
-				sendWord.data.range(63, 32) = 0x01000608;
+				sendWord.data(31, 0)  = myMacAddress(47, 16);
+				sendWord.data(47, 32) = 0x0608;
+				sendWord.data(63, 48) = 0x0100;
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 2:
-				sendWord.data.range(31, 0) = 0x04060008;							// Protocol Address Length, HW Address Length & IP Address
-				sendWord.data.range(47, 32) = REQUEST;
-				sendWord.data.range(63, 48) = myMacAddress.range(15, 0);
+				sendWord.data(15, 0)  = 0x0008;								// IP Address
+				sendWord.data(23, 16) = 6;									// HW Address Length
+				sendWord.data(31, 24) = 4;									// Protocol Address Length
+				sendWord.data(47, 32) = REQUEST;
+				sendWord.data(63, 48) = myMacAddress(15, 0);
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 3:
-				sendWord.data.range(31, 0)  = myMacAddress.range(47, 16);
-				sendWord.data.range(63, 32) = regIpAddress;//MY_IP_ADDR;
+				sendWord.data(31, 0)  = myMacAddress(47, 16);
+				sendWord.data(63, 32) = myIpAddress;//MY_IP_ADDR;
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 4:
-				sendWord.data.range(63, 48) = inputIP.range(15, 0);
+				sendWord.data(47, 0)  = 0;										// Sought-after MAC pt.1
+				sendWord.data(63, 48) = inputIP(15, 0);
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 5:
-				sendWord.data.range(15, 0)  = inputIP.range(31, 16);
+				sendWord.data(63, 16) = 0;									// Sought-after MAC pt.1
+				sendWord.data(15, 0)  = inputIP(31, 16);
 				sendWord.keep = 0x03;
 				sendWord.last = 1;
 				aps_fsmState = ARP_IDLE;
@@ -154,24 +176,44 @@ void arp_pkg_sender(stream<arpReplyMeta>&     	arpReplyMetaFifo,
 		sendCount++;
 		break;
   case ARP_REPLY:
-		  switch(sendCount) {
+		  switch(sendCount)
+			{
 			case 0:
-				sendWord.data = (myMacAddress(15, 0), replyMeta.srcMac);
+				sendWord.data(47, 0)  = replyMeta.srcMac;
+				sendWord.data(63, 48) = myMacAddress(15, 0);
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 1:
-				sendWord.data = (replyMeta.hwType, replyMeta.ethType, myMacAddress(47, 16));
+				sendWord.data(31, 0) = myMacAddress(47, 16);
+				sendWord.data(47, 32) = replyMeta.ethType;
+				sendWord.data(63, 48) = replyMeta.hwType;
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 2:
-				sendWord.data = (myMacAddress(15, 0), REPLY, replyMeta.protoLen, replyMeta.hwLen, replyMeta.protoType);
+				sendWord.data(15, 0)  = replyMeta.protoType;
+				sendWord.data(23, 16) = replyMeta.hwLen;
+				sendWord.data(31, 24) = replyMeta.protoLen;
+				sendWord.data(47, 32) = REPLY;
+				sendWord.data(63, 48) = myMacAddress(15, 0);
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 3:
 				sendWord.data(31, 0)  = myMacAddress(47, 16);
-				sendWord.data(63, 32) = regIpAddress;//MY_IP_ADDR, maybe use proto instead
+				sendWord.data(63, 32) = myIpAddress;//MY_IP_ADDR, maybe use proto instead
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 4:
-				sendWord.data	= (replyMeta.protoAddrSrc(15, 0), replyMeta.hwAddrSrc); 
+				sendWord.data(47, 0)  = replyMeta.hwAddrSrc;
+				sendWord.data(63, 48) = replyMeta.protoAddrSrc(15, 0);
+				sendWord.keep = 0xff;
+				sendWord.last = 0;
 				break;
 			case 5:
+				sendWord.data(63, 16) = 0;
 				sendWord.data(15, 0) = replyMeta.protoAddrSrc(31, 16);
 				sendWord.keep = 0x03;
 				sendWord.last = 1;
@@ -203,14 +245,8 @@ void arp_table(stream<arpTableEntry> &arpTableInsertFifo, stream<ap_uint<32> > &
 		}
 		if (!macIpEncode_req.empty()) {
 			at_inputIP = macIpEncode_req.read();
-			if (at_inputIP == 0xFFFFFFFF) {	// If the destination is the IP broadcast address
-				macIpEncode_rsp.write(arpTableReply(BROADCAST_MAC, 1));	// Immediately return
-				arpState = ARP_IDLE;
-			}
-			else {
-				macLookup_req.write(rtlMacLookupRequest(at_inputIP)); //Create the request format
-				arpState = ARP_LOOKUP;
-			}
+			macLookup_req.write(rtlMacLookupRequest(at_inputIP)); //Create the request format
+			arpState = ARP_LOOKUP;
 		}
 		break;
 	case ARP_UPDATE:
@@ -242,21 +278,12 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
 				  stream<rtlMacLookupReply>		&macLookup_resp,
 				  stream<rtlMacUpdateRequest>	&macUpdate_req,
 				  stream<rtlMacUpdateReply>		&macUpdate_resp,
-				  ap_uint<32>					regIpAddress,
-				  ap_uint<48>					myMacAddress)
+				        ap_uint<48> myMacAddress,
+				        ap_uint<32> myIpAddress)
 {
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 	#pragma HLS DATAFLOW
 
-	/*#pragma HLS INTERFACE port=arpDataIn 		axis
-	#pragma HLS INTERFACE port=arpDataOut 		axis
-	#pragma HLS INTERFACE port=macIpEncode_req 	axis
-	#pragma HLS INTERFACE port=macIpEncode_rsp 	axis
-	#pragma HLS INTERFACE port=macLookup_req 	axis
-	#pragma HLS INTERFACE port=macLookup_resp 	axis
-	#pragma HLS INTERFACE port=macUpdate_req 	axis
-	#pragma HLS INTERFACE port=macUpdate_resp 	axis*/
-	
 	#pragma  HLS resource core=AXI4Stream variable=arpDataIn 		metadata = "-bus_bundle arpDataIn"
 	#pragma  HLS resource core=AXI4Stream variable=arpDataOut 		metadata = "-bus_bundle arpDataOut"
 	#pragma  HLS resource core=AXI4Stream variable=macIpEncode_req 	metadata = "-bus_bundle macIpEncode_req"
@@ -265,14 +292,25 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
 	#pragma	 HLS resource core=AXI4Stream variable = macLookup_resp	metadata = "-bus_bundle macLookup_resp"
 	#pragma	 HLS resource core=AXI4Stream variable = macUpdate_req	metadata = "-bus_bundle macUpdate_req"
 	#pragma	 HLS resource core=AXI4Stream variable = macUpdate_resp	metadata = "-bus_bundle macUpdate_resp"
-	#pragma  HLS INTERFACE ap_none register port=regIpAddress
-	#pragma  HLS INTERFACE ap_stable port=myMacAddress
+
+	#pragma HLS INTERFACE ap_none register port=myMacAddress
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
+
+	/*#pragma HLS INTERFACE port=arpDataIn 		axis
+	#pragma HLS INTERFACE port=arpDataOut 		axis
+	#pragma HLS INTERFACE port=macIpEncode_req 	axis
+	#pragma HLS INTERFACE port=macIpEncode_rsp 	axis
+	#pragma HLS INTERFACE port=macLookup_req 	axis
+	#pragma HLS INTERFACE port=macLookup_resp 	axis
+	#pragma HLS INTERFACE port=macUpdate_req 	axis
+	#pragma HLS INTERFACE port=macUpdate_resp	axis*/
 
   	#pragma HLS DATA_PACK variable=macIpEncode_rsp
 	#pragma HLS DATA_PACK variable=macLookup_req
 	#pragma HLS DATA_PACK variable=macLookup_resp
 	#pragma HLS DATA_PACK variable=macUpdate_req
 	#pragma HLS DATA_PACK variable=macUpdate_resp
+
 
   static stream<arpReplyMeta>     arpReplyMetaFifo("arpReplyMetaFifo");
   #pragma HLS STREAM variable=arpReplyMetaFifo depth=4
@@ -285,14 +323,11 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
   static stream<arpTableEntry>    arpTableInsertFifo("arpTableInsertFifo");
   #pragma HLS STREAM variable=arpTableInsertFifo depth=4
   #pragma HLS DATA_PACK variable=arpTableInsertFifo
-  static ap_uint<32> intIpAddress[NO_OF_BROADCASTS];
 
-  //broadcaster<ap_uint<32> >(regIpAddress, intIpAddress);
-  //arp_pkg_receiver(arpDataIn, arpReplyMetaFifo, arpTableInsertFifo, intIpAddress[0]);
-  //arp_pkg_sender(arpReplyMetaFifo, arpRequestMetaFifo, arpDataOut, intIpAddress[1]);
+  arp_pkg_receiver(arpDataIn, arpReplyMetaFifo, arpTableInsertFifo, myIpAddress);
+  
+  arp_pkg_sender(arpReplyMetaFifo, arpRequestMetaFifo, arpDataOut, myMacAddress, myIpAddress);
 
-  arp_pkg_receiver(arpDataIn, arpReplyMetaFifo, arpTableInsertFifo, regIpAddress);
-  arp_pkg_sender(arpReplyMetaFifo, arpRequestMetaFifo, arpDataOut, regIpAddress, myMacAddress);
   arp_table(arpTableInsertFifo, macIpEncode_req, macIpEncode_rsp, arpRequestMetaFifo,
 		  macLookup_req, macLookup_resp, macUpdate_req, macUpdate_resp);
 }

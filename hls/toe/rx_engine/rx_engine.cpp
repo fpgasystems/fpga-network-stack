@@ -2,30 +2,31 @@
 Copyright (c) 2016, Xilinx, Inc.
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, 
+1. Redistributions of source code must retain the above copyright notice,
 this list of conditions and the following disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice, 
-this list of conditions and the following disclaimer in the documentation 
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
 and/or other materials provided with the distribution.
 
-3. Neither the name of the copyright holder nor the names of its contributors 
-may be used to endorse or promote products derived from this software 
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software
 without specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
-IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "rx_engine.hpp"
 
 using namespace hls;
@@ -53,53 +54,64 @@ void rxTcpLengthExtract(stream<axiWord>&			dataIn,
 	static bool tle_wasLast = false;
 	static bool tle_shift = true;
 	static axiWord tle_prevWord;
+
+	axiWord currWord;
 	axiWord sendWord;
 
-	if (tle_insertWord)	{
-		sendWord = axiWord(0, 0xFF, 0);
+	if (tle_insertWord)
+	{
+		sendWord.data = 0;
+		sendWord.keep = 0xFF;
+		sendWord.last = 0;
 		dataOut.write(sendWord);
+		//printWord(sendWord);
 		tle_insertWord = false;
 	}
-	else if (!dataIn.empty() && !tle_wasLast) {
-		axiWord currWord = dataIn.read();
-		switch (tle_wordCount) {
+	else if (!dataIn.empty() && !tle_wasLast)
+	{
+		dataIn.read(currWord);
+		switch (tle_wordCount)
+		{
 		case 0:
 			tle_ipHeaderLen = currWord.data(3, 0);
-			tle_ipTotalLen = byteSwap16(currWord.data(31, 16));
+			tle_ipTotalLen(7, 0) = currWord.data(31, 24);
+			tle_ipTotalLen(15, 8) = currWord.data(23, 16);
 			tle_ipTotalLen -= (tle_ipHeaderLen * 4);
-			tle_ipHeaderLen -= 2;
+			tle_ipHeaderLen -= 2; //?
 			tle_wordCount++;
 			break;
 		case 1:
-			// Get source IP address -> is put into prevWord
-			tcpLenFifoOut.write(tle_ipTotalLen); // Write length
+			// Get source IP address
+			// -> is put into prevWord
+			// Write length
+			tcpLenFifoOut.write(tle_ipTotalLen);
 			tle_ipHeaderLen -= 2;
 			tle_wordCount++;
 			break;
 		case 2:
 			// Get destination IP address
-			sendWord = axiWord((currWord.data(31, 0), tle_prevWord.data(63, 32)), (currWord.keep(3, 0), tle_prevWord.keep(7, 4)), (currWord.keep[4] == 0));
-			//sendWord.data(31, 0) = tle_prevWord.data(63, 32);
-			//sendWord.keep(3, 0) = tle_prevWord.keep(7, 4);
-			//sendWord.data(63, 32) = currWord.data(31, 0);
-			//sendWord.keep(7, 4) = currWord.keep(3, 0);
+			sendWord.data(31, 0) = tle_prevWord.data(63, 32);
+			sendWord.keep(3, 0) = tle_prevWord.keep(7, 4);
+			sendWord.data(63, 32) = currWord.data(31, 0);
+			sendWord.keep(7, 4) = currWord.keep(3, 0);
 			//sendWord.last = currWord.last;
-			//sendWord.last = (currWord.keep[4] == 0);
+			sendWord.last = (currWord.keep[4] == 0);
 			dataOut.write(sendWord);
+			//printWord(sendWord);
 			tle_ipHeaderLen -= 1;
 			tle_insertWord = true;
 			tle_wordCount++;
 			break;
 		case 3:
-			switch (tle_ipHeaderLen) {
+			switch (tle_ipHeaderLen)
+			{
 			case 0: //half of prevWord contains valuable data and currWord is full of valuable
-				sendWord = axiWord((currWord.data(31, 0), tle_prevWord.data(63, 32)), (currWord.keep(3, 0), tle_prevWord.keep(7, 4)), (currWord.keep[4] == 0));
-				//sendWord.data(31, 0) = tle_prevWord.data(63, 32);
-				//sendWord.keep(3, 0) = tle_prevWord.keep(7, 4);
-				//sendWord.data(63, 32) = currWord.data(31, 0);
-				//sendWord.keep(7, 4) = currWord.keep(3, 0);
+				sendWord.data(31, 0) = tle_prevWord.data(63, 32);
+				sendWord.keep(3, 0) = tle_prevWord.keep(7, 4);
+				sendWord.data(63, 32) = currWord.data(31, 0);
+				sendWord.keep(7, 4) = currWord.keep(3, 0);
 				//sendWord.last = currWord.last;
-				//sendWord.last = (currWord.keep[4] == 0);
+				sendWord.last = (currWord.keep[4] == 0);
 				dataOut.write(sendWord);
 				//printWord(sendWord);
 				tle_shift = true;
@@ -121,32 +133,37 @@ void rxTcpLengthExtract(stream<axiWord>&			dataIn,
 			}
 			break;
 		default:
-			if (tle_shift) {
-				sendWord = axiWord((currWord.data(31, 0), tle_prevWord.data(63, 32)), (currWord.keep(3, 0), tle_prevWord.keep(7, 4)), (currWord.keep[4] == 0));
-				//sendWord.data(31, 0) = tle_prevWord.data(63, 32);
-				//sendWord.keep(3, 0) = tle_prevWord.keep(7, 4);
-				//sendWord.data(63, 32) = currWord.data(31, 0);
-				//sendWord.keep(7, 4) = currWord.keep(3, 0);
-				//sendWord.last = (currWord.keep[4] == 0);
+			if (tle_shift)
+			{
+				sendWord.data(31, 0) = tle_prevWord.data(63, 32);
+				sendWord.keep(3, 0) = tle_prevWord.keep(7, 4);
+				sendWord.data(63, 32) = currWord.data(31, 0);
+				sendWord.keep(7, 4) = currWord.keep(3, 0);
+				sendWord.last = (currWord.keep[4] == 0);
 				dataOut.write(sendWord);
 			}
-			else {
+			else
+			{
 				sendWord = currWord;
 				dataOut.write(sendWord);
 			}
 			break;
 		} //switch on WORD_N
 		tle_prevWord = currWord;
-		if (currWord.last) {
+		if (currWord.last)
+		{
 			tle_wordCount = 0;
 			tle_wasLast = !sendWord.last;
 		}
 	} // if !empty
-	else if (tle_wasLast) { //Assumption has to be shift
+	else if (tle_wasLast) //Assumption has to be shift
+	{
 		// Send remainng data
-		axiWord sendWord = axiWord(0, 0, 1);
 		sendWord.data(31, 0) = tle_prevWord.data(63, 32);
 		sendWord.keep(3, 0) = tle_prevWord.keep(7, 4);
+		sendWord.data(63, 32) = 0;
+		sendWord.keep(7, 4) = 0x0;
+		sendWord.last = 0x1;
 		dataOut.write(sendWord);
 		tle_wasLast = false;
 	}
@@ -160,7 +177,8 @@ void rxTcpLengthExtract(stream<axiWord>&			dataIn,
  */
 void rxInsertPseudoHeader(stream<axiWord>&				dataIn,
 							stream<ap_uint<16> >&		tcpLenFifoIn,
-							stream<axiWord>&			dataOut) {
+							stream<axiWord>&			dataOut)
+{
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -170,6 +188,7 @@ void rxInsertPseudoHeader(stream<axiWord>&				dataIn,
 	static axiWord iph_prevWord;
 	ap_uint<1> valid;
 	ap_uint<16> tcpLen;
+
 
 	currWord.last = 0;
 	if (iph_wasLast)
@@ -245,10 +264,11 @@ void rxInsertPseudoHeader(stream<axiWord>&				dataIn,
  */
 void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
 							stream<axiWord>&				dataOut,
+							stream<bool>&					validFifoOut,
 							stream<rxEngineMetaData>&		metaDataFifoOut,
-							stream<ap_uint<16> >&			portTableOut,
 							stream<fourTuple>&				tupleFifoOut,
-							stream<bool>& 					validFifoOut) {
+							stream<ap_uint<16> >&			portTableOut)
+{
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -359,7 +379,7 @@ void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
 					dataOut.write(sendWord);
 					halfWord.range(31, 0) = currWord.data.range(63, 32);
 					halfWord.range(35, 32) = currWord.keep.range(7, 4);
-					//halfWord[36] = currWord.last; //FIXME not needed
+					halfWord[36] = currWord.last; //FIXME not needed
 				}
 			}
 			break;
@@ -391,6 +411,11 @@ void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
 			csa_checkChecksum = true;
 		}
 	}
+	/*if (currWord.last == 1)
+	{
+		csa_wordCount = 0;
+		csa_checkChecksum = true;
+	}*/
 	else if(csa_wasLast) //make if
 	{
 		if (csa_meta.length != 0)
@@ -404,58 +429,62 @@ void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
 		}
 		csa_wasLast = false;
 	}
-	else if (csa_checkChecksum) {
-		switch (csa_cc_state) {
-			case 0:
-				csa_tcp_sums[0] = (csa_tcp_sums[0] + (csa_tcp_sums[0] >> 16)) & 0xFFFF;
-				csa_tcp_sums[1] = (csa_tcp_sums[1] + (csa_tcp_sums[1] >> 16)) & 0xFFFF;
-				csa_tcp_sums[2] = (csa_tcp_sums[2] + (csa_tcp_sums[2] >> 16)) & 0xFFFF;
-				csa_tcp_sums[3] = (csa_tcp_sums[3] + (csa_tcp_sums[3] >> 16)) & 0xFFFF;
-				csa_cc_state++;
-				break;
-			case 1:
-				csa_tcp_sums[0] += csa_tcp_sums[2];
-				csa_tcp_sums[1] += csa_tcp_sums[3];
-				csa_tcp_sums[0] = (csa_tcp_sums[0] + (csa_tcp_sums[0] >> 16)) & 0xFFFF;
-				csa_tcp_sums[1] = (csa_tcp_sums[1] + (csa_tcp_sums[1] >> 16)) & 0xFFFF;
-				csa_cc_state++;
-				break;
-			case 2:
-				csa_tcp_sums[0] += csa_tcp_sums[1];
-				csa_tcp_sums[0] = (csa_tcp_sums[0] + (csa_tcp_sums[0] >> 16)) & 0xFFFF;
-				csa_cc_state++;
-				break;
-			case 3:
-				csa_tcp_sums[0] = ~csa_tcp_sums[0];
-				csa_cc_state++;
-				break;
-			case 4:
-				// If summation == 0 then checksum is correct
-				if (csa_tcp_sums[0](15, 0) == 0)
+	else if (csa_checkChecksum) //make if?
+	{
+		switch (csa_cc_state)
+		{
+		case 0:
+			csa_tcp_sums[0] = (csa_tcp_sums[0] + (csa_tcp_sums[0] >> 16)) & 0xFFFF;
+			csa_tcp_sums[1] = (csa_tcp_sums[1] + (csa_tcp_sums[1] >> 16)) & 0xFFFF;
+			csa_tcp_sums[2] = (csa_tcp_sums[2] + (csa_tcp_sums[2] >> 16)) & 0xFFFF;
+			csa_tcp_sums[3] = (csa_tcp_sums[3] + (csa_tcp_sums[3] >> 16)) & 0xFFFF;
+			csa_cc_state++;
+			break;
+		case 1:
+			csa_tcp_sums[0] += csa_tcp_sums[2];
+			csa_tcp_sums[1] += csa_tcp_sums[3];
+			csa_tcp_sums[0] = (csa_tcp_sums[0] + (csa_tcp_sums[0] >> 16)) & 0xFFFF;
+			csa_tcp_sums[1] = (csa_tcp_sums[1] + (csa_tcp_sums[1] >> 16)) & 0xFFFF;
+			csa_cc_state++;
+			break;
+		case 2:
+			csa_tcp_sums[0] += csa_tcp_sums[1];
+			csa_tcp_sums[0] = (csa_tcp_sums[0] + (csa_tcp_sums[0] >> 16)) & 0xFFFF;
+			csa_cc_state++;
+			break;
+		case 3:
+			csa_tcp_sums[0] = ~csa_tcp_sums[0];
+			csa_cc_state++;
+			break;
+		case 4:
+			// If summation == 0 then checksum is correct
+			if (csa_tcp_sums[0](15, 0) == 0)
+			{
+				// Since pkg is valid, write out metadata, 4-tuple and check port
+				metaDataFifoOut.write(csa_meta);
+				portTableOut.write(csa_port);
+				tupleFifoOut.write(csa_sessionTuple);
+				if (csa_meta.length != 0)
 				{
-					// Since pkg is valid, write out metadata, 4-tuple and check port
-					metaDataFifoOut.write(csa_meta);
-					portTableOut.write(csa_port);
-					tupleFifoOut.write(csa_sessionTuple);
-					if (csa_meta.length != 0)
-					{
-						validFifoOut.write(true);
-					}
+					validFifoOut.write(true);
 				}
-				else if(csa_meta.length != 0)
-				{
-					validFifoOut.write(false);
-				}
-				csa_checkChecksum = false;
-				csa_tcp_sums[0] = 0;
-				csa_tcp_sums[1] = 0;
-				csa_tcp_sums[2] = 0;
-				csa_tcp_sums[3] = 0;
-				csa_cc_state = 0;
-				break;
+			}
+			else if(csa_meta.length != 0)
+			{
+				validFifoOut.write(false);
+			}
+			csa_checkChecksum = false;
+			csa_tcp_sums[0] = 0;
+			csa_tcp_sums[1] = 0;
+			csa_tcp_sums[2] = 0;
+			csa_tcp_sums[3] = 0;
+			csa_cc_state = 0;
+			break;
 		}
+
 	}
 }
+
 
 /** @ingroup rx_engine
  *  For each packet it reads the valid value from @param validFifoIn
@@ -467,41 +496,59 @@ void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
  */
 void rxTcpInvalidDropper(stream<axiWord>&				dataIn,
 							stream<bool>&				validFifoIn,
-							stream<axiWord>&			dataOut) {
+							stream<axiWord>&			dataOut)
+{
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-	static bool rtid_firstWord = true;
-	static bool rtid_drop = false;
+	enum rtid_StateType {GET_VALID, FWD, DROP};
+	static rtid_StateType rtid_state = GET_VALID;
 
 	axiWord currWord;
 	bool valid;
 
-	currWord.last = 0;
-	if (rtid_drop) {
-		if(!dataIn.empty())
-			dataIn.read(currWord);
-	}
-	else if (rtid_firstWord) {
-		if (!validFifoIn.empty() && !dataIn.empty()) {
+
+	switch (rtid_state) {
+	case GET_VALID: //Drop1
+		if (!validFifoIn.empty())
+		{
 			validFifoIn.read(valid);
-			dataIn.read(currWord);
-			if (!valid)
-				rtid_drop = true;
+			if (valid)
+			{
+				rtid_state = FWD;
+			}
 			else
-				dataOut.write(currWord);
-			rtid_firstWord = false;
+			{
+				rtid_state = DROP;
+			}
 		}
-	}
-	else if(!dataIn.empty()) {
-		dataIn.read(currWord);
-		dataOut.write(currWord);
-	}
-	if (currWord.last == 1) {
-		rtid_drop = false;
-		rtid_firstWord = true;
-	}
+		break;
+	case FWD:
+		if(!dataIn.empty() && !dataOut.full())
+		{
+			dataIn.read(currWord);
+			dataOut.write(currWord);
+			if (currWord.last)
+			{
+				rtid_state = GET_VALID;
+			}
+		}
+		break;
+	case DROP:
+		if(!dataIn.empty())
+		{
+			dataIn.read(currWord);
+			if (currWord.last)
+			{
+				rtid_state = GET_VALID;
+			}
+		}
+		break;
+	} // switch
 }
+
+
+
 
 /** @ingroup rx_engine
  * The module contains 2 state machines nested into each other. The outer state machine
@@ -594,7 +641,6 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			else
 			{
 				// Make session lookup, only allow creation of new entry when SYN or SYN_ACK
-				//std::cerr << "Metaloader: " << std::hex << tuple.dstIp << " - " << tuple.dstPort << " - " << tuple.srcIp << " - " << tuple.srcPort << " -- " << mh_meta.syn << " - " << mh_meta.fin << std::endl;
 				rxEng2sLookup_req.write(sessionLookupQuery(tuple, (mh_meta.syn && !mh_meta.rst && !mh_meta.fin)));
 				mh_state = LOOKUP;
 			}
@@ -613,8 +659,37 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			{
 				dropDataFifoOut.write(!mh_lup.hit);
 			}
+			/*if (!mh_lup.hit)
+			{
+				// Port is Open, but we have no sessionID, that matches or is free
+				// For SYN we should time out, for everything else sent RST TODO
+				if (mh_meta.length != 0)
+				{
+					dropDataFifoOut.write(true); // always write???
+				}
+				//mh_state = META;
+			}
+			else
+			{
+				//Write out lup and meta
+				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta));
+
+				// read state
+				/*rxEng2stateTable_upd_req.write(stateQuery(mh_lup.sessionID));
+				// read rxSar & txSar
+				if (!(mh_meta.syn && !mh_meta.rst && !mh_meta.fin)) // Do not read rx_sar for SYN(+ACK)(+ANYTHING) => (!syn || rst || fin
+				{
+					rxEng2rxSar_upd_req.write(rxSarRecvd(mh_lup.sessionID));
+				}
+				if (mh_meta.ack) // Do not read for SYN (ACK+ANYTHING)
+				{
+					rxEng2txSar_upd_req.write(rxTxSarQuery(mh_lup.sessionID));
+				}*/
+				//mh_state = META;
+			//}
 			mh_state = META;
 		}
+
 		break;
 	}//switch
 }
@@ -629,10 +704,12 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						stream<rxRetransmitTimerUpdate>&		rxEng2timer_clearRetransmitTimer,
 						stream<ap_uint<16> >&					rxEng2timer_clearProbeTimer,
 						stream<ap_uint<16> >&					rxEng2timer_setCloseTimer,
-						stream<openStatus>&						openConStatusOut, //TODO merge with eventEngine
+						stream<openStatus>&						openConStatusOut,
 						stream<event>&							rxEng2eventEng_setEvent,
 						stream<bool>&							dropDataFifoOut,
+#if !(RX_DDR_BYPASS)
 						stream<mmCmd>&							rxBufferWriteCmd,
+#endif
 						stream<appNotification>&				rxEng2rxApp_notification)
 {
 #pragma HLS INLINE off
@@ -645,7 +722,6 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 	static rxFsmMetaData fsm_meta;
 	static bool fsm_txSarRequest = false;
 
-	static uint16_t rxEngSynCounter = 0;
 
 	ap_uint<4> control_bits = 0;
 	sessionState tcpState;
@@ -708,9 +784,9 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						// Notify probeTimer about new ACK
 						rxEng2timer_clearProbeTimer.write(fsm_meta.sessionID);
 						// Check for SlowStart & Increase Congestion Window
-						if (txSar.cong_window <= (txSar.slowstart_threshold-MMS))
+						if (txSar.cong_window <= (txSar.slowstart_threshold-MSS))
 						{
-							txSar.cong_window += MMS;
+							txSar.cong_window += MSS;
 						}
 						else if (txSar.cong_window <= 0xF7FF)
 						{
@@ -722,13 +798,14 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					if ((txSar.prevAck <= fsm_meta.meta.ackNumb && fsm_meta.meta.ackNumb <= txSar.nextByte)
 							|| ((txSar.prevAck <= fsm_meta.meta.ackNumb || fsm_meta.meta.ackNumb <= txSar.nextByte) && txSar.nextByte < txSar.prevAck))
 					{
-						rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count, 0)));
+						rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count)));
 					}
 
 					// Check if packet contains payload
 					if (fsm_meta.meta.length != 0)
 					{
-						ap_uint<32> newRecvd = fsm_meta.meta.seqNumb + fsm_meta.meta.length; // Second part makes sure that app pointer is not overtaken
+						ap_uint<32> newRecvd = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
+						// Second part makes sure that app pointer is not overtaken
 						ap_uint<16> free_space = ((rxSar.appd - rxSar.recvd(15, 0)) - 1);
 						// Check if segment in order and if enough free space is available
 						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
@@ -738,8 +815,10 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							ap_uint<32> pkgAddr;
 							pkgAddr(31, 30) = 0x0;
 							pkgAddr(29, 16) = fsm_meta.sessionID(13, 0);
-							pkgAddr(15, 0) = fsm_meta.meta.seqNumb.range(15, 0);
+							pkgAddr(15, 0) = fsm_meta.meta.seqNumb(15, 0);
+#if !(RX_DDR_BYPASS)
 							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+#endif
 							// Only notify about  new data available
 							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
 							dropDataFifoOut.write(false);
@@ -809,16 +888,14 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 			//if (!stateTable2rxEng_upd_rsp.empty())
 			if (fsm_state == LOAD)
 			{
-				rxEngSynCounter++;
-				//std::cerr << "SYN Counter: " << rxEngSynCounter << std::endl;
 				stateTable2rxEng_upd_rsp.read(tcpState);
 				rxSar2rxEng_upd_rsp.read(rxSar);
 				if (tcpState == CLOSED || tcpState == SYN_SENT) // Actually this is LISTEN || SYN_SENT
 				{
 					// Initialize rxSar, SEQ + phantom byte, last '1' for makes sure appd is initialized
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb + 1, 1, 1));
+					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, 1, 1));
 					// Initialize receive window
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, 1))); //TODO maybe include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0))); //TODO maybe include count check
 					// Set SYN_ACK event
 					rxEng2eventEng_setEvent.write(event(SYN_ACK, fsm_meta.sessionID));
 					// Change State to SYN_RECEIVED
@@ -861,9 +938,9 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 				if ((tcpState == SYN_SENT) && (fsm_meta.meta.ackNumb == txSar.nextByte))// && !mh_lup.created)
 				{
 					//initialize rx_sar, SEQ + phantom byte, last '1' for appd init
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb + 1, 1, 1));
+					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, 1, 1));
 
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0, 1))); //CHANGE this was added //TODO maybe include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0))); //CHANGE this was added //TODO maybe include count check
 
 					// set ACK event
 					rxEng2eventEng_setEvent.write(event(ACK_NODELAY, fsm_meta.sessionID));
@@ -896,12 +973,14 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 				// Check state and if FIN in order, Current out of order FINs are not accepted
 				if ((tcpState == ESTABLISHED || tcpState == FIN_WAIT_1 || tcpState == FIN_WAIT_2) && (rxSar.recvd == fsm_meta.meta.seqNumb))
 				{
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count, 0))); //TODO include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count))); //TODO include count check
 
 					// +1 for phantom byte, there might be data too
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, 1)); //diff to ACK
 
-					rxEng2timer_clearProbeTimer.write(fsm_meta.sessionID); // Clear the probe timer
+					// Clear the probe timer
+					rxEng2timer_clearProbeTimer.write(fsm_meta.sessionID);
+
 					// Check if there is payload
 					if (fsm_meta.meta.length != 0)
 					{
@@ -909,7 +988,9 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						pkgAddr(31, 30) = 0x0;
 						pkgAddr(29, 16) = fsm_meta.sessionID(13, 0);
 						pkgAddr(15, 0) = fsm_meta.meta.seqNumb(15, 0);
+#if !(RX_DDR_BYPASS)
 						rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+#endif
 						// Tell Application new data is available and connection got closed
 						rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true));
 						dropDataFifoOut.write(false);
@@ -1026,29 +1107,47 @@ void rxPackageDropper(stream<axiWord>&		dataIn,
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-	enum tpfStateType {READ_DROP, READ_DROP2, FWD, DROP};
-	static tpfStateType tpf_state = READ_DROP;
-	static ap_uint<10> rxBuffWrAccessLength = 0;
-	static ap_uint<1> rxBuffWriteDoubleAccess = 0;
+	enum tpfStateType {READ_DROP1, READ_DROP2, FWD, DROP};
+	static tpfStateType tpf_state = READ_DROP1;
+
+	bool drop;
 
 	switch (tpf_state) {
-	case READ_DROP: //Drop1
-		if (!dropFifoIn1.empty()) {
-			bool drop = dropFifoIn1.read();
-			(drop) ? tpf_state = DROP : tpf_state = READ_DROP2;
+	case READ_DROP1: //Drop1
+		if (!dropFifoIn1.empty())
+		{
+			dropFifoIn1.read(drop);
+			if (drop)
+			{
+				tpf_state = DROP;
+			}
+			else
+			{
+				tpf_state = READ_DROP2;
+			}
 		}
 		break;
-	case READ_DROP2: //Drop1
-		if (!dropFifoIn2.empty()) {
-			bool drop = dropFifoIn2.read();
-			(drop) ? tpf_state = DROP : tpf_state = FWD;
+	case READ_DROP2:
+		if (!dropFifoIn2.empty())
+		{
+			dropFifoIn2.read(drop);
+			if (drop)
+			{
+				tpf_state = DROP;
+			}
+			else
+			{
+				tpf_state = FWD;
+			}
 		}
 		break;
 	case FWD:
 		if(!dataIn.empty() && !rxBufferDataOut.full()) {
 			axiWord currWord = dataIn.read();
 			if (currWord.last)
-				tpf_state = READ_DROP;
+			{
+				tpf_state = READ_DROP1;
+			}
 			rxBufferDataOut.write(currWord);
 		}
 		break;
@@ -1056,12 +1155,13 @@ void rxPackageDropper(stream<axiWord>&		dataIn,
 		if(!dataIn.empty()) {
 			axiWord currWord = dataIn.read();
 			if (currWord.last)
-				tpf_state = READ_DROP;
+			{
+				tpf_state = READ_DROP1;
+			}
 		}
 		break;
 	} // switch
 }
-
 
 /** @ingroup rx_engine
  *  Delays the notifications to the application until the data is actually is written to memory
@@ -1138,7 +1238,7 @@ void rxEngMemWrite(	stream<axiWord>& 				rxMemWrDataIn, stream<mmCmd>&				rxMemW
 #pragma HLS pipeline II=1
 #pragma HLS INLINE off
 
-	static enum rxmwrState{RXMEMWR_IDLE, RXMEMWR_WRFIRST, RXMEMWR_EVALSECOND, RXMEMWR_WRSECONDSTR, RXMEMWR_ALIGNED, RXMEMWR_RESIDUE} rxMemWrState;
+	static enum rxmwrState{RXMEMWR_IDLE, RXMEMWR_WRFIRST, RXMEMWR_EVALSECOND, RXMEMWR_WRSECOND, RXMEMWR_WRSECONDSTR, RXMEMWR_ALIGNED, RXMEMWR_RESIDUE} rxMemWrState;
 	static mmCmd rxMemWriterCmd = mmCmd(0, 0);
 	static ap_uint<16> rxEngBreakTemp = 0;
 	static uint8_t lengthBuffer = 0;
@@ -1146,8 +1246,6 @@ void rxEngMemWrite(	stream<axiWord>& 				rxMemWrDataIn, stream<mmCmd>&				rxMemW
 	static bool txAppBreakdown = false;
 	static axiWord pushWord = axiWord(0, 0xFF, 0);
 
-	//static uint16_t txAppPktCounter = 0;
-	//static uint16_t txAppWordCounter = 0;
 
 	switch (rxMemWrState) {
 	case RXMEMWR_IDLE:
@@ -1161,7 +1259,9 @@ void rxEngMemWrite(	stream<axiWord>& 				rxMemWrDataIn, stream<mmCmd>&				rxMemW
 				txAppBreakdown = true;
 			}
 			else
+			{
 				rxEngBreakTemp = rxMemWriterCmd.bbt;
+			}
 			rxMemWrCmdOut.write(tempCmd);
 			doubleAccess.write(txAppBreakdown);
 			//txAppPktCounter++;
@@ -1173,20 +1273,28 @@ void rxEngMemWrite(	stream<axiWord>& 				rxMemWrDataIn, stream<mmCmd>&				rxMemW
 		if (!rxMemWrDataIn.empty() && !rxMemWrDataOut.full()) {
 			rxMemWrDataIn.read(pushWord);
 			axiWord outputWord = pushWord;
-			ap_uint<4> byteCount = keepMapping(pushWord.keep);
+			ap_uint<4> byteCount = keepToLen(pushWord.keep);
 			if (rxEngBreakTemp > 8)
+			{
 				rxEngBreakTemp -= 8;
-			else {
-				if (txAppBreakdown == true) {				/// Changes are to go in here
-					if (rxMemWriterCmd.saddr.range(15, 0) % 8 != 0) // If the word is not perfectly alligned then there is some magic to be worked.
-						outputWord.keep = returnKeep(rxEngBreakTemp);
+			}
+			else
+			{
+				if (txAppBreakdown == true)
+				{				/// Changes are to go in here
+					if (rxMemWriterCmd.saddr.range(15, 0) % 8 != 0) // If the word is not perfectly aligned then there is some magic to be worked.
+					{
+						outputWord.keep = lenToKeep(rxEngBreakTemp);
+					}
 					outputWord.last = 1;
 					rxMemWrState = RXMEMWR_EVALSECOND;
 					rxEngAccessResidue = byteCount - rxEngBreakTemp;
 					lengthBuffer = rxEngBreakTemp;	// Buffer the number of bits consumed.
 				}
 				else
+				{
 					rxMemWrState = RXMEMWR_IDLE;
+				}
 			}
 			//txAppWordCounter++;
 			//std::cerr <<  std::dec << cycleCounter << " - " << txAppWordCounter << " - " << std::hex << pushWord.data << std::endl;
@@ -1231,7 +1339,7 @@ void rxEngMemWrite(	stream<axiWord>& 				rxMemWrDataIn, stream<mmCmd>&				rxMemW
 					rxMemWrState = RXMEMWR_RESIDUE;
 				}
 				else {
-					outputWord.keep = returnKeep(rxEngBreakTemp);
+					outputWord.keep = lenToKeep(rxEngBreakTemp);
 					outputWord.last = 1;
 					rxMemWrState = RXMEMWR_IDLE;
 				}
@@ -1243,7 +1351,7 @@ void rxEngMemWrite(	stream<axiWord>& 				rxMemWrDataIn, stream<mmCmd>&				rxMemW
 		break;
 	case RXMEMWR_RESIDUE:
 		if (!rxMemWrDataOut.full()) {
-			axiWord outputWord = axiWord(0, returnKeep(rxEngBreakTemp), 1);
+			axiWord outputWord = axiWord(0, lenToKeep(rxEngBreakTemp), 1);
 			outputWord.data.range(((8-lengthBuffer)*8) - 1, 0) = pushWord.data.range(63, lengthBuffer*8);
 			rxMemWrDataOut.write(outputWord);
 			rxMemWrState = RXMEMWR_IDLE;
@@ -1285,7 +1393,9 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 				stream<bool>&						portTable2rxEng_rsp,
 				stream<rxSarEntry>&					rxSar2rxEng_upd_rsp,
 				stream<rxTxSarReply>&				txSar2rxEng_upd_rsp,
+#if !(RX_DDR_BYPASS)
 				stream<mmStatus>&					rxBufferWriteStatus,
+#endif
 				stream<axiWord>&					rxBufferWriteData,
 				stream<sessionLookupQuery>&			rxEng2sLookup_req,
 				stream<stateQuery>&					rxEng2stateTable_upd_req,
@@ -1297,7 +1407,9 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 				stream<ap_uint<16> >&				rxEng2timer_setCloseTimer,
 				stream<openStatus>&					openConStatusOut,
 				stream<extendedEvent>&				rxEng2eventEng_setEvent,
+#if !(RX_DDR_BYPASS)
 				stream<mmCmd>&						rxBufferWriteCmd,
+#endif
 				stream<appNotification>&			rxEng2rxApp_notification)
 {
 //#pragma HLS DATAFLOW
@@ -1359,18 +1471,14 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 
 	static stream<ap_uint<1> >				rxEngDoubleAccess("rxEngDoubleAccess");
 	#pragma HLS stream variable=rxEngDoubleAccess depth=8
-
 	rxTcpLengthExtract(ipRxData, rxEng_dataBuffer0, rxEng_tcpLenFifo);
 
 	rxInsertPseudoHeader(rxEng_dataBuffer0, rxEng_tcpLenFifo, rxEng_dataBuffer1);
 
-	rxCheckTCPchecksum(rxEng_dataBuffer1, rxEng_dataBuffer2, rxEng_metaDataFifo,
-					   rxEng2portTable_req, rxEng_tupleBuffer, rxEng_tcpValidFifo);
+	rxCheckTCPchecksum(rxEng_dataBuffer1, rxEng_dataBuffer2, rxEng_tcpValidFifo, rxEng_metaDataFifo,
+						rxEng_tupleBuffer, rxEng2portTable_req);
 
 	rxTcpInvalidDropper(rxEng_dataBuffer2, rxEng_tcpValidFifo, rxEng_dataBuffer3);
-
-	/*rxPortGate(inData, outData,
-					rxPortTableOut);*/
 
 	rxMetadataHandler(	rxEng_metaDataFifo,
 						sLookup2rxEng_rsp,
@@ -1394,14 +1502,23 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 							openConStatusOut,
 							rxEng_fsmEventFifo,
 							rxEng_fsmDropFifo,
+#if !(RX_DDR_BYPASS)
 							rxTcpFsm2wrAccessBreakdown,
 							rx_internalNotificationFifo);
+#else
+							rxEng2rxApp_notification);
+#endif
 
+#if !(RX_DDR_BYPASS)
 	rxPackageDropper(rxEng_dataBuffer3, rxEng_metaHandlerDropFifo, rxEng_fsmDropFifo, rxPkgDrop2rxMemWriter);
-	
+
 	rxEngMemWrite(rxPkgDrop2rxMemWriter, rxTcpFsm2wrAccessBreakdown, rxBufferWriteCmd, rxBufferWriteData,rxEngDoubleAccess);
 
 	rxAppNotificationDelayer(rxBufferWriteStatus, rx_internalNotificationFifo, rxEng2rxApp_notification, rxEngDoubleAccess);
-
+#else
+	rxPackageDropper(rxEng_dataBuffer3, rxEng_metaHandlerDropFifo, rxEng_fsmDropFifo, rxBufferWriteData);
+#endif
 	rxEventMerger(rxEng_metaHandlerEventFifo, rxEng_fsmEventFifo, rxEng2eventEng_setEvent);
+
 }
+

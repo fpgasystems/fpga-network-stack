@@ -13,7 +13,7 @@ MAX_LENGTH = 4096
 #HOST = '172.16.0.14'
 def length_test(hostIPAddr, threadId):
     HOST = hostIPAddr
-    PORT = 5001
+    PORT = 7
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect( (HOST, PORT) )

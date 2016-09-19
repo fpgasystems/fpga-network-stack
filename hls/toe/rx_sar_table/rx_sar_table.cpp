@@ -46,7 +46,8 @@ void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 					stream<ap_uint<16> >&		txEng2rxSar_req, //read only
 					stream<rxSarEntry>&			rxSar2rxEng_upd_rsp,
 					stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
-					stream<rxSarEntry>&			rxSar2txEng_rsp) {
+					stream<rxSarEntry>&			rxSar2txEng_rsp)
+{
 
 	static rxSarEntry rx_table[MAX_SESSIONS];
 	ap_uint<16> addr;
@@ -58,25 +59,40 @@ void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 #pragma HLS RESOURCE variable=rx_table core=RAM_1P_BRAM
 #pragma HLS DEPENDENCE variable=rx_table inter false
 
-	if(!txEng2rxSar_req.empty()) {	// Read only access from the Tx Engine
+	// Read only access from the Tx Engine
+	if(!txEng2rxSar_req.empty())
+	{
 		txEng2rxSar_req.read(addr);
 		rxSar2txEng_rsp.write(rx_table[addr]);
 	}
-	else if(!rxApp2rxSar_upd_req.empty()) {	// Read or Write access from the Rx App I/F to update the application pointer
+	// Read or Write access from the Rx App I/F to update the application pointer
+	else if(!rxApp2rxSar_upd_req.empty())
+	{
 		rxApp2rxSar_upd_req.read(in_appd);
 		if(in_appd.write)
+		{
 			rx_table[in_appd.sessionID].appd = in_appd.appd;
-		else
-			rxSar2rxApp_upd_rsp.write(rxSarAppd(in_appd.sessionID, rx_table[in_appd.sessionID].appd));
-	}
-	else if(!rxEng2rxSar_upd_req.empty()) {	// Read or Write access from the Rx Engine
-		rxEng2rxSar_upd_req.read(in_recvd);
-		if (in_recvd.write) {
-			rx_table[in_recvd.sessionID].recvd = in_recvd.recvd;
-			if (in_recvd.init)
-				rx_table[in_recvd.sessionID].appd = in_recvd.recvd;
 		}
 		else
+		{
+			rxSar2rxApp_upd_rsp.write(rxSarAppd(in_appd.sessionID, rx_table[in_appd.sessionID].appd));
+		}
+	}
+	// Read or Write access from the Rx Engine
+	else if(!rxEng2rxSar_upd_req.empty())
+	{
+		rxEng2rxSar_upd_req.read(in_recvd);
+		if (in_recvd.write)
+		{
+			rx_table[in_recvd.sessionID].recvd = in_recvd.recvd;
+			if (in_recvd.init)
+			{
+				rx_table[in_recvd.sessionID].appd = in_recvd.recvd;
+			}
+		}
+		else
+		{
 			rxSar2rxEng_upd_rsp.write(rx_table[in_recvd.sessionID]);
+		}
 	}
 }

@@ -7,7 +7,7 @@ add_files -tb test_dhcp_client.cpp
 
 open_solution "solution1"
 set_part {xc7vx690tffg1761-2}
-create_clock -period 6.66 -name default
+create_clock -period 6.4 -name default
 
 #csim_design -clean -argv {../../../../sources/rxInput.dat ../../../../sources/txInput.dat}
 #csim_design -clean 

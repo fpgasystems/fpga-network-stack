@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "../toe.hpp"
 
 using namespace hls;
@@ -199,5 +200,5 @@ void session_lookup_controller(	stream<sessionLookupQuery>&			rxEng2sLookup_req,
 								//stream<rtlSessionUpdateRequest>&	sessionInsert_req,
 								//stream<rtlSessionUpdateRequest>&	sessionDelete_req,
 								stream<rtlSessionUpdateReply>&		sessionUpdate_rsp,
-								ap_uint<16>&						relSessionCount,
+								//ap_uint<16>&						relSessionCount,
 								ap_uint<16>&						regSessionCount);

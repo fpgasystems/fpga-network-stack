@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "close_timer.hpp"
 
 using namespace hls;
@@ -55,30 +56,43 @@ void close_timer(	stream<ap_uint<16> >&		rxEng2timer_setCloseTimer,
 	static bool			ct_waitForWrite = false;
 	//ap_uint<16> sessionID;
 
-	if (ct_waitForWrite) {
-		if (ct_setSessionID != ct_prevSessionID) {
+	if (ct_waitForWrite)
+	{
+		if (ct_setSessionID != ct_prevSessionID)
+		{
 			closeTimerTable[ct_setSessionID].time = TIME_60s;
 			closeTimerTable[ct_setSessionID].active = true;
 			ct_waitForWrite = false;
 		}
 		ct_prevSessionID--;
 	}
-	else if (!rxEng2timer_setCloseTimer.empty()) {
+	else if (!rxEng2timer_setCloseTimer.empty())
+	{
 		rxEng2timer_setCloseTimer.read(ct_setSessionID);
 		ct_waitForWrite = true;
 	}
-	else {
+	else
+	{
 		ct_prevSessionID = ct_currSessionID;
-
-		if (closeTimerTable[ct_currSessionID].active) { // Check if 0, otherwise decrement
+		// Check if 0, otherwise decrement
+		if (closeTimerTable[ct_currSessionID].active)
+		{
 			if (closeTimerTable[ct_currSessionID].time > 0)
+			{
 				closeTimerTable[ct_currSessionID].time -= 1;
-			else {
+			}
+			else
+			{
 				closeTimerTable[ct_currSessionID].time = 0;
 				closeTimerTable[ct_currSessionID].active = false;
 				closeTimer2stateTable_releaseState.write(ct_currSessionID);
 			}
 		}
-		(ct_currSessionID == MAX_SESSIONS) ? ct_currSessionID = 0 : ct_currSessionID++;
+
+		ct_currSessionID++;
+		if (ct_currSessionID == MAX_SESSIONS)
+		{
+			ct_currSessionID = 0;
+		}
 	}
 }

@@ -26,14 +26,16 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include "mac_ip_encode.hpp"
 
 /** @ingroup mac_ip_encode
  *
  */
-void compute_ip_checksum(stream<axiWord>&			dataIn,
+void compute_ip_checksum(stream<axiWord>&				dataIn,
 						stream<axiWord>&			dataOut,
-						stream<ap_uint<16> >&		checksumFiFoOut) {
+						stream<ap_uint<16> >&		checksumFiFoOut)
+{
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -168,8 +170,11 @@ void compute_ip_checksum(stream<axiWord>&			dataIn,
  */
 void ip_checksum_insert(stream<axiWord>&		dataIn,
 						stream<ap_uint<16> >&	checksumFifoIn,
-						stream<axiWord>&		dataOut) {
-#pragma HLS PIPELINE II=1 enable_flush
+						stream<axiWord>&		dataOut)
+{
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
 	static ap_uint<4> ici_wordCount = 0;
 
 	axiWord currWord;
@@ -219,27 +224,44 @@ void extract_ip_address(stream<axiWord>&			dataIn,
 						stream<axiWord>&			dataOut,
 						stream<ap_uint<32> >&		arpTableOut,
 						ap_uint<32>					regSubNetMask,
-						ap_uint<32>					regDefaultGateway) {
-#pragma HLS PIPELINE II=1 enable_flush
+						ap_uint<32>					regDefaultGateway)
+{
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
 	static ap_uint<2> eia_wordCount=0;
+	axiWord currWord;
 	ap_uint<32> dstIpAddress;
 
-	if (!dataIn.empty()) {
-		axiWord currWord = dataIn.read();
-		switch (eia_wordCount) {
-		case 2:	// Extract destination IP address
-			dstIpAddress = currWord.data.range(31, 0);
-			if ((dstIpAddress & regSubNetMask) == (regDefaultGateway & regSubNetMask) || dstIpAddress == 0xFFFFFFFF)
+	if (!dataIn.empty())
+	{
+		dataIn.read(currWord);
+		switch (eia_wordCount)
+		{
+		case 0:
+			eia_wordCount++;
+			break;
+		case 1:
+			eia_wordCount++;
+			break;
+		case 2:
+			// Extract destination IP address
+			dstIpAddress = currWord.data(31, 0);
+			if ((dstIpAddress & regSubNetMask) == (regDefaultGateway & regSubNetMask))
+			{
 				arpTableOut.write(dstIpAddress);
+			}
 			else
+			{
 				arpTableOut.write(regDefaultGateway);
+			}
 			eia_wordCount++;
 			break;
 		default:
 			if (currWord.last)
+			{
 				eia_wordCount = 0;
-			else if (eia_wordCount < 3)
-				eia_wordCount++;
+			}
 			break;
 		} // switch;
 		dataOut.write(currWord);
@@ -249,11 +271,13 @@ void extract_ip_address(stream<axiWord>&			dataIn,
 /** @ingroup mac_ip_encode
  *
  */
-void handle_arp_reply(	stream<axiWord>& 		dataIn,
-						stream<arpTableReply>& 	arpTableIn,
-						stream<axiWord>& 		dataOut,
-						ap_uint<48>				myMacAddress) {
-#pragma HLS PIPELINE II=1 enable_flush
+void handle_arp_reply(	stream<axiWord>&		dataIn,
+						stream<arpTableReply>&	arpTableIn,
+						stream<axiWord>&		dataOut,
+						ap_uint<48>				myMacAddress)
+{
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
 
 	enum mwState {WAIT_LOOKUP, DROP, WRITE_FIRST, WRITE};
 	static mwState mw_state = WAIT_LOOKUP;
@@ -346,33 +370,29 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 					stream<arpTableReply>&		arpTableIn,
 					stream<axiWord>&			dataOut,
 					stream<ap_uint<32> >&		arpTableOut,
+					ap_uint<48>					myMacAddress,
 					ap_uint<32>					regSubNetMask,
-					ap_uint<32>					regDefaultGateway,
-					ap_uint<48>					myMacAddress) {
+					ap_uint<32>					regDefaultGateway)
+{
 #pragma HLS DATAFLOW
 #pragma HLS INTERFACE ap_ctrl_none port=return
 
-	#pragma HLS INTERFACE 	port=dataIn 				axis
-	#pragma HLS INTERFACE 	port=dataOut 				axis
-	#pragma HLS INTERFACE 	port=arpTableIn 			axis
-	#pragma HLS INTERFACE 	port=arpTableOut 			axis
-
-/*#pragma HLS resource core=AXI4Stream variable=dataIn metadata="-bus_bundle s_axis_ip"
+#pragma HLS resource core=AXI4Stream variable=dataIn metadata="-bus_bundle s_axis_ip"
 #pragma HLS resource core=AXI4Stream variable=dataOut metadata="-bus_bundle m_axis_ip"
 
 #pragma HLS resource core=AXI4Stream variable=arpTableIn metadata="-bus_bundle s_axis_arp_lookup_reply"
-#pragma HLS resource core=AXI4Stream variable=arpTableOut metadata="-bus_bundle m_axis_arp_lookup_request"*/
-
+#pragma HLS resource core=AXI4Stream variable=arpTableOut metadata="-bus_bundle m_axis_arp_lookup_request"
 #pragma HLS DATA_PACK variable=arpTableIn
 
+#pragma HLS INTERFACE ap_none register port=myMacAddress
 #pragma HLS INTERFACE ap_none register port=regSubNetMask
 #pragma HLS INTERFACE ap_none register port=regDefaultGateway
-#pragma HLS INTERFACE ap_stable port=myMacAddress
+
 	// FIFOs
 	static stream<axiWord> dataStreamBuffer0;
 	static stream<axiWord> dataStreamBuffer1;
 	static stream<axiWord> dataStreamBuffer2;
-	#pragma HLS stream variable=dataStreamBuffer0 depth=1024 //must hold ip header for checksum computation
+	#pragma HLS stream variable=dataStreamBuffer0 depth=16 //must hold ip header for checksum computation
 	#pragma HLS stream variable=dataStreamBuffer1 depth=16
 	#pragma HLS stream variable=dataStreamBuffer2 depth=16
 	#pragma HLS DATA_PACK variable=dataStreamBuffer0
@@ -388,5 +408,5 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 
 	extract_ip_address(dataStreamBuffer1, dataStreamBuffer2, arpTableOut, regSubNetMask, regDefaultGateway);
 
-	handle_arp_reply(dataStreamBuffer2, arpTableIn, dataOut ,myMacAddress);
+	handle_arp_reply(dataStreamBuffer2, arpTableIn, dataOut, myMacAddress);
 }

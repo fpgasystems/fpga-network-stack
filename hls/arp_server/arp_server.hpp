@@ -41,9 +41,7 @@ const uint16_t 		REQUEST 		= 0x0100;
 const uint16_t 		REPLY 			= 0x0200;
 const ap_uint<32>	replyTimeOut 	= 65536;
 
-const ap_uint<48> MY_MAC_ADDR 	= 0xE59D02350A00; 	// LSB first, 00:0A:35:02:9D:E5
 const ap_uint<48> BROADCAST_MAC	= 0xFFFFFFFFFFFF;	// Broadcast MAC Address
-//const uint32_t 	  MY_IP_ADDR 		= 0x01010101;
 
 const uint8_t 	noOfArpTableEntries	= 8;
 
@@ -132,5 +130,5 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
 				  stream<rtlMacLookupReply>		&macLookup_resp,
 				  stream<rtlMacUpdateRequest>	&macUpdate_req,
 				  stream<rtlMacUpdateReply>		&macUpdate_resp,
-				  ap_uint<32>	      			regIpAddress,
+				  ap_uint<32>	      			myIpAddress,
 				  ap_uint<48>					myMacAddress);

@@ -41,8 +41,8 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 				stream<openStatus>&				conEstablishedIn, //alter
 				stream<openStatus>&				appOpenConnRsp,
 				stream<fourTuple>&				txApp2sLookup_req,
-				stream<ap_uint<1> >&			txApp2portTable_port_req,
+				//stream<ap_uint<1> >&			txApp2portTable_port_req,
 				stream<stateQuery>&				txApp2stateTable_upd_req,
 				stream<event>&					txApp2eventEng_setEvent,
 				stream<openStatus>&				rtTimer2txApp_notification,
-				ap_uint<32>						regIpAddress);
+				ap_uint<32>						myIpAddress);

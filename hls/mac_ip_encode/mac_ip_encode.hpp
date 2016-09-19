@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
@@ -36,8 +37,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 #include <stdint.h>
 
 using namespace hls;
-
-const ap_uint<48> MY_MAC_ADDR 	= 0xE59D02350A00; 	// LSB first, 00:0A:35:02:9D:E5
 
 struct axiWord
 {
@@ -63,6 +62,6 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 					stream<arpTableReply>&		arpTableIn,
 					stream<axiWord>&			dataOut,
 					stream<ap_uint<32> >&		arpTableOut,
+					ap_uint<48>					myMacAddress,
 					ap_uint<32>					regSubNetMask,
-					ap_uint<32>					regDefaultGateway,
-					ap_uint<48>					myMacAddress);
+					ap_uint<32>					regDefaultGateway);
