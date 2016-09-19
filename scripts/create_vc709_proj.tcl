@@ -29,7 +29,7 @@ add_files $src_dir/7series/vc709
 set_property top tcp_ip_top [current_fileset]
 remove_files $src_dir/common/arpServerWrapper.vhd
 
-#add_files $ip_dir/mig_7series_0.dcp
+add_files $ip_dir/mig_axi_mm_dual.dcp
 add_files $ip_dir/SmartCamCtl.dcp
 #add_files $ip_dir/SmartCamCtlArp.dcp
 add_files -fileset constrs_1 $constraints_dir/vc709.xdc
@@ -148,8 +148,8 @@ generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/source
 update_compile_order -fileset sources_1
 
 #add MIG for VC709
-add_files -norecurse $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci
-export_ip_user_files -of_objects  [get_files  $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci] -force -quiet
-update_compile_order -fileset sources_1
+#add_files -norecurse $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci
+#export_ip_user_files -of_objects  [get_files  $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci] -force -quiet
+#update_compile_order -fileset sources_1
 
 start_gui
