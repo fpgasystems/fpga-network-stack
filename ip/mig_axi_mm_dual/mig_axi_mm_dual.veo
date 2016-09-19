@@ -49,7 +49,7 @@
 //   ____  ____
 //  /   /\/   /
 // /___/  \  /   Vendor             : Xilinx
-// \   \   \/    Version            : 2.4
+// \   \   \/    Version            : 2.2
 //  \   \        Application        : MIG
 //  /   /        Filename           : mig_axi_mm_dual.veo
 // /___/   /\    Date Last Modified : $Date: 2011/06/02 08:34:47 $
