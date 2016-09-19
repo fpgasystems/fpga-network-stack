@@ -124,7 +124,7 @@ create_ip -name dhcp_client -vendor xilinx.labs -library hls -version 1.05 -modu
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/dhcp_client_0/dhcp_client_0.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name echo_server_application -vendor xilinx.labs -library hls -version 1.02 -module_name echo_server_application_ip
+create_ip -name echo_server_application -vendor ethz.systems -library hls -version 1.1 -module_name echo_server_application_ip
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/echo_server_application_ip/echo_server_application_ip.xci]
 update_compile_order -fileset sources_1
 

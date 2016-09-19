@@ -26,7 +26,7 @@ eval cp -r ../../hls ./
 eval cd ./hls/arp_server
 eval vivado_hls -f run_hls.tcl
 
-eval cd ./hls/arp_server_subnet
+eval cd ../arp_server_subnet
 eval vivado_hls -f run_hls.tcl
 
 eval cd ../dhcp_client
@@ -83,5 +83,5 @@ eval cp -R ../hls/udp/udpCore/udp_prj/solution1/impl/ip ./udpCore
 eval cp -R ../hls/udp/udpLoopback/udpLoopback_prj/solution1/impl/ip ./udpLoopback
 eval cp -R ../hls/udp/udpAppMux/udpAppMux_prj/solution1/impl/ip ./
 
-echo "finished preparation for creating vivado project, please run vivado -mode batch -source create.tcl to create vivado project" 
+echo "finished preparation for creating vivado project, please run vivado -mode batch -source create_*_proj.tcl to create vivado project" 
 
