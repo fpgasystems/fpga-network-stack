@@ -14,7 +14,8 @@ This readme file contains these sections:
 8. CONTRIBUTING
 9. ACKNOWLEDGEMENTS
 
-1. Introduction
+
+1. INTRODUCTION
 
 The TCP/IP stack released in this repository was originally developed in collaboration with Xilinx Research Dublin. Xilinx open sourced the original version which came out of this collaboartion on their [github](https://github.com/Xilinx/HLx_Examples/tree/master/Acceleration/tcp_ip). In this repository we release our ongoing development of the TCP/IP stack based on the version released by Xilinx. We optimized the orginal version to reduce latency, and resource consumption. Further we addded support for the Xilinx VC709 board.
 
@@ -74,7 +75,11 @@ To test the generated .bit file, please follow the steps below:
 		
 
 ## 5. PUBLICATIONS
-TBA
+
+D. Sidler, G. Alonso, M. Blott, K. Karras et al., *Scalable 10Gbps
+TCP/IP Stack Architecture for Reconfigurable Hardware,* in FCCM’15, [Paper](http://ieeexplore.ieee.org/document/7160037/?reload=true&arnumber=7160037), [Slides](http://fccm.org/2015/pdfs/M2_P1.pdf)
+
+D. Sidler, Z. Istvan, G. Alonso, *Low-Latency TCP/IP Stack for Data Center Applications,* in FPL'16, [Paper](http://davidsidler.ch/files/fpl16-lowlatencytcpip.pdf), [Slides]
 
 ## 6. SUPPORT
 
