@@ -544,7 +544,7 @@ toe_ip toe_inst (
 //.metadataHandlerFifo_full(metadataHandlerFifo_full),
 //.metadataHandlerFifo_write(metadataHandlerFifo_write),
 ////////////////////
-.regIpAddress_V(inputIpAddress),                                      // input wire [31 : 0] regIpAddress_V
+.myIpAddress_V(inputIpAddress),                                      // input wire [31 : 0] regIpAddress_V
 //.relSessionCount_V(relSessionCount),                              // output wire [15 : 0] relSessionCount_V
 .regSessionCount_V(regSessionCount),                              // output wire [15 : 0] regSessionCount_V
 .aclk(aclk),                                                        // input aclk
@@ -665,10 +665,10 @@ ip_handler_ip ip_handler_inst (
 .s_axis_raw_TKEEP(AXI_S_Stream_TKEEP), // input [7 : 0] AXI4Stream_S_TSTRB
 .s_axis_raw_TLAST(AXI_S_Stream_TLAST), // input [0 : 0] AXI4Stream_S_TLAST
 
-.regIpAddress_V(inputIpAddress),
+.myIpAddress_V(inputIpAddress),
 
-.aclk(aclk), // input aclk
-.aresetn(aresetn) // input aresetn
+.ap_clk(aclk), // input aclk
+.ap_rst_n(aresetn) // input aresetn
 );
 
 // ARP lookup
@@ -697,7 +697,7 @@ mac_ip_encode_ip mac_ip_encode_inst (
 .s_axis_arp_lookup_reply_TREADY(axis_arp_lookup_reply_TREADY),
 .s_axis_arp_lookup_reply_TDATA(axis_arp_lookup_reply_TDATA),
 
-.regMacAddress_V(myMacAddress),                                    // input wire [47 : 0] regMacAddress_V
+.myMacAddress_V(myMacAddress),                                    // input wire [47 : 0] regMacAddress_V
 .regSubNetMask_V(32'h00FFFFFF),                                    // input wire [31 : 0] regSubNetMask_V
 .regDefaultGateway_V(32'h01D4010A),                            // input wire [31 : 0] regDefaultGateway_V
   
@@ -810,8 +810,8 @@ arp_server_subnet_ip arp_server_inst(
 .s_axis_arp_lookup_request_TREADY(axis_arp_lookup_request_TREADY),
 .s_axis_arp_lookup_request_TDATA(axis_arp_lookup_request_TDATA),
 
-.regMacAddress_V(myMacAddress),
-.regIpAddress_V(inputIpAddress),
+.myMacAddress_V(myMacAddress),
+.myIpAddress_V(inputIpAddress),
 
 .aclk(aclk), // input aclk
 .aresetn(aresetn) // input aresetn
