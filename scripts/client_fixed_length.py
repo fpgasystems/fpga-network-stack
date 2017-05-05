@@ -47,7 +47,7 @@ def main():
     pattern     = 1
     for (o, a) in opts:
         if o == "--ip":
-            hostIpAddr = a
+            hostIPAddr = a
         elif o == "--port":
             port = int(a)
         elif o == "--pattern":

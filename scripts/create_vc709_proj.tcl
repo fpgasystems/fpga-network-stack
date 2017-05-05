@@ -29,11 +29,7 @@ add_files $src_dir/7series/vc709
 set_property top tcp_ip_top [current_fileset]
 remove_files $src_dir/common/arpServerWrapper.vhd
 
-#foreach subdir [glob -type d $ip_dir/*] {
-#	import_files [glob $subdir/*.xci]
-#}
-#add_files [glob ./ip/*.xcix]
-#add_files $ip_dir/mig_7series_0.dcp
+add_files $ip_dir/mig_axi_mm_dual.dcp
 add_files $ip_dir/SmartCamCtl.dcp
 #add_files $ip_dir/SmartCamCtlArp.dcp
 add_files -fileset constrs_1 $constraints_dir/vc709.xdc
@@ -45,7 +41,7 @@ set_property -dict [list CONFIG.MDIO_Management {false} CONFIG.base_kr {BASE-R} 
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/ten_gig_eth_pcs_pma_ip/ten_gig_eth_pcs_pma_ip.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name ten_gig_eth_mac -vendor xilinx.com -library ip -version 15.0 -module_name ten_gig_eth_mac_ip
+create_ip -name ten_gig_eth_mac -vendor xilinx.com -library ip -version 15.1 -module_name ten_gig_eth_mac_ip
 set_property -dict [list CONFIG.Management_Interface {false} CONFIG.Statistics_Gathering {false}] [get_ips ten_gig_eth_mac_ip]
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/ten_gig_eth_mac_ip/ten_gig_eth_mac_ip.xci]
 update_compile_order -fileset sources_1
@@ -56,7 +52,7 @@ update_compile_order -fileset sources_1
 #generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/rx_fifo/rx_fifo.xci]
 #update_compile_order -fileset sources_1
 
-create_ip -name fifo_generator -vendor xilinx.com -library ip -version 13.0 -module_name axis_sync_fifo
+create_ip -name fifo_generator -vendor xilinx.com -library ip -version 13.1 -module_name axis_sync_fifo
 set_property -dict [list CONFIG.INTERFACE_TYPE {AXI_STREAM} CONFIG.TDATA_NUM_BYTES {8} CONFIG.TUSER_WIDTH {0} CONFIG.Enable_TLAST {true} CONFIG.HAS_TKEEP {true} CONFIG.Enable_Data_Counts_axis {true} CONFIG.Reset_Type {Asynchronous_Reset} CONFIG.Full_Flags_Reset_Value {1} CONFIG.TSTRB_WIDTH {8} CONFIG.TKEEP_WIDTH {8} CONFIG.FIFO_Implementation_wach {Common_Clock_Distributed_RAM} CONFIG.Full_Threshold_Assert_Value_wach {15} CONFIG.Empty_Threshold_Assert_Value_wach {14} CONFIG.FIFO_Implementation_wrch {Common_Clock_Distributed_RAM} CONFIG.Full_Threshold_Assert_Value_wrch {15} CONFIG.Empty_Threshold_Assert_Value_wrch {14} CONFIG.FIFO_Implementation_rach {Common_Clock_Distributed_RAM} CONFIG.Full_Threshold_Assert_Value_rach {15} CONFIG.Empty_Threshold_Assert_Value_rach {14}] [get_ips axis_sync_fifo]
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/axis_sync_fifo/axis_sync_fifo.xci]
 update_compile_order -fileset sources_1
@@ -71,12 +67,12 @@ update_compile_order -fileset sources_1
 #export_ip_user_files -of_objects  [get_files  /home/dasidler/workspace/fpga-network-stack/ip/cmd_fifo_xgemac_rxif/cmd_fifo_xgemac_rxif.xci] -force -quiet
 #update_compile_order -fileset sources_1
 
-create_ip -name fifo_generator -vendor xilinx.com -library ip -version 13.0 -module_name cmd_fifo_xgemac_rxif
+create_ip -name fifo_generator -vendor xilinx.com -library ip -version 13.1 -module_name cmd_fifo_xgemac_rxif
 set_property -dict [list CONFIG.Input_Data_Width {16} CONFIG.Output_Data_Width {16} CONFIG.Reset_Type {Asynchronous_Reset} CONFIG.Full_Flags_Reset_Value {1}] [get_ips cmd_fifo_xgemac_rxif]
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/cmd_fifo_xgemac_rxif/cmd_fifo_xgemac_rxif.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name fifo_generator -vendor xilinx.com -library ip -version 13.0 -module_name cmd_fifo_xgemac_txif
+create_ip -name fifo_generator -vendor xilinx.com -library ip -version 13.1 -module_name cmd_fifo_xgemac_txif
 set_property -dict [list CONFIG.Input_Data_Width {1} CONFIG.Output_Data_Width {1} CONFIG.Reset_Type {Asynchronous_Reset} CONFIG.Full_Flags_Reset_Value {1}] [get_ips cmd_fifo_xgemac_txif]
 generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/sources_1/ip/cmd_fifo_xgemac_txif/cmd_fifo_xgemac_txif.xci]
 update_compile_order -fileset sources_1
@@ -152,8 +148,8 @@ generate_target {instantiation_template} [get_files $proj_dir/tcp_ip.srcs/source
 update_compile_order -fileset sources_1
 
 #add MIG for VC709
-add_files -norecurse $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci
-export_ip_user_files -of_objects  [get_files  $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci] -force -quiet
-update_compile_order -fileset sources_1
+#add_files -norecurse $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci
+#export_ip_user_files -of_objects  [get_files  $ip_dir/mig_axi_mm_dual/mig_axi_mm_dual.xci] -force -quiet
+#update_compile_order -fileset sources_1
 
 start_gui
