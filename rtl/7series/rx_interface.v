@@ -32,7 +32,7 @@ the read logic to packet FIFO
 `timescale 1ps / 1ps
 
 module rx_interface #(
-    parameter      FIFO_CNT_WIDTH = 16
+    parameter      FIFO_CNT_WIDTH = 11
 )
 (
     input [63:0]   axi_str_tdata_from_xgmac,
@@ -44,14 +44,15 @@ module rx_interface #(
     //input  [47:0]  mac_id,
     //input          mac_id_valid,
     //input          promiscuous_mode_en,
-    input  [29:0]  rx_statistics_vector,
-    input          rx_statistics_valid,
     output [63:0]  axi_str_tdata_to_fifo,   
     output [7:0]   axi_str_tkeep_to_fifo,   
     output         axi_str_tvalid_to_fifo,
     output         axi_str_tlast_to_fifo,
     output [15:0]  rd_pkt_len,
     output reg     rx_fifo_overflow = 1'b0,
+    
+    input  [29:0]  rx_statistics_vector,
+    input          rx_statistics_valid,
 
     output [FIFO_CNT_WIDTH-1:0]  rd_data_count ,
 
@@ -122,8 +123,8 @@ localparam
    PREP_READ_2     = 4'b0100, 
    BEGIN_READ      = 4'b1000;
 
-localparam   THRESHOLD           = 8;
-localparam   THRESHOLD_EXT       = 16;
+localparam   THRESHOLD           = 200;
+localparam   THRESHOLD_EXT       = 400;
 
   reg  [3:0]   state_wr = IDLE_WR;
   reg  [3:0]   state_rd = IDLE_RD;
@@ -189,7 +190,7 @@ localparam   THRESHOLD_EXT       = 16;
              rx_stats_vec_reg <= rx_statistics_vector[18:5] - 3'd4;
   end
 
-  assign left_over_space_in_fifo = {(FIFO_CNT_WIDTH-1){1'b1}} - wr_data_count[FIFO_CNT_WIDTH-2:0];
+  assign left_over_space_in_fifo = {1'b1,{(FIFO_CNT_WIDTH-1){1'b0}}} - wr_data_count[FIFO_CNT_WIDTH-1:0];
 
   assign wr_reached_threshold        = (left_over_space_in_fifo < THRESHOLD)?1'b1:1'b0;
   assign wr_reached_threshold_extend = (left_over_space_in_fifo < THRESHOLD_EXT)?1'b1:1'b0;
@@ -452,7 +453,7 @@ always @(posedge user_clk)
     .m_axis_tkeep         (axis_rd_tkeep            ),
     //.axis_rd_data_count   (rd_data_count            ),
     //.axis_wr_data_count   (wr_data_count            )
-    .axis_data_count   (wr_data_count            )
+    .axis_data_count   (wr_data_count            ) //1024 items = [10:0]
   );
 
   //command FIFO interface for controlling the read side interface
@@ -550,3 +551,4 @@ assign debug_signal[126] = axis_rd_tready;
 assign debug_signal[127] = axis_rd_tlast;*/
 
 endmodule 
+

@@ -21,7 +21,7 @@
 
 
 module tx_interface #(
-    parameter      FIFO_CNT_WIDTH = 16 //depth: 4096 not sure why
+    parameter      FIFO_CNT_WIDTH = 11 //depth: 4096 not sure why
 )
 (
     output [63:0]   axi_str_tdata_to_xgmac,
@@ -30,7 +30,7 @@ module tx_interface #(
     output          axi_str_tlast_to_xgmac,
     output          axi_str_tuser_to_xgmac,
     input           axi_str_tready_from_xgmac,
-    output          axi_str_tready_to_fifo,
+    
     //input  [47:0]  mac_id,
     //input          mac_id_valid,
     //input          promiscuous_mode_en,
@@ -39,6 +39,7 @@ module tx_interface #(
     input [63:0]  axi_str_tdata_from_fifo,   
     input [7:0]   axi_str_tkeep_from_fifo,   
     input         axi_str_tvalid_from_fifo,
+    output          axi_str_tready_to_fifo,
     input         axi_str_tlast_from_fifo,
     //output [15:0]  rd_pkt_len,
    // output reg     rx_fifo_overflow = 1'b0,
@@ -81,8 +82,8 @@ wire axis_wr_tlast;
 wire[63:0] axis_wr_tdata;
 wire[7:0] axis_wr_tkeep;
 
-assign axi_str_tready_to_fifo = (left_over_space_in_fifo > 16'h0004) & (!cmd_fifo_full) & axis_wr_tready;
-assign axis_wr_tvalid = axi_str_tvalid_from_fifo;
+assign axi_str_tready_to_fifo = (!cmd_fifo_full) & axis_wr_tready;
+assign axis_wr_tvalid = axi_str_tvalid_from_fifo & axi_str_tready_to_fifo;
 assign axis_wr_tlast = axi_str_tlast_from_fifo;
 assign axis_wr_tdata = axi_str_tdata_from_fifo;
 assign axis_wr_tkeep = axi_str_tkeep_from_fifo;
@@ -95,8 +96,7 @@ assign axi_str_tkeep_to_xgmac = axis_rd_tkeep;
 
 assign axi_str_tuser_to_xgmac = 1'b0;
 
-assign left_over_space_in_fifo = {(FIFO_CNT_WIDTH-1){1'b1}} - wr_data_count[FIFO_CNT_WIDTH-2:0];
-
+assign left_over_space_in_fifo = {1'b1,{(FIFO_CNT_WIDTH-1){1'b0}}} - wr_data_count[FIFO_CNT_WIDTH-1:0];
 
 
 //observes if complete pkg in buffer
@@ -122,12 +122,11 @@ begin
                 cmd_fifo_wr_en <= 1'b0;
                 if (axis_wr_tlast & axis_wr_tvalid) begin
                     //pkg_loaded <= 1'b1;
-                    if (!cmd_fifo_full) begin
+                    if (!cmd_fifo_full && axis_wr_tready) begin
                         cmd_fifo_din <= 1'b1;
                         cmd_fifo_wr_en <= 1'b1;
-                    end
-                    
-                    state_wr <= IDLE;
+                        state_wr <= IDLE;
+                    end                                        
                 end
             end
         endcase 
@@ -155,7 +154,7 @@ begin
             PUSH: begin
                 pkg_push <= 1'b1;
                 cmd_fifo_rd_en <= 1'b0;
-                if (axis_rd_tlast) begin
+                if (axis_rd_tlast & axis_rd_tready & axis_rd_tvalid) begin
                     pkg_push <= 1'b0;
                     state_rd <= IDLE;
                 end
@@ -255,3 +254,4 @@ assign debug_signal[110] = cmd_fifo_full;
 assign debug_signal[111] = cmd_fifo_empty;*/
 
 endmodule
+
