@@ -279,7 +279,7 @@ void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
 	static bool csa_shift = false;
 	static bool csa_wasLast = false;
 	static bool csa_checkChecksum = false;
-	static ap_uint<36> halfWord; //FIXME only 35 used
+	static ap_uint<36> halfWord; 
 	axiWord currWord, sendWord;
 	static rxEngineMetaData csa_meta;
 	static ap_uint<16> csa_port;
@@ -355,7 +355,6 @@ void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
 				csa_shift = true;
 				halfWord.range(31, 0) = currWord.data.range(63, 32);
 				halfWord.range(35, 32) = currWord.keep.range(7, 4);
-				//halfWord[36] = currWord.last;
 				sendWord.last = (currWord.keep[4] == 0);
 			}
 			else // == 5 (or less)
@@ -379,7 +378,6 @@ void rxCheckTCPchecksum(stream<axiWord>&					dataIn,
 					dataOut.write(sendWord);
 					halfWord.range(31, 0) = currWord.data.range(63, 32);
 					halfWord.range(35, 32) = currWord.keep.range(7, 4);
-					halfWord[36] = currWord.last; //FIXME not needed
 				}
 			}
 			break;
