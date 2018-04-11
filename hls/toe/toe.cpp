@@ -535,7 +535,7 @@ void toe(	// Data & Memory Interface
 			stream<ap_uint<16> >&					rxDataRspMeta,
 			stream<axiWord>&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
-			stream<ap_int<17> >&					txDataRsp,
+			stream<appTxRsp>&					txDataRsp,
 
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
@@ -614,9 +614,8 @@ void toe(	// Data & Memory Interface
 	#pragma HLS DATA_PACK variable=rxDataReq
 	#pragma HLS DATA_PACK variable=openConnReq
 	#pragma HLS DATA_PACK variable=openConnRsp
-	//#pragma HLS DATA_PACK variable=rxDataRspMeta
 	#pragma HLS DATA_PACK variable=txDataReqMeta
-	//#pragma HLS DATA_PACK variable=txData
+	#pragma HLS DATA_PACK variable=txDataRsp
 
 #pragma HLS INTERFACE ap_none register port=myIpAddress
 #pragma HLS INTERFACE ap_vld port=regSessionCount

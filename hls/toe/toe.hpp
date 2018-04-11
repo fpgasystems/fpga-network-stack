@@ -511,6 +511,16 @@ struct appTxMeta
 		:sessionID(id), length(len) {}
 };
 
+struct appTxRsp
+{
+	ap_uint<12> length;
+	ap_uint<16> remaining_space;
+	ap_uint<4>	error;
+	appTxRsp() {}
+	appTxRsp(ap_uint<12> len, ap_uint<16> rem_space, ap_uint<4> err)
+		:length(len), remaining_space(rem_space), error(err) {}
+};
+
 ap_uint<16> byteSwap16(ap_uint<16> inputVector);
 ap_uint<32> byteSwap32(ap_uint<32> inputVector);
 ap_uint<8> lenToKeep(ap_uint<4> length);

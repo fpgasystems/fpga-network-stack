@@ -31,25 +31,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 using namespace hls;
 
-/*void txAppEvSplitter(	stream<event>&					txAppStream2event_mergeEvent,
-						stream<event>&					tasi_txSplit2mergeFifo,
-						stream<event>&					tasi_txEventCacheFifo)
-{
-#pragma HLS pipeline II=1
-
-	event ev;
-
-	if (!txAppStream2event_mergeEvent.empty())
-	{
-		txAppStream2event_mergeEvent.read(ev);
-		tasi_txSplit2mergeFifo.write(ev);
-		//if (ev.type == TX)
-		{
-			tasi_txEventCacheFifo.write(ev);
-		}
-	}
-}*/
-
 void txEventMerger(	stream<event>&	txApp2eventEng_mergeEvent,
 					stream<event>&	txAppStream2event_mergeEvent,
 #if (TCP_NODELAY)
@@ -167,7 +148,6 @@ void tx_app_table(	stream<txSarAckPush>&		txSar2txApp_ack_push,
 #pragma HLS PIPELINE II=1
 
 	static txAppTableEntry app_table[MAX_SESSIONS];
-	#pragma HLS DEPENDENCE variable=app_table inter false
 
 
 	txSarAckPush	ackPush;
@@ -216,7 +196,7 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 					stream<sessionState>&			stateTable2txApp_upd_rsp,
 					stream<openStatus>&				conEstablishedFifo,
 
-					stream<ap_int<17> >&			appTxDataRsp,
+					stream<appTxRsp>&			appTxDataRsp,
 					stream<ap_uint<16> >&			txApp2stateTable_req,
 					stream<mmCmd>&					txBufferWriteCmd,
 					stream<axiWord>&				txBufferWriteData,

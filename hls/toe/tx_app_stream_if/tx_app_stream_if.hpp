@@ -31,8 +31,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 using namespace hls;
 
-static const ap_uint<17> ERROR_NOSPACE				= -1;
-static const ap_uint<17> ERROR_NOCONNCECTION		= -2;
+static const ap_uint<4> NO_ERROR			= 0;
+static const ap_uint<4> ERROR_NOCONNCECTION		= 1;
+static const ap_uint<4> ERROR_NOSPACE			= 2;
 
 /** @ingroup tx_app_stream_if
  *
@@ -68,7 +69,7 @@ void tx_app_stream_if(	stream<appTxMeta>&				appTxDataReqMetaData,
 						stream<axiWord>&				appTxDataReq,
 						stream<sessionState>&			stateTable2txApp_rsp,
 						stream<txAppTxSarReply>&		txSar2txApp_upd_rsp, //TODO rename
-						stream<ap_int<17> >&			appTxDataRsp,
+						stream<appTxRsp>&			appTxDataRsp,
 						stream<ap_uint<16> >&			txApp2stateTable_req,
 						stream<txAppTxSarQuery>&		txApp2txSar_upd_req, //TODO rename
 						stream<mmCmd>&					txBufferWriteCmd,
