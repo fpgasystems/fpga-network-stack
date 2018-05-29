@@ -500,13 +500,17 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
  */
 void toe(	// Data & Memory Interface
 			stream<axiWord>&						ipRxData,
+#if !(RX_DDR_BYPASS)
 			stream<mmStatus>&						rxBufferWriteStatus,
+#endif
 			stream<mmStatus>&						txBufferWriteStatus,
 			stream<axiWord>&						rxBufferReadData,
 			stream<axiWord>&						txBufferReadData,
 			stream<axiWord>&						ipTxData,
+#if !(RX_DDR_BYPASS)
 			stream<mmCmd>&							rxBufferWriteCmd,
 			stream<mmCmd>&							rxBufferReadCmd,
+#endif
 			stream<mmCmd>&							txBufferWriteCmd,
 			stream<mmCmd>&							txBufferReadCmd,
 			stream<axiWord>&						rxBufferWriteData,
@@ -536,7 +540,11 @@ void toe(	// Data & Memory Interface
 			stream<axiWord>&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
 			stream<appTxRsp>&					txDataRsp,
-
+#if RX_DDR_BYPASS
+			// Data counts for external FIFO
+			ap_uint<32>						axis_data_count,
+			ap_uint<32>						axis_max_data_count,
+#endif
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
 			//statistic
@@ -560,11 +568,12 @@ void toe(	// Data & Memory Interface
 	#pragma HLS resource core=AXI4Stream variable=txBufferWriteData metadata="-bus_bundle m_axis_txwrite_data"
 	#pragma HLS resource core=AXI4Stream variable=txBufferReadData metadata="-bus_bundle s_axis_txread_data"
 
+#if !(RX_DDR_BYPASS)
 	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteCmd metadata="-bus_bundle m_axis_rxwrite_cmd"
 	#pragma HLS resource core=AXI4Stream variable=rxBufferReadCmd metadata="-bus_bundle m_axis_rxread_cmd"
 	#pragma HLS DATA_PACK variable=rxBufferWriteCmd
 	#pragma HLS DATA_PACK variable=rxBufferReadCmd
-
+#endif
 	#pragma HLS resource core=AXI4Stream variable=txBufferWriteCmd metadata="-bus_bundle m_axis_txwrite_cmd"
 	#pragma HLS resource core=AXI4Stream variable=txBufferReadCmd metadata="-bus_bundle m_axis_txread_cmd"
 	#pragma HLS DATA_PACK variable=txBufferWriteCmd
@@ -572,10 +581,11 @@ void toe(	// Data & Memory Interface
 
 
 
-
+#if !(RX_DDR_BYPASS)
 	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteStatus metadata="-bus_bundle s_axis_rxwrite_sts"
-	#pragma HLS resource core=AXI4Stream variable=txBufferWriteStatus metadata="-bus_bundle s_axis_txwrite_sts"
 	#pragma HLS DATA_PACK variable=rxBufferWriteStatus
+#endif
+	#pragma HLS resource core=AXI4Stream variable=txBufferWriteStatus metadata="-bus_bundle s_axis_txwrite_sts"
 	#pragma HLS DATA_PACK variable=txBufferWriteStatus
 
 	// SmartCam Interface
@@ -617,8 +627,13 @@ void toe(	// Data & Memory Interface
 	#pragma HLS DATA_PACK variable=txDataReqMeta
 	#pragma HLS DATA_PACK variable=txDataRsp
 
-#pragma HLS INTERFACE ap_none register port=myIpAddress
-#pragma HLS INTERFACE ap_vld port=regSessionCount
+#if RX_DDR_BYPASS
+	#pragma HLS INTERFACE ap_none register port=axis_data_count
+	#pragma HLS INTERFACE ap_none register port=axis_max_data_count
+#endif
+
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
+	#pragma HLS INTERFACE ap_vld port=regSessionCount
 
 	/*
 	 * FIFOs
@@ -875,8 +890,12 @@ void toe(	// Data & Memory Interface
 				rxEng2eventEng_setEvent,
 #if !(RX_DDR_BYPASS)
 				rxBufferWriteCmd,
-#endif
 				rxEng2rxApp_notification
+#else
+				rxEng2rxApp_notification,
+				axis_data_count,
+				axis_max_data_count
+#endif
 				);
 	// TX Engine
 	tx_engine(	eventEng2txEng_event,

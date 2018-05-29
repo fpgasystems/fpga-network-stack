@@ -707,8 +707,12 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						stream<bool>&							dropDataFifoOut,
 #if !(RX_DDR_BYPASS)
 						stream<mmCmd>&							rxBufferWriteCmd,
-#endif
 						stream<appNotification>&				rxEng2rxApp_notification)
+#else
+						stream<appNotification>&				rxEng2rxApp_notification,
+						ap_uint<32>						rxbuffer_data_count,
+						ap_uint<32>						rxbuffer_max_data_count)
+#endif
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
@@ -804,9 +808,13 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					{
 						ap_uint<32> newRecvd = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
 						// Second part makes sure that app pointer is not overtaken
+#if !(RX_DDR_BYPASS)
 						ap_uint<16> free_space = ((rxSar.appd - rxSar.recvd(15, 0)) - 1);
 						// Check if segment in order and if enough free space is available
 						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
+#else
+						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && ((rxbuffer_max_data_count - rxbuffer_data_count) > 375))
+#endif
 						{
 							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, 1));
 							// Build memory address
@@ -1407,8 +1415,12 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 				stream<extendedEvent>&				rxEng2eventEng_setEvent,
 #if !(RX_DDR_BYPASS)
 				stream<mmCmd>&						rxBufferWriteCmd,
-#endif
 				stream<appNotification>&			rxEng2rxApp_notification)
+#else
+				stream<appNotification>&			rxEng2rxApp_notification,
+				ap_uint<32>					rxbuffer_data_count,
+				ap_uint<32>					rxbuffer_max_data_count)
+#endif
 {
 //#pragma HLS DATAFLOW
 //#pragma HLS INTERFACE ap_ctrl_none port=return
@@ -1504,7 +1516,9 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 							rxTcpFsm2wrAccessBreakdown,
 							rx_internalNotificationFifo);
 #else
-							rxEng2rxApp_notification);
+							rxEng2rxApp_notification,
+							rxbuffer_data_count,
+							rxbuffer_max_data_count);
 #endif
 
 #if !(RX_DDR_BYPASS)
