@@ -29,13 +29,11 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "echo_server_application.hpp"
 
-using namespace hls;
 
-
-void client(	stream<ap_uint<16> >& sessioIdFifo,
-				stream<ap_uint<16> >& lengthFifo,
-				stream<axiWord>& dataFifo,
-				stream<appTxMeta>& txMetaData, stream<axiWord>& txData)
+void client(	hls::stream<ap_uint<16> >& sessioIdFifo,
+				hls::stream<ap_uint<16> >& lengthFifo,
+				hls::stream<axiWord>& dataFifo,
+				hls::stream<appTxMeta>& txMetaData, hls::stream<axiWord>& txData)
 {
 #pragma HLS PIPELINE II=1
 
@@ -74,16 +72,16 @@ void client(	stream<ap_uint<16> >& sessioIdFifo,
 
 }
 
-void dummy(	stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
-			stream<ap_uint<16> >& closeConnection,
-			stream<ap_int<17> >& txStatus)
+void dummy(	hls::stream<ipTuple>& openConnection, hls::stream<openStatus>& openConStatus,
+			hls::stream<ap_uint<16> >& closeConnection,
+			hls::stream<appTxRsp>& txStatus)
 {
 	#pragma HLS PIPELINE II=1
 
 	openStatus newConn;
 	ipTuple tuple;
 
-	// Dummy code should never be executed, this is necessary because every streams has to be written/read
+	// Dummy code should never be executed, this is necessary because every hls::streams has to be written/read
 	if (!openConStatus.empty())
 	{
 		openConStatus.read(newConn);
@@ -104,9 +102,9 @@ void dummy(	stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
 }
 
 
-void open_port(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-				stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-				stream<ap_uint<16> >& lenghtFifo)
+void open_port(	hls::stream<ap_uint<16> >& listenPort, hls::stream<bool>& listenPortStatus,
+				hls::stream<appNotification>& notifications, hls::stream<appReadRequest>& readRequest,
+				hls::stream<ap_uint<16> >& lenghtFifo)
 {
 #pragma HLS PIPELINE II=1
 
@@ -146,8 +144,8 @@ void open_port(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus
 	}
 }
 
-void server(	stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
-				stream<ap_uint<16> >& sessioIdFifo, stream<axiWord>& dataFifo)
+void server(	hls::stream<ap_uint<16> >& rxMetaData, hls::stream<axiWord>& rxData,
+				hls::stream<ap_uint<16> >& sessioIdFifo, hls::stream<axiWord>& dataFifo)
 {
 #pragma HLS PIPELINE II=1
 
@@ -186,14 +184,18 @@ void server(	stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
 /** @ingroup kvs_server
  *
  */
-void echo_server_application(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-								stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-								stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
-								stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
-								stream<ap_uint<16> >& closeConnection,
-								stream<appTxMeta>& txMetaData,
-								stream<axiWord> & txData,
-								stream<ap_int<17> >& txStatus)
+void echo_server_application(	hls::stream<ap_uint<16> >& listenPort,
+								hls::stream<bool>& listenPortStatus,
+								hls::stream<appNotification>& notifications,
+								hls::stream<appReadRequest>& readRequest,
+								hls::stream<ap_uint<16> >& rxMetaData,
+								hls::stream<axiWord>& rxData,
+								hls::stream<ipTuple>& openConnection,
+								hls::stream<openStatus>& openConStatus,
+								hls::stream<ap_uint<16> >& closeConnection,
+								hls::stream<appTxMeta>& txMetaData,
+								hls::stream<axiWord> & txData,
+								hls::stream<appTxRsp>& txStatus)
 {
 	#pragma HLS DATAFLOW
 	#pragma HLS INTERFACE ap_ctrl_none port=return
@@ -225,10 +227,11 @@ void echo_server_application(	stream<ap_uint<16> >& listenPort, stream<bool>& li
 #pragma HLS resource core=AXI4Stream variable=txStatus metadata="-bus_bundle s_axis_tx_status"
 #pragma HLS DATA_PACK variable=txMetaData
 	#pragma HLS DATA_PACK variable=txData
+#pragma HLS DATA_PACK variable=txStatus
 
-	static stream<ap_uint<16> >		esa_sessionidFifo("esa_sessionidFifo");
-	static stream<ap_uint<16> >		esa_lengthFifo("esa_lengthFifo");
-	static stream<axiWord>			esa_dataFifo("esa_dataFifo");
+	static hls::stream<ap_uint<16> >		esa_sessionidFifo("esa_sessionidFifo");
+	static hls::stream<ap_uint<16> >		esa_lengthFifo("esa_lengthFifo");
+	static hls::stream<axiWord>			esa_dataFifo("esa_dataFifo");
 
 #pragma HLS stream variable=esa_sessionidFifo depth=64
 #pragma HLS stream variable=esa_lengthFifo depth=64

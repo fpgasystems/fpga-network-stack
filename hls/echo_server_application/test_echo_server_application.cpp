@@ -27,27 +27,23 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 #include "echo_server_application.hpp"
-#include <iostream>
-
-using namespace hls;
-
-
+#include <iohls::stream>
 
 int main()
 {
 
-	stream<ap_uint<16> > listenPort("listenPort");
-	stream<bool> listenPortStatus("listenPortStatus");
-	stream<appNotification> notifications;
-	stream<appReadRequest> readRequest;
-	stream<ap_uint<16> > rxMetaData;
-	stream<axiWord> rxData;
-	stream<ipTuple> openConnection;
-	stream<openStatus> openConStatus;
-	stream<ap_uint<16> > closeConnection;
-	stream<ap_uint<16> > txMetaData;
-	stream<axiWord> txData;
-	stream<ap_int<17> >	txStatus;
+	hls::stream<ap_uint<16> > listenPort("listenPort");
+	hls::stream<bool> listenPortStatus("listenPortStatus");
+	hls::stream<appNotification> notifications;
+	hls::stream<appReadRequest> readRequest;
+	hls::stream<ap_uint<16> > rxMetaData;
+	hls::stream<axiWord> rxData;
+	hls::stream<ipTuple> openConnection;
+	hls::stream<openStatus> openConStatus;
+	hls::stream<ap_uint<16> > closeConnection;
+	hls::stream<appTxMeta> txMetaData;
+	hls::stream<axiWord> txData;
+	hls::stream<appTxRsp>	txStatus;
 
 	int count = 0;
 	while (count < 50)

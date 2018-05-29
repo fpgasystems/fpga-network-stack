@@ -11,5 +11,5 @@ create_clock -period 6.4 -name default
 
 #csim_design -clean -setup
 csynth_design
-export_design -format ip_catalog -display_name "Echo Server Application for 10G TOE" -description "Echos packets on connections coming in on port 7." -vendor "ethz.systems" -version "1.1"
+export_design -format ip_catalog -display_name "Echo Server Application for 10G TOE" -description "Echos packets on connections coming in on port 7." -vendor "ethz.systems" -version "1.2"
 exit

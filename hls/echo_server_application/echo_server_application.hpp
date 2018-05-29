@@ -29,17 +29,13 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "../toe/toe.hpp"
 
-using namespace hls;
-
 /** @defgroup echo_server_application Echo Server Application
  *
  */
-void echo_server_application(stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-								// This is disabled for the time being, because it adds complexity/potential issues
-								//stream<ap_uint<16> >& closePort,
-								stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-								stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
-								stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
-								stream<ap_uint<16> >& closeConnection,
-								stream<appTxMeta>& txMetaData, stream<axiWord>& txData,
-								stream<ap_int<17> >& txStatus);
+void echo_server_application(hls::stream<ap_uint<16> >& listenPort, hls::stream<bool>& listenPortStatus,
+								hls::stream<appNotification>& notifications, hls::stream<appReadRequest>& readRequest,
+								hls::stream<ap_uint<16> >& rxMetaData, hls::stream<axiWord>& rxData,
+								hls::stream<ipTuple>& openConnection, hls::stream<openStatus>& openConStatus,
+								hls::stream<ap_uint<16> >& closeConnection,
+								hls::stream<appTxMeta>& txMetaData, hls::stream<axiWord>& txData,
+								hls::stream<appTxRsp>& txStatus);
