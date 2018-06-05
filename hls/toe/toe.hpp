@@ -225,6 +225,7 @@ struct txSarEntry
 	ap_uint<16> slowstart_threshold;
 	ap_uint<16> app;
 	ap_uint<2>	count;
+	bool		fastRetransmitted;
 	bool		finReady;
 	bool		finSent;
 };
@@ -236,12 +237,13 @@ struct rxTxSarQuery
 	ap_uint<16> recv_window;
 	ap_uint<16>	cong_window;
 	ap_uint<2>  count;
+	bool		fastRetransmitted;
 	ap_uint<1> write;
 	rxTxSarQuery () {}
 	rxTxSarQuery(ap_uint<16> id)
-				:sessionID(id), ackd(0), recv_window(0), count(0), write(0) {}
-	rxTxSarQuery(ap_uint<16> id, ap_uint<32> ackd, ap_uint<16> recv_win, ap_uint<16> cong_win, ap_uint<2> count)
-				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), write(1) {}
+				:sessionID(id), ackd(0), recv_window(0), count(0), fastRetransmitted(false), write(0) {}
+	rxTxSarQuery(ap_uint<16> id, ap_uint<32> ackd, ap_uint<16> recv_win, ap_uint<16> cong_win, ap_uint<2> count, bool fastRetransmitted)
+				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), write(1) {}
 };
 
 struct txTxSarQuery
@@ -299,9 +301,10 @@ struct rxTxSarReply
 	ap_uint<16>	cong_window;
 	ap_uint<16> slowstart_threshold;
 	ap_uint<2>	count;
+	bool		fastRetransmitted;
 	rxTxSarReply() {}
-	rxTxSarReply(ap_uint<32> ack, ap_uint<32> next, ap_uint<16> cong_win, ap_uint<16> sstresh, ap_uint<2> count)
-			:prevAck(ack), nextByte(next), cong_window(cong_win), slowstart_threshold(sstresh), count(count) {}
+	rxTxSarReply(ap_uint<32> ack, ap_uint<32> next, ap_uint<16> cong_win, ap_uint<16> sstresh, ap_uint<2> count, bool fastRetransmitted)
+			:prevAck(ack), nextByte(next), cong_window(cong_win), slowstart_threshold(sstresh), count(count), fastRetransmitted(fastRetransmitted) {}
 };
 
 struct txAppTxSarReply

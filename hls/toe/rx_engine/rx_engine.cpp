@@ -778,8 +778,11 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					// Check if new ACK arrived
 					if (fsm_meta.meta.ackNumb == txSar.prevAck && txSar.prevAck != txSar.nextByte)
 					{
-						// Not new ACK increase counter
-						txSar.count++;
+						// Not new ACK increase counter only if it does not contain data
+						if (fsm_meta.meta.length == 0)
+						{
+							txSar.count++;
+						}
 					}
 					else
 					{
@@ -795,12 +798,13 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							txSar.cong_window += 365; //TODO replace by approx. of (MSS x MSS) / cong_window
 						}
 						txSar.count = 0;
+						txSar.fastRetransmitted = false;
 					}
 					// TX SAR
 					if ((txSar.prevAck <= fsm_meta.meta.ackNumb && fsm_meta.meta.ackNumb <= txSar.nextByte)
 							|| ((txSar.prevAck <= fsm_meta.meta.ackNumb || fsm_meta.meta.ackNumb <= txSar.nextByte) && txSar.nextByte < txSar.prevAck))
 					{
-						rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count)));
+						rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count, ((txSar.count == 3) || txSar.fastRetransmitted))));
 					}
 
 					// Check if packet contains payload
@@ -837,7 +841,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						// Sent ACK
 						//rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
 					}
-					if (txSar.count == 3)
+					if (txSar.count == 3 && !txSar.fastRetransmitted)
 					{
 						rxEng2eventEng_setEvent.write(event(RT, fsm_meta.sessionID));
 					}
@@ -901,7 +905,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					// Initialize rxSar, SEQ + phantom byte, last '1' for makes sure appd is initialized
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, 1, 1));
 					// Initialize receive window
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0))); //TODO maybe include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, false))); //TODO maybe include count check
 					// Set SYN_ACK event
 					rxEng2eventEng_setEvent.write(event(SYN_ACK, fsm_meta.sessionID));
 					// Change State to SYN_RECEIVED
@@ -946,7 +950,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					//initialize rx_sar, SEQ + phantom byte, last '1' for appd init
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, 1, 1));
 
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0))); //CHANGE this was added //TODO maybe include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0, false))); //TODO maybe include count check
 
 					// set ACK event
 					rxEng2eventEng_setEvent.write(event(ACK_NODELAY, fsm_meta.sessionID));
@@ -979,7 +983,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 				// Check state and if FIN in order, Current out of order FINs are not accepted
 				if ((tcpState == ESTABLISHED || tcpState == FIN_WAIT_1 || tcpState == FIN_WAIT_2) && (rxSar.recvd == fsm_meta.meta.seqNumb))
 				{
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count))); //TODO include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count, txSar.fastRetransmitted))); //TODO include count check
 
 					// +1 for phantom byte, there might be data too
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, 1)); //diff to ACK

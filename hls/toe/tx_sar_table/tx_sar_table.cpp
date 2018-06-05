@@ -132,6 +132,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			tx_table[tst_rxEngUpdate.sessionID].recv_window = tst_rxEngUpdate.recv_window;
 			tx_table[tst_rxEngUpdate.sessionID].cong_window = tst_rxEngUpdate.cong_window;
 			tx_table[tst_rxEngUpdate.sessionID].count = tst_rxEngUpdate.count;
+			tx_table[tst_rxEngUpdate.sessionID].fastRetransmitted = tst_rxEngUpdate.fastRetransmitted;
 			// Push ACK to txAppInterface
 			txSar2txApp_ack_push.write(txSarAckPush(tst_rxEngUpdate.sessionID, tst_rxEngUpdate.ackd));
 		}
@@ -141,7 +142,8 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 													tx_table[tst_rxEngUpdate.sessionID].not_ackd,
 													tx_table[tst_rxEngUpdate.sessionID].cong_window,
 													tx_table[tst_rxEngUpdate.sessionID].slowstart_threshold,
-													tx_table[tst_rxEngUpdate.sessionID].count));
+													tx_table[tst_rxEngUpdate.sessionID].count,
+													tx_table[tst_rxEngUpdate.sessionID].fastRetransmitted));
 		}
 	}
 }
