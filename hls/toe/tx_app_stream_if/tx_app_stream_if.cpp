@@ -46,12 +46,13 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 {
 #pragma HLS pipeline II=1
 
-	enum tai_states {READ_REQUEST, READ_META};
+	enum tai_states {READ_REQUEST, READ_META, RETRY_SPACE};
 	static tai_states tai_state = READ_REQUEST;
 
 	static appTxMeta tasi_writeMeta;
 	static ap_uint<16> tasi_maxWriteLength = 0;
 	static txAppTxSarReply tasi_writeSar;
+	static ap_uint<8> waitCounter;
 
 	sessionState state;
 
@@ -81,12 +82,15 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 				tasi_writeToBufFifo.write(pkgPushMeta(true));
 				// Notify app about fail
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, tasi_maxWriteLength, ERROR_NOCONNCECTION));
+				tai_state = READ_REQUEST;
 			}
 			else if(tasi_writeMeta.length > tasi_maxWriteLength)
 			{
-				tasi_writeToBufFifo.write(pkgPushMeta(true));
+				//tasi_writeToBufFifo.write(pkgPushMeta(true));
 				// Notify app about fail
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, tasi_maxWriteLength, ERROR_NOSPACE));
+				//appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, tasi_maxWriteLength, ERROR_NOSPACE));
+				waitCounter = 0;
+				tai_state = RETRY_SPACE;
 			}
 			else //if (state == ESTABLISHED && pkgLen <= tasi_maxWriteLength)
 			{
@@ -96,8 +100,19 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 				//tasi_eventCacheFifo.write(eventMeta(tasi_writeSessionID, tasi_writeSar.mempt, pkgLen));
 				txAppStream2eventEng_setEvent.write(event(TX, tasi_writeMeta.sessionID, tasi_writeSar.mempt, tasi_writeMeta.length));
 				txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID, tasi_writeSar.mempt+tasi_writeMeta.length));
+				tai_state = READ_REQUEST;
 			}
-			tai_state = READ_REQUEST;
+		}
+		break;
+	case RETRY_SPACE:
+		waitCounter++;
+		if (waitCounter == 100)
+		{
+			// Get session state
+			txApp2stateTable_req.write(tasi_writeMeta.sessionID);
+			// Get Ack pointer
+			txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID));
+			tai_state = READ_META;
 		}
 		break;
 	} //switch
