@@ -42,14 +42,16 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 static const ap_uint<16> MSS=1460; //536
 
-static const uint16_t MAX_SESSIONS = 10000;
+static const uint16_t MAX_SESSIONS = 128;
 
 // TCP_NODELAY flag, to disable Nagle's Algorithm
-#define TCP_NODELAY 0
+#define TCP_NODELAY 1
 
 // RX_DDR_BYPASS flag, to enable DDR bypass on RX path
-#define RX_DDR_BYPASS 0
+#define RX_DDR_BYPASS 1
 
+// FAST_RETRANSMIT flag, to enable TCP fast recovery/retransmit mechanism
+#define FAST_RETRANSMIT 0
 
 #define noOfTxSessions 1 // Number of Tx Sessions to open for testing
 extern uint32_t packetCounter;
@@ -104,7 +106,7 @@ static const ap_uint<32> TIME_120s		= (120000000.0/0.0064/MAX_SESSIONS) + 1;
 #endif
 
 
-enum eventType {TX, RT, ACK, SYN, SYN_ACK, FIN, RST, ACK_NODELAY};
+enum eventType {TX, RT, ACK, SYN, SYN_ACK, FIN, RST, ACK_NODELAY, TX_RESUME};
 /*
  * There is no explicit LISTEN state
  * CLOSE-WAIT state is not used, since the FIN is sent out immediately after we receive a FIN, the application is simply notified
