@@ -70,7 +70,6 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			if (!tst_txEngUpdate.isRtQuery)
 			{
 				tx_table[tst_txEngUpdate.sessionID].not_ackd = tst_txEngUpdate.not_ackd;
-				tx_table[tst_txEngUpdate.sessionID].isProbing = tst_txEngUpdate.isProbing;
 				if (tst_txEngUpdate.init)
 				{
 					tx_table[tst_txEngUpdate.sessionID].app = tst_txEngUpdate.not_ackd;
@@ -114,8 +113,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 													minWindow,
 													tx_table[tst_txEngUpdate.sessionID].app,
 													tx_table[tst_txEngUpdate.sessionID].finReady,
-													tx_table[tst_txEngUpdate.sessionID].finSent,
-													tx_table[tst_txEngUpdate.sessionID].isProbing));
+													tx_table[tst_txEngUpdate.sessionID].finSent));
 		}
 	}
 	// TX App Stream If

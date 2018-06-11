@@ -230,7 +230,6 @@ struct txSarEntry
 	bool		fastRetransmitted;
 	bool		finReady;
 	bool		finSent;
-	bool		isProbing;
 };
 
 struct rxTxSarQuery
@@ -258,25 +257,24 @@ struct txTxSarQuery
 	bool		finReady;
 	bool		finSent;
 	bool		isRtQuery;
-	bool		isProbing;
 	txTxSarQuery() {}
 	txTxSarQuery(ap_uint<16> id)
-				:sessionID(id), not_ackd(0), write(0), init(0), finReady(false), finSent(false), isRtQuery(false), isProbing(false) {}
-	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, bool isProbing)
-				:sessionID(id), not_ackd(not_ackd), write(true), init(0), finReady(false), finSent(false), isRtQuery(false), isProbing(isProbing) {}
+				:sessionID(id), not_ackd(0), write(0), init(0), finReady(false), finSent(false), isRtQuery(false) {}
+	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, ap_uint<1> write)
+				:sessionID(id), not_ackd(not_ackd), write(write), init(0), finReady(false), finSent(false), isRtQuery(false) {}
 	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, ap_uint<1> write, ap_uint<1> init)
-				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(false), finSent(false), isRtQuery(false), isProbing(false) {}
-	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, ap_uint<1> write, ap_uint<1> init, bool finReady, bool finSent, bool isProbing)
-				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(finReady), finSent(finSent), isRtQuery(false), isProbing(isProbing) {}
-	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, ap_uint<1> write, ap_uint<1> init, bool finReady, bool finSent, bool isRt, bool isProbing)
-				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(finReady), finSent(finSent), isRtQuery(isRt), isProbing(isProbing) {}
+				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(false), finSent(false), isRtQuery(false) {}
+	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, ap_uint<1> write, ap_uint<1> init, bool finReady, bool finSent)
+				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(finReady), finSent(finSent), isRtQuery(false) {}
+	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, ap_uint<1> write, ap_uint<1> init, bool finReady, bool finSent, bool isRt)
+				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(finReady), finSent(finSent), isRtQuery(isRt) {}
 };
 
 struct txTxSarRtQuery : public txTxSarQuery
 {
 	txTxSarRtQuery() {}
 	txTxSarRtQuery(const txTxSarQuery& q)
-			:txTxSarQuery(q.sessionID, q.not_ackd, q.write, q.init, q.finReady, q.finSent, q.isRtQuery, q.isProbing) {}
+			:txTxSarQuery(q.sessionID, q.not_ackd, q.write, q.init, q.finReady, q.finSent, q.isRtQuery) {}
 	txTxSarRtQuery(ap_uint<16> id, ap_uint<16> ssthresh)
 			:txTxSarQuery(id, ssthresh, 1, 0, false, false, true) {}
 	ap_uint<16> getThreshold()
@@ -350,10 +348,9 @@ struct txTxSarReply
 	ap_uint<16> app;
 	bool		finReady;
 	bool		finSent;
-	bool		isProbing;
 	txTxSarReply() {}
-	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<16> min_window, ap_uint<16> app, bool finReady, bool finSent, bool isProbing)
-		:ackd(ack), not_ackd(nack), min_window(min_window), app(app), finReady(finReady), finSent(finSent), isProbing(isProbing) {}
+	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<16> min_window, ap_uint<16> app, bool finReady, bool finSent)
+		:ackd(ack), not_ackd(nack), min_window(min_window), app(app), finReady(finReady), finSent(finSent) {}
 };
 
 struct rxRetransmitTimerUpdate {

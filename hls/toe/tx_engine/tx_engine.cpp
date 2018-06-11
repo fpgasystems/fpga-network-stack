@@ -176,7 +176,7 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				currLength = ml_curEvent.length;
 				ap_uint<16> usedLength = ((ap_uint<16>) txSar.not_ackd - txSar.ackd);
 				// min_window, is the min(txSar.recv_window, txSar.cong_window)
-				if (txSar.min_window > usedLength && !txSar.isProbing)
+				if (txSar.min_window > usedLength)
 				{
 					usableWindow = txSar.min_window - usedLength;
 				}
@@ -186,10 +186,7 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				}
 				if (usableWindow < ml_curEvent.length)
 				{
-					if (!txSar.isProbing)
-					{
-						txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
-					}
+					txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
 				}
 				else
 				{
@@ -197,15 +194,18 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 					//TODO some checking
 					txSar.not_ackd += ml_curEvent.length;
 				}
-				if (ml_curEvent.length != 0)
-				{
-					txSar.isProbing = (meta.length == 0);
-					txEng_dropBypassData.write(meta.length == 0);
-				}
-				txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, txSar.isProbing)); //TODO check constructor
+				txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1));
 				ml_FsmState = 0;
 
 
+				/*if (meta.length != 0)
+				{
+					//txBufferReadCmd.write(mmCmd(pkgAddr, meta.length));
+				}*/
+				if (ml_curEvent.length != 0)
+				{
+					txEng_dropBypassData.write(meta.length == 0);
+				}
 				// Send a packet only if there is data or we want to send an empty probing message
 				if (meta.length != 0)// || ml_curEvent.retransmit) //TODO retransmit boolean currently not set, should be removed
 				{
@@ -267,7 +267,6 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				// Check length, if bigger than Usable Window or MMS
 				if (currLength <= usableWindow)
 				{
-					txSar.isProbing = false;
 					if (currLength >= MSS) //TODO change to >= MSS, use maxSegmentCount
 					{
 						// We stay in this state and sent immediately another packet
@@ -300,12 +299,11 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 						}
 #endif
 						// Write back txSar not_ackd pointer
-						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, txSar.isProbing));
+						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1));
 					}
 				}
 				else
 				{
-					txSar.isProbing = true;
 					// code duplication, but better timing..
 					if (usableWindow >= MSS)
 					{
@@ -325,7 +323,7 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 						}
 						// Set probe Timer to try again later
 						txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
-						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, txSar.isProbing));
+						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1));
 						ml_FsmState = 0;
 					}
 				}
@@ -572,11 +570,11 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 					// Set fin flag, such that probeTimer is informed
 					if (txSar.app == txSar.not_ackd(15, 0))
 					{
-						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd+1, 1, 0, true, true, txSar.isProbing));
+						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd+1, 1, 0, true, true));
 					}
 					else
 					{
-						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1, 0, true, false, txSar.isProbing));
+						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1, 0, true, false));
 					}
 				}
 
