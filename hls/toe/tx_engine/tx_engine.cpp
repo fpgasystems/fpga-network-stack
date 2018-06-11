@@ -68,7 +68,6 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				stream<bool>&						txEng_isLookUpFifoOut,
 #if (TCP_NODELAY)
 				stream<bool>&						txEng_isDDRbypass,
-				stream<bool>&						txEng_dropBypassData,
 #endif
 				stream<fourTuple>&					txEng_tupleShortCutFifoOut,
 				stream<ap_uint<1> >&				readCountFifo)
@@ -107,7 +106,6 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID));
 				break;
 			case TX:
-			case TX_RESUME:
 				txEng2rxSar_req.write(ml_curEvent.sessionID);
 				txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID));
 				break;
@@ -171,7 +169,7 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				meta.rst = 0;
 				meta.syn = 0;
 				meta.fin = 0;
-				meta.length = 0;
+				//meta.length = 0;
 
 				currLength = ml_curEvent.length;
 				ap_uint<16> usedLength = ((ap_uint<16>) txSar.not_ackd - txSar.ackd);
@@ -188,12 +186,12 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				{
 					txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
 				}
-				else
-				{
-					meta.length = ml_curEvent.length;
-					//TODO some checking
-					txSar.not_ackd += ml_curEvent.length;
-				}
+
+				meta.length = ml_curEvent.length;
+
+				//TODO some checking
+				txSar.not_ackd += ml_curEvent.length;
+
 				txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1));
 				ml_FsmState = 0;
 
@@ -202,10 +200,6 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				{
 					//txBufferReadCmd.write(mmCmd(pkgAddr, meta.length));
 				}*/
-				if (ml_curEvent.length != 0)
-				{
-					txEng_dropBypassData.write(meta.length == 0);
-				}
 				// Send a packet only if there is data or we want to send an empty probing message
 				if (meta.length != 0)// || ml_curEvent.retransmit) //TODO retransmit boolean currently not set, should be removed
 				{
@@ -224,8 +218,6 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 			break;
 #else
 		case TX:
-#endif
-		case TX_RESUME:
 			// Sends everyting between txSar.not_ackd and txSar.app
 			if ((!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty()) || ml_sarLoaded)
 			{
@@ -285,19 +277,19 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 							ml_FsmState = 0;
 						}
 						// Check if small segment and if unacknowledged data in pipe (Nagle)
-#if !(TCP_NODELAY)
+//#if !(TCP_NODELAY)
 						if (txSar.ackd == txSar.not_ackd)
-#endif
+//#endif
 						{
 							txSar.not_ackd += currLength;
 							meta.length = currLength;
 						}
-#if !(TCP_NODELAY)
+//#if !(TCP_NODELAY)
 						else
 						{
 							txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
 						}
-#endif
+//#endif
 						// Write back txSar not_ackd pointer
 						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1));
 					}
@@ -314,9 +306,9 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 					else
 					{
 						// Check if we sent >= MSS data
-#if !(TCP_NODELAY)
+//#if !(TCP_NODELAY)
 						if (txSar.ackd == txSar.not_ackd)
-#endif
+//#endif
 						{
 							txSar.not_ackd += usableWindow;
 							meta.length = usableWindow;
@@ -338,9 +330,6 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 					txEng_ipMetaFifoOut.write(meta.length);
 					txEng_tcpMetaFifoOut.write(meta);
 					txEng_isLookUpFifoOut.write(true);
-#if (TCP_NODELAY)
-					txEng_isDDRbypass.write(false);
-#endif
 					txEng2sLookup_rev_req.write(ml_curEvent.sessionID);
 
 					// Only set RT timer if we actually send sth, TODO only set if we change state and sent sth
@@ -349,6 +338,7 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				ml_sarLoaded = true;
 			}
 			break;
+#endif
 		case RT:
 			if ((!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty()) || ml_sarLoaded)
 			{
@@ -1284,61 +1274,6 @@ void txEngMemAccessBreakdown(stream<mmCmd> &inputMemAccess, stream<mmCmd> &outpu
 	}
 }
 
-void drop_short_cut_data(	stream<axiWord>&				dataIn,
-							stream<bool>&				validFifoIn,
-							stream<axiWord>&			dataOut)
-{
-
-
-#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-
-	enum dscd_StateType {GET_VALID, FWD, DROP};
-	static dscd_StateType dscd_state = GET_VALID;
-
-	axiWord currWord;
-	bool drop;
-
-
-	switch (dscd_state) {
-	case GET_VALID: //Drop1
-		if (!validFifoIn.empty())
-		{
-			validFifoIn.read(drop);
-			if (drop)
-			{
-				dscd_state = DROP;
-			}
-			else
-			{
-				dscd_state = FWD;
-			}
-		}
-		break;
-	case FWD:
-		if(!dataIn.empty() && !dataOut.full())
-		{
-			dataIn.read(currWord);
-			dataOut.write(currWord);
-			if (currWord.last)
-			{
-				dscd_state = GET_VALID;
-			}
-		}
-		break;
-	case DROP:
-		if(!dataIn.empty())
-		{
-			dataIn.read(currWord);
-			if (currWord.last)
-			{
-				dscd_state = GET_VALID;
-			}
-		}
-		break;
-	} // switch
-}
-
 /** @ingroup tx_engine
  *  @param[in]		eventEng2txEng_event
  *  @param[in]		rxSar2txEng_upd_rsp
@@ -1388,12 +1323,10 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 
 	static stream<axiWord>		txEng_ipHeaderBuffer("txEng_ipHeaderBuffer");
 	static stream<axiWord>		txEng_tcpHeaderBuffer("txEng_tcpHeaderBuffer");
-	static stream<axiWord>		txEng_tcpPkgBuffer0("txEng_tcpPkgBuffer0");
 	static stream<axiWord>		txEng_tcpPkgBuffer1("txEng_tcpPkgBuffer1");
 	static stream<axiWord>		txEng_tcpPkgBuffer2("txEng_tcpPkgBuffer2");
 	#pragma HLS stream variable=txEng_ipHeaderBuffer depth=32 // Ip header is 3 words, keep at least 8 headers
 	#pragma HLS stream variable=txEng_tcpHeaderBuffer depth=32 // TCP pseudo header is 4 words, keep at least 8 headers
-	#pragma HLS stream variable=txEng_tcpPkgBuffer0 depth=16
 	#pragma HLS stream variable=txEng_tcpPkgBuffer1 depth=16   // is forwarded immediately, size is not critical
 	#pragma HLS stream variable=txEng_tcpPkgBuffer2 depth=256  // critical, has to keep complete packet for checksum computation
 	#pragma HLS DATA_PACK variable=txEng_ipHeaderBuffer
@@ -1428,9 +1361,6 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	static stream<bool> txEng_isDDRbypass("txEng_isDDRbypass");
 	#pragma HLS stream variable=txEng_isDDRbypass depth=32
 
-	static stream<bool> txEng_dropBypassData("txEng_dropBypassData");
-	#pragma HLS stream variable=txEng_dropBypassData depth=2
-
 
 	metaLoader(	eventEng2txEng_event,
 				rxSar2txEng_rsp,
@@ -1446,7 +1376,6 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 				txEng_isLookUpFifo,
 #if (TCP_NODELAY)
 				txEng_isDDRbypass,
-				txEng_dropBypassData,
 #endif
 				txEng_tupleShortCutFifo,
 				readCountFifo);
@@ -1462,15 +1391,11 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 
 	pseudoHeaderConstruction(txEng_tcpMetaFifo, txEng_tcpTupleFifo, txEng_tcpHeaderBuffer);
 
-#if (TCP_NODELAY)
-	drop_short_cut_data(txApp2txEng_data_stream, txEng_dropBypassData, txEng_tcpPkgBuffer0);
-#endif
-
 	tcpPkgStitcher(	txEng_tcpHeaderBuffer,
 					txBufferReadData,
 #if (TCP_NODELAY)
 					txEng_isDDRbypass,
-					txEng_tcpPkgBuffer0,
+					txApp2txEng_data_stream,
 #endif
 					txEng_tcpPkgBuffer1,
 					memAccessBreakdown2txPkgStitcher);
