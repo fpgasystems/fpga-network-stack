@@ -75,7 +75,7 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 			stateTable2txApp_rsp.read(state);
 			txSar2txApp_upd_rsp.read(writeSar);
 			ap_uint<16> maxWriteLength = (writeSar.ackd - writeSar.mempt) - 1;
-#if (TCP_NO_DELAY)
+#if (TCP_NODELAY)
 			//tasi_writeSar.mempt and txSar.not_ackd are supposed to be equal (with a few cycles delay)
 			ap_uint<16> usedLength = ((ap_uint<16>) writeSar.mempt - writeSar.ackd);
 			ap_uint<16> usableWindow = 0;
@@ -91,10 +91,10 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
 				tai_state = READ_REQUEST;
 			}
-#if !(TCP_NO_DELAY)
+#if !(TCP_NODELAY)
 			else if(tasi_writeMeta.length > maxWriteLength)
 #else
-			else if(tasi_writeMeta.length > writeSar || usableWindow < tasi_writeMeta.length)
+			else if(tasi_writeMeta.length > maxWriteLength || usableWindow < tasi_writeMeta.length)
 #endif
 			{
 				//tasi_writeToBufFifo.write(pkgPushMeta(true));
