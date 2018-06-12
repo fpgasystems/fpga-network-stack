@@ -79,7 +79,11 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 					tx_table[tst_txEngUpdate.sessionID].finReady = tst_txEngUpdate.finReady;
 					tx_table[tst_txEngUpdate.sessionID].finSent = tst_txEngUpdate.finSent;
 					// Init ACK to txAppInterface
+#if !(TCP_NODELAY)
 					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 1));
+#else
+					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 0x3908 /* 10 x 1460(MSS) */, 1));
+#endif
 				}
 				if (tst_txEngUpdate.finReady)
 				{
@@ -134,7 +138,20 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			tx_table[tst_rxEngUpdate.sessionID].count = tst_rxEngUpdate.count;
 			tx_table[tst_rxEngUpdate.sessionID].fastRetransmitted = tst_rxEngUpdate.fastRetransmitted;
 			// Push ACK to txAppInterface
+#if !(TCP_NODELAY)
 			txSar2txApp_ack_push.write(txSarAckPush(tst_rxEngUpdate.sessionID, tst_rxEngUpdate.ackd));
+#else
+			ap_uint<16> minWindow;
+			if (tst_rxEngUpdate.cong_window < tst_rxEngUpdate.recv_window)
+			{
+				minWindow = tst_rxEngUpdate.cong_window;
+			}
+			else
+			{
+				minWindow = tst_rxEngUpdate.recv_window;
+			}
+			txSar2txApp_ack_push.write(txSarAckPush(tst_rxEngUpdate.sessionID, tst_rxEngUpdate.ackd, minWindow));
+#endif
 		}
 		else
 		{

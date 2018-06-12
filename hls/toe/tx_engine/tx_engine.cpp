@@ -171,7 +171,7 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				meta.fin = 0;
 				//meta.length = 0;
 
-				currLength = ml_curEvent.length;
+				/*currLength = ml_curEvent.length;
 				ap_uint<16> usedLength = ((ap_uint<16>) txSar.not_ackd - txSar.ackd);
 				// min_window, is the min(txSar.recv_window, txSar.cong_window)
 				if (txSar.min_window > usedLength)
@@ -181,8 +181,9 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				else
 				{
 					usableWindow = 0;
-				}
-				if (usableWindow < ml_curEvent.length)
+				}*/
+				//TODO this is hack, makes sure that probeTimer is never set.
+				if (0x7FFF < ml_curEvent.length)
 				{
 					txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
 				}
@@ -196,10 +197,6 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				ml_FsmState = 0;
 
 
-				/*if (meta.length != 0)
-				{
-					//txBufferReadCmd.write(mmCmd(pkgAddr, meta.length));
-				}*/
 				// Send a packet only if there is data or we want to send an empty probing message
 				if (meta.length != 0)// || ml_curEvent.retransmit) //TODO retransmit boolean currently not set, should be removed
 				{

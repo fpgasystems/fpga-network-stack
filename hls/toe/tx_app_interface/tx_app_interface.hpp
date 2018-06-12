@@ -37,9 +37,10 @@ struct txAppTableEntry
 {
 	ap_uint<16>		ackd;
 	ap_uint<16>		mempt;
+#if (TCP_NODELAY)
+	ap_uint<16> 	min_window;
+#endif
 	txAppTableEntry() {}
-	txAppTableEntry(ap_uint<16> ackd, ap_uint<16> mempt)
-			:ackd(ackd), mempt(mempt) {}
 };
 
 void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,

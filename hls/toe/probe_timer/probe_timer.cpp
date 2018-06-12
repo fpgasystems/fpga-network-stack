@@ -103,7 +103,11 @@ void probe_timer(	stream<ap_uint<16> >&		rxEng2timer_clearProbeTimer,
 				probeTimerTable[checkID].time = 0;
 				probeTimerTable[checkID].active = false;
 				// It's not an RT, we want to resume TX
+#if !(TCP_NODELAY)
+				probeTimer2eventEng_setEvent.write(event(TX, checkID));
+#else
 				probeTimer2eventEng_setEvent.write(event(RT, checkID));
+#endif
 				fastResume = false;
 			}
 			else
