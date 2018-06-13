@@ -1,4 +1,4 @@
-open_project ipHandler_prj
+open_project ip_handler_prj
 
 set_top ip_handler
 

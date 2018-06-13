@@ -1,4 +1,4 @@
-open_project icmpServer_prj
+open_project icmp_server_prj
 
 set_top icmp_server
 

@@ -1,4 +1,4 @@
-open_project macIpEncode_prj
+open_project mac_ip_encode_prj
 
 set_top mac_ip_encode
 
