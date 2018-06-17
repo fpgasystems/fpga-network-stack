@@ -9,10 +9,8 @@ open_solution "solution1"
 set_part {xc7vx690tffg1761-2}
 create_clock -period 6.4 -name default
 
-#csim_design  -clean -argv {in.dat out.dat}
-#csim_design  -clean
+config_rtl -disable_start_propagation
 csynth_design
-#cosim_design -tool xsim -rtl verilog -trace_level all 
 export_design -format ip_catalog -display_name "iperf client" -vendor "ethz.systems.fpga" -version "1.0"
 
 exit

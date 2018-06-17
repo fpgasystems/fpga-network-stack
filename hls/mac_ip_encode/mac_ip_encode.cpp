@@ -384,14 +384,14 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 #pragma HLS resource core=AXI4Stream variable=arpTableOut metadata="-bus_bundle m_axis_arp_lookup_request"
 #pragma HLS DATA_PACK variable=arpTableIn
 
-#pragma HLS INTERFACE ap_none register port=myMacAddress
-#pragma HLS INTERFACE ap_none register port=regSubNetMask
-#pragma HLS INTERFACE ap_none register port=regDefaultGateway
+#pragma HLS INTERFACE ap_stable register port=myMacAddress
+#pragma HLS INTERFACE ap_stable register port=regSubNetMask
+#pragma HLS INTERFACE ap_stable register port=regDefaultGateway
 
 	// FIFOs
-	static stream<axiWord> dataStreamBuffer0;
-	static stream<axiWord> dataStreamBuffer1;
-	static stream<axiWord> dataStreamBuffer2;
+	static stream<axiWord> dataStreamBuffer0("dataStreamBuffer0");
+	static stream<axiWord> dataStreamBuffer1("dataStreamBuffer1");
+	static stream<axiWord> dataStreamBuffer2("dataStreamBuffer2");
 	#pragma HLS stream variable=dataStreamBuffer0 depth=16 //must hold ip header for checksum computation
 	#pragma HLS stream variable=dataStreamBuffer1 depth=16
 	#pragma HLS stream variable=dataStreamBuffer2 depth=16

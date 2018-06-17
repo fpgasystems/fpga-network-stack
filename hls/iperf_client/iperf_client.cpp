@@ -47,6 +47,7 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 				ap_uint<32>		regIpAddress3)
 {
 #pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
 	enum iperfFsmStateType {IDLE, INIT_CON, WAIT_CON, INIT_RUN, START_PKG, WRITE_PKG, CHECK_TIME};
 	static iperfFsmStateType iperfFsmState = IDLE;
@@ -285,6 +286,7 @@ void server(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 				stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData)
 {
 #pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
 	enum consumeFsmStateType {WAIT_PKG, CONSUME};
 	static consumeFsmStateType  serverFsmState = WAIT_PKG;
@@ -350,6 +352,7 @@ void clock (stream<bool>&	startSignal,
 			stream<bool>&	stopSignal)
 {
 #pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
 	static bool startClock = false;
 	static ap_uint<40> time;
@@ -421,12 +424,12 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 	#pragma HLS DATA_PACK variable=txMetaData
 	#pragma HLS DATA_PACK variable=txData
 
-	#pragma HLS INTERFACE ap_none register port=runExperiment
-	#pragma HLS INTERFACE ap_none register port=dualModeEn
-	#pragma HLS INTERFACE ap_none register port=regIpAddress0
-	#pragma HLS INTERFACE ap_none register port=regIpAddress1
-	#pragma HLS INTERFACE ap_none register port=regIpAddress2
-	#pragma HLS INTERFACE ap_none register port=regIpAddress3
+	#pragma HLS INTERFACE ap_stable register port=runExperiment
+	#pragma HLS INTERFACE ap_stable register port=dualModeEn
+	#pragma HLS INTERFACE ap_stable register port=regIpAddress0
+	#pragma HLS INTERFACE ap_stable register port=regIpAddress1
+	#pragma HLS INTERFACE ap_stable register port=regIpAddress2
+	#pragma HLS INTERFACE ap_stable register port=regIpAddress3
 
 	static stream<bool>		startSignalFifo("startSignalFifo");
 	static stream<bool>		stopSignalFifo("stopSignalFifo");
