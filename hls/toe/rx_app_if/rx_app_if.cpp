@@ -50,9 +50,6 @@ void rx_app_if(	stream<ap_uint<16> >&				appListenPortReq,
 {
 #pragma HLS PIPELINE II=1
 
-#pragma HLS resource core=AXI4Stream variable=appListenPortRsp metadata="-bus_bundle m_axis_listen_port_rsp"
-#pragma HLS resource core=AXI4Stream variable=appListenPortReq metadata="-bus_bundle s_axis_listen_port_req"
-
 	static bool rai_wait = false;
 
 	static ap_uint<16> rai_counter = 0;
