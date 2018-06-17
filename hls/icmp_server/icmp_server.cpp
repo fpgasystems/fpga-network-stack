@@ -369,8 +369,7 @@ void dropper(stream<axiWord>& dataIn, stream<bool>& validFifoIn, stream<axiWord>
 
     switch(ic_wordCount) {
         case 0:
-            bool stream_empty[1]; // store all input stream empty states
-//#pragma HLS ARRAY_PARTITION variable=stream_empty complete
+            bool stream_empty[2]; // store all input stream empty states
             for (uint8_t i=0;i<2;++i) 
                 stream_empty[i] = inputStreams[i].empty();
           
@@ -414,18 +413,19 @@ void icmp_server(stream<axiWord>&	dataIn,
 				 stream<axiWord>&	udpIn,
 				 stream<axiWord>&	ttlIn,
 				 stream<axiWord>&	dataOut) {
-#pragma HLS dataflow interval=1
+#pragma HLS DATAFLOW
 #pragma HLS INTERFACE ap_ctrl_none port=return
 
-#pragma HLS INTERFACE port=dataIn axis
+//Due to a lack of testing the new pragma is not used yet
+/*#pragma HLS INTERFACE port=dataIn axis
 #pragma HLS INTERFACE port=udpIn axis
 #pragma HLS INTERFACE port=ttlIn axis
-#pragma HLS INTERFACE port=dataOut register axis
+#pragma HLS INTERFACE port=dataOut register axis*/
 
-	/*#pragma  HLS resource core=AXI4Stream variable=dataIn 	metadata="-bus_bundle s_axis"
+	#pragma  HLS resource core=AXI4Stream variable=dataIn 	metadata="-bus_bundle s_axis"
 	#pragma  HLS resource core=AXI4Stream variable=udpIn 	metadata="-bus_bundle udpIn"
 	#pragma  HLS resource core=AXI4Stream variable=ttlIn 	metadata="-bus_bundle ttlIn"
-	#pragma  HLS resource core=AXI4Stream variable=dataOut 	metadata="-bus_bundle m_axis"*/
+	#pragma  HLS resource core=AXI4Stream variable=dataOut 	metadata="-bus_bundle m_axis"
 
 	static stream<axiWord>			packageBuffer1("packageBuffer1");
 	static stream<axiWord>			udpPort2insertChecksum("udpPort2insertChecksum");

@@ -298,8 +298,8 @@ void arp_server_subnet(	stream<axiWord>&          arpDataIn,
 	#pragma  HLS resource core=AXI4Stream variable=macIpEncode_rsp metadata="-bus_bundle m_axis_arp_lookup_reply"
   #pragma HLS DATA_PACK variable=macIpEncode_rsp
 
-	#pragma HLS INTERFACE ap_none register port=myMacAddress
-	#pragma HLS INTERFACE ap_none register port=myIpAddress
+	#pragma HLS INTERFACE ap_stable register port=myMacAddress
+	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 
   static stream<arpReplyMeta>     arpReplyMetaFifo("arpReplyMetaFifo");
   #pragma HLS STREAM variable=arpReplyMetaFifo depth=4
@@ -307,7 +307,6 @@ void arp_server_subnet(	stream<axiWord>&          arpDataIn,
 
   static stream<ap_uint<32> >   arpRequestMetaFifo("arpRequestMetaFifo");
   #pragma HLS STREAM variable=arpRequestMetaFifo depth=4
-  //#pragma HLS DATA_PACK variable=arpRequestMetaFifo
 
   static stream<arpTableEntry>    arpTableInsertFifo("arpTableInsertFifo");
   #pragma HLS STREAM variable=arpTableInsertFifo depth=4

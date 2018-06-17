@@ -554,13 +554,20 @@ void ip_handler(stream<axiWord>&		s_axis_raw,
 #pragma HLS INTERFACE ap_ctrl_none register port=return
 #pragma HLS INLINE off
 
-	#pragma HLS INTERFACE axis port=s_axis_raw
+	#pragma HLS resource core=AXI4Stream variable=s_axis_raw metadata="-bus_bundle s_axis_raw"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_ARP metadata="-bus_bundle m_axis_ARP"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_ICMP metadata="-bus_bundle m_axis_ICMP"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_UDP metadata="-bus_bundle m_axis_UDP"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_TCP metadata="-bus_bundle m_axis_TCP"
+
+	//New pragmas are not used yet, due to a lackt of testing
+	/*#pragma HLS INTERFACE axis port=s_axis_raw
 	#pragma HLS INTERFACE axis port=m_axis_ARP
 	#pragma HLS INTERFACE axis port=m_axis_ICMP
 	#pragma HLS INTERFACE axis port=m_axis_UDP
-	#pragma HLS INTERFACE axis port=m_axis_TCP
+	#pragma HLS INTERFACE axis port=m_axis_TCP*/
 
-	#pragma HLS INTERFACE ap_none register port=myIpAddress
+	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 
 	static stream<axiWord>		ipDataFifo("ipDataFifo");
 	static stream<axiWord>		ipDataCheckFifo("ipDataCheckFifo");
