@@ -59,8 +59,6 @@ struct routed_net_axis
 	ap_uint<1>		last;
 	ap_uint<R>		dest;
 	routed_net_axis() {}
-	routed_net_axis(net_axis<D> w, axiRoute r)
-		:data(w.data), keep(w.keep), last(w.last), dest(r) {}
 	routed_net_axis(net_axis<D> w, ap_uint<R> r)
 		:data(w.data), keep(w.keep), last(w.last), dest(r) {}
 };
