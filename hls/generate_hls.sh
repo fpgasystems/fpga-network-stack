@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IP_CORES=(ip_handler mac_ip_encode arp_server_subnet icmp_server toe echo_server_application ethernet_frame_padding iperf_client udp ipv4 iperf_udp_client)
+IP_CORES=(ip_handler mac_ip_encode arp_server_subnet icmp_server toe echo_server_application ethernet_frame_padding iperf_client udp ipv4 iperf_udp_client dhcp_client)
 
 
 if [[ $# > 0 ]]; then

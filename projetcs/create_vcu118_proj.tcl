@@ -76,7 +76,7 @@ update_compile_order -fileset sources_1
 
 #Interconnects
 
-create_ip -name axis_interconnect -vendor xilinx.com -library ip -version 1.1 -module_name axis_interconnect_3to1
+create_ip -name axis_interconnect -vendor xilinx.com -library ip -version 1.1 -module_name axis_interconnect_3to1 -dir $ip_dir/vu9p
 set_property -dict [list CONFIG.C_NUM_SI_SLOTS {3} CONFIG.SWITCH_TDATA_NUM_BYTES {8} CONFIG.HAS_TSTRB {false} CONFIG.HAS_TID {false} CONFIG.HAS_TDEST {false} CONFIG.SWITCH_PACKET_MODE {true} CONFIG.C_S00_AXIS_REG_CONFIG {1} CONFIG.C_S01_AXIS_REG_CONFIG {1} CONFIG.C_S02_AXIS_REG_CONFIG {1} CONFIG.C_SWITCH_MAX_XFERS_PER_ARB {0} CONFIG.C_SWITCH_NUM_CYCLES_TIMEOUT {0} CONFIG.M00_AXIS_TDATA_NUM_BYTES {8} CONFIG.S00_AXIS_TDATA_NUM_BYTES {8} CONFIG.S01_AXIS_TDATA_NUM_BYTES {8} CONFIG.S02_AXIS_TDATA_NUM_BYTES {8} CONFIG.M00_S01_CONNECTIVITY {true} CONFIG.M00_S02_CONNECTIVITY {true}] [get_ips axis_interconnect_3to1]
 generate_target {instantiation_template} [get_files $ip_dir/vu9p/axis_interconnect_3to1/axis_interconnect_3to1.xci]
 update_compile_order -fileset sources_1
@@ -136,8 +136,8 @@ update_compile_order -fileset sources_1
 #generate_target {instantiation_template} [get_files $ip_dir/vu9p/udpAppMux_0/udpAppMux_0.xci]
 #update_compile_order -fileset sources_1
 
-create_ip -name dhcp_client -vendor xilinx.labs -library hls -version 1.05 -module_name dhcp_client_0 -dir $ip_dir/vu9p
-generate_target {instantiation_template} [get_files $ip_dir/vu9p/dhcp_client_0/dhcp_client_0.xci]
+create_ip -name dhcp_client -vendor xilinx.labs -library hls -version 1.05 -module_name dhcp_client_ip -dir $ip_dir/vu9p
+generate_target {instantiation_template} [get_files $ip_dir/vu9p/dhcp_client_ip/dhcp_client_ip.xci]
 update_compile_order -fileset sources_1
 
 
@@ -147,7 +147,7 @@ create_ip -name vio -vendor xilinx.com -library ip -version 3.0 -module_name vio
 set_property -dict [list CONFIG.C_NUM_PROBE_OUT {2} CONFIG.C_EN_PROBE_IN_ACTIVITY {0} CONFIG.C_NUM_PROBE_IN {0} CONFIG.Component_Name {vio_iperf}] [get_ips vio_iperf]
 generate_target {instantiation_template} [get_files $ip_dir/vu9p/vio_iperf/vio_iperf.xci]
 
-create_ip -name vio -vendor xilinx.com -library ip -version 3.0 -module_name vio_udp_iperf_client -dir $ip_dir/ip/vu9p
+create_ip -name vio -vendor xilinx.com -library ip -version 3.0 -module_name vio_udp_iperf_client -dir $ip_dir/vu9p
 set_property -dict [list CONFIG.C_EN_PROBE_IN_ACTIVITY {0} CONFIG.C_NUM_PROBE_IN {0} CONFIG.Component_Name {vio_udp_iperf_client}] [get_ips vio_udp_iperf_client]
 generate_target {instantiation_template} [get_files $ip_dir/vu9p/vio_udp_iperf_client/vio_udp_iperf_client.xci]
 
