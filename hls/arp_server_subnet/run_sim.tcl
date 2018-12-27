@@ -13,6 +13,5 @@ set_part {xcvu9p-flga2104-2L-e}
 create_clock -period 6.4 -name default
 
 config_rtl -disable_start_propagation
-csynth_design
-export_design -format ip_catalog -display_name "ARP Subnet Server for 10G TOE Design" -description "Replies to ARP queries and resolves IP addresses." -vendor "ethz.systems.fpga" -version "1.1"
+csim_design
 exit
