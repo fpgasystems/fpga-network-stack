@@ -33,14 +33,14 @@ using namespace hls;
 using namespace std;
 
 int main(int argc, char* argv[]) {
-	axiWord inData;
-	axiWord outData;
 	stream<axiWord> inFIFO("inFIFO");
 	stream<axiWord> outFifoARP("outFifoARP");
 	stream<axiWord> outFifoTCP("outFifoTCP");
 	stream<axiWord> outFifoUDP("outFifoUDP");
 	stream<axiWord> outFifoICMP("outFifoICMP");
 	stream<axiWord> outFifoICMPexp("outFifoICMPexp");
+	stream<axiWord> outFifoICMPv6("outFifoICMPv6");
+	stream<axiWord> outFifoIPv6UDP("outFifoIPv6UDP");
 
 	std::ifstream inputFile;
 	std::ifstream goldenFile;
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 	ap_uint<32> ipAddress 	= 0x01010101;
     int 		errCount 	= 0;
 
-	inputFile.open("../../../../in.dat");
+	/*inputFile.open("../../../../in.dat");
 	if (!inputFile) {
 		cout << "Error: could not open test input file." << endl;
 		return -1;
@@ -63,23 +63,51 @@ int main(int argc, char* argv[]) {
 	if (!goldenFile) {
 		cerr << " Error opening golden output file!" << endl;
 		return -1;
+	}*/
+	if (argc < 3)
+	{
+		std::cout << "[ERROR] missing arguments." << std::endl;
+		return -1;
 	}
-	uint16_t keepTemp;
-	uint64_t dataTemp;
-	uint16_t lastTemp;
+
+	inputFile.open(argv[1]);
+	if (!inputFile)
+	{
+		std::cout << "[ERROR] could not open test rx input file." << std::endl;
+		return -1;
+	}
+
+	outputFile.open(argv[2]);
+	if (!outputFile)
+	{
+		std::cout << "[ERROR] could not open test rx output file." << std::endl;
+		return -1;
+	}
+
+	axiWord inWord;
 	int count = 0;
-	while (inputFile >> std::hex >> dataTemp >> lastTemp >> keepTemp) {
-		inData.data = dataTemp;
-		inData.keep = keepTemp;
-		//inData.user = 0;
-		inData.last = lastTemp;
-		inFIFO.write(inData);
+	while (scan(inputFile, inWord)) {
+		inFIFO.write(inWord);
+		ip_handler(inFIFO, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
 	}
 	while (count < 30000)	{
-		ip_handler(inFIFO, outFifoARP, outFifoICMP, outFifoICMPexp, outFifoUDP, outFifoTCP, ipAddress, 0x60504030201);
+		ip_handler(inFIFO, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
 		count++;
 	}
-	outputFile << std::hex << std::noshowbase;
+
+	axiWord outWord;
+	while (!outFifoICMPv6.empty())
+	{
+		outFifoICMPv6.read(outWord);
+		print(outputFile, outWord);
+		outputFile << std::endl;
+		/*outputFile << std::setw(8) << ((uint32_t) outWord.data(63, 32));
+		outputFile << std::setw(8) << ((uint32_t) outWord.data(31, 0));
+		outputFile << " " << std::setw(2) << ((uint32_t) outWord.keep) << " ";
+		outputFile << std::setw(1) << ((uint32_t) outWord.last) << std::endl;*/
+	}
+
+	/*outputFile << std::hex << std::noshowbase;
 	outputFile << std::setfill('0');
 	while (!(outFifoARP.empty())) {
 		outFifoARP.read(outData);
@@ -152,6 +180,8 @@ int main(int argc, char* argv[]) {
 	}
 	inputFile.close();
 	outputFile.close();
-	goldenFile.close();
+	goldenFile.close();*/
+
+	return 0;
 }
 

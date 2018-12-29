@@ -27,14 +27,16 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 
-#include "../tcp_ip.hpp"
+#include "../axi_utils.hpp"
 
 using namespace hls;
 
 const uint16_t ARP = 0x0806;
 const uint16_t IPv4 = 0x0800;
+const uint16_t IPv6 = 0x86DD;
 
 const uint8_t ICMP = 0x01;
+const uint8_t ICMPv6 = 0x3a;
 const uint8_t UDP = 0x11;
 const uint8_t TCP = 0x06;
 
@@ -57,6 +59,8 @@ struct subSums
  */
 void ip_handler(stream<axiWord>&		s_axis_raw,
 				stream<axiWord>&		m_axis_ARP,
+				stream<axiWord>&		m_axis_ICMPv6,
+				stream<axiWord>&		m_axis_IPv6UDP,
 				stream<axiWord>&		m_axis_ICMP,
 				stream<axiWord>&		m_axis_UDP,
 				stream<axiWord>&		m_axis_TCP,

@@ -69,7 +69,7 @@ ap_uint<8> lenToKeep(ap_uint<4> length)
  *  @param[out]		ARPdataOut
  *  @param[out]		IPdataOut
  */
-void detect_mac_protocol(stream<axiWord> &dataIn, stream<axiWord> &ARPdataOut, stream<axiWord> &IPdataOut)
+void detect_mac_protocol(stream<axiWord> &dataIn, stream<axiWord> &ARPdataOut, stream<axiWord> &IPdataOut, stream<axiWord>& IPv6dataOut)
 {
 #pragma HLS inline off
 #pragma HLS pipeline II=1
@@ -106,6 +106,10 @@ void detect_mac_protocol(stream<axiWord> &dataIn, stream<axiWord> &ARPdataOut, s
 				{
 					IPdataOut.write(dmp_prevWord);
 				}
+				else if (dmp_macType == IPv6)
+				{
+					IPv6dataOut.write(dmp_prevWord);
+				}
 				break;
 			}
 			dmp_prevWord = currWord;
@@ -117,7 +121,7 @@ void detect_mac_protocol(stream<axiWord> &dataIn, stream<axiWord> &ARPdataOut, s
 		}
 		break;
 	case 1:
-		if (!ARPdataOut.full() && !IPdataOut.full())
+		if (!ARPdataOut.full() && !IPdataOut.full() && !IPv6dataOut.full())
 		{
 			if (dmp_macType == ARP)
 			{
@@ -126,6 +130,10 @@ void detect_mac_protocol(stream<axiWord> &dataIn, stream<axiWord> &ARPdataOut, s
 			else if (dmp_macType == IPv4)
 			{
 				IPdataOut.write(dmp_prevWord);
+			}
+			else if (dmp_macType == IPv6)
+			{
+				IPv6dataOut.write(dmp_prevWord);
 			}
 			dmp_fsmState = 0;
 		}
@@ -535,6 +543,109 @@ void detect_ip_protocol(stream<axiWord> &dataIn,
 
 }
 
+void ipv6_decoder(	stream<axiWord>& in,
+					stream<axiWord>& icmpv6DataOut,
+					stream<axiWord>& ipv6UdpDataOut)
+{
+#pragma HLS inline off
+#pragma HLS pipeline II=1
+
+	static ap_uint<3> state = 0;
+	static axiWord prevWord;
+	static ap_uint<8> nextHeader;
+	axiWord currWord;
+	axiWord sendWord;
+
+	switch (state)
+	{
+	case 0:
+		if (!in.empty())
+		{
+			// [47:0] DstAddr, [63:48] SrcAddr
+			in.read();
+			state++;
+		}
+		break;
+	case 1:
+		if (!in.empty())
+		{
+			// [31:0] SrcAddr, [47:32] EtherType, [63:48] Version, TrafficClass, FlowLabel
+			in.read(prevWord);
+			state++;
+		}
+		break;
+	case 2:
+		if (!in.empty())
+		{
+			// [15:0] FlowLabel, [31:16] PayLoadLen, [39:32] nextHeader
+			in.read(currWord);
+			nextHeader = currWord.data(39, 32);
+			sendWord.data(15, 0) = prevWord.data(63, 48);
+			sendWord.data(63, 16) = currWord.data(47, 0);
+			sendWord.keep(1, 0) = prevWord.keep(7, 2);
+			sendWord.keep(7, 2) = currWord.keep(5, 0);
+			sendWord.last = 0; //(currWord.keep[6] == 0);
+			if (nextHeader == ICMPv6)
+			{
+				icmpv6DataOut.write(sendWord);
+			}
+			else if (nextHeader == UDP)
+			{
+				ipv6UdpDataOut.write(sendWord);
+			}
+			prevWord = currWord;
+			state++;
+		}
+		break;
+	case 3:
+		if (!in.empty())
+		{
+
+			in.read(currWord);
+			sendWord.data(15, 0) = prevWord.data(63, 48);
+			sendWord.data(63, 16) = currWord.data(47, 0);
+			sendWord.keep(1, 0) = prevWord.keep(7, 6);
+			sendWord.keep(7, 2) = currWord.keep(5, 0);
+			sendWord.last = (currWord.keep[6] == 0);
+			if (nextHeader == ICMPv6)
+			{
+				icmpv6DataOut.write(sendWord);
+			}
+			else if (nextHeader == UDP)
+			{
+				ipv6UdpDataOut.write(sendWord);
+			}
+			prevWord = currWord;
+			if (sendWord.last)
+			{
+				state = 0;
+			}
+			else if (currWord.last)
+			{
+				state++;
+			}
+//			state++;
+		}
+		break;
+	case 4:
+		sendWord.data(15, 0) = prevWord.data(63, 48);
+		sendWord.data(63, 16) = 0;
+		sendWord.keep(1, 0) = prevWord.keep(7, 6);
+		sendWord.keep(7, 2) = 0;
+		sendWord.last = 1;
+		if (nextHeader == ICMPv6)
+		{
+			icmpv6DataOut.write(sendWord);
+		}
+		else if (nextHeader == UDP)
+		{
+			ipv6UdpDataOut.write(sendWord);
+		}
+		state = 0;
+		break;
+	}
+}
+
 /** @ingroup ip_handler
  *  @param[in]		s_axis_raw, incoming data stream
  *  @param[in]		myIpAddress, our IP address
@@ -545,6 +656,8 @@ void detect_ip_protocol(stream<axiWord> &dataIn,
  */
 void ip_handler(stream<axiWord>&		s_axis_raw,
 				stream<axiWord>&		m_axis_ARP,
+				stream<axiWord>&		m_axis_ICMPv6,
+				stream<axiWord>&		m_axis_IPv6UDP,
 				stream<axiWord>&		m_axis_ICMP,
 				stream<axiWord>&		m_axis_UDP,
 				stream<axiWord>&		m_axis_TCP,
@@ -554,11 +667,18 @@ void ip_handler(stream<axiWord>&		s_axis_raw,
 #pragma HLS INTERFACE ap_ctrl_none register port=return
 #pragma HLS INLINE off
 
-	#pragma HLS INTERFACE axis port=s_axis_raw
+	/*#pragma HLS INTERFACE axis port=s_axis_raw
 	#pragma HLS INTERFACE axis port=m_axis_ARP
 	#pragma HLS INTERFACE axis port=m_axis_ICMP
 	#pragma HLS INTERFACE axis port=m_axis_UDP
-	#pragma HLS INTERFACE axis port=m_axis_TCP
+	#pragma HLS INTERFACE axis port=m_axis_TCP*/ // This shit leads to Combinatorial Loops
+	#pragma  HLS resource core=AXI4Stream variable=s_axis_raw metadata="-bus_bundle s_axis_raw"
+	#pragma  HLS resource core=AXI4Stream variable=m_axis_ARP metadata="-bus_bundle m_axis_ARP"
+	#pragma  HLS resource core=AXI4Stream variable=m_axis_ICMPv6 metadata="-bus_bundle m_axis_ICMPv6"
+	#pragma  HLS resource core=AXI4Stream variable=m_axis_IPv6UDP metadata="-bus_bundle m_axis_IPv6UDP"
+	#pragma  HLS resource core=AXI4Stream variable=m_axis_ICMP metadata="-bus_bundle m_axis_ICMP"
+	#pragma  HLS resource core=AXI4Stream variable=m_axis_UDP metadata="-bus_bundle m_axis_UDP"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_TCP metadata="-bus_bundle m_axis_TCP"
 
 	#pragma HLS INTERFACE ap_none register port=myIpAddress
 
@@ -580,7 +700,11 @@ void ip_handler(stream<axiWord>&		s_axis_raw,
 	#pragma HLS DATA_PACK variable=iph_subSumsFifoOut
 	#pragma HLS DATA_PACK variable=ipDataCutFifo
 
-	detect_mac_protocol(s_axis_raw, m_axis_ARP, ipDataFifo);
+	static stream<axiWord> ipv6DataFifo("ipv6DataFifo");
+	#pragma HLS STREAM variable=ipv6DataFifo depth=2
+
+
+	detect_mac_protocol(s_axis_raw, m_axis_ARP, ipDataFifo, ipv6DataFifo);
 
 	check_ip_checksum(ipDataFifo, myIpAddress, ipDataCheckFifo, iph_subSumsFifoOut);
 
@@ -591,4 +715,6 @@ void ip_handler(stream<axiWord>&		s_axis_raw,
 	cut_length(ipDataDropFifo, ipDataCutFifo);
 
 	detect_ip_protocol(ipDataCutFifo, m_axis_ICMP, m_axis_UDP, m_axis_TCP);
+
+	ipv6_decoder(ipv6DataFifo, m_axis_ICMPv6, m_axis_IPv6UDP);
 }
