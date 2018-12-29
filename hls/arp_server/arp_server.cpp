@@ -37,6 +37,8 @@ void arp_pkg_receiver(stream<axiWord>&        arpDataIn,
                       ap_uint<32>             myIpAddress)
 {
 #pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
   static uint16_t 		wordCount = 0;
   static ap_uint<16>	opCode;
   static ap_uint<32>	protoAddrDst;
@@ -103,6 +105,8 @@ void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
                     ap_uint<32>               myIpAddress)
 {
 #pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
   enum arpSendStateType {ARP_IDLE, ARP_REPLY, ARP_SENTRQ};
   static arpSendStateType aps_fsmState = ARP_IDLE;
   
@@ -232,6 +236,7 @@ void arp_pkg_sender(stream<arpReplyMeta>&     arpReplyMetaFifo,
 void arp_table(stream<arpTableEntry> &arpTableInsertFifo, stream<ap_uint<32> > &macIpEncode_req, stream<arpTableReply> &macIpEncode_rsp, stream<ap_uint<32> > &arpRequestMetaFifo,
 			   stream<rtlMacLookupRequest>	&macLookup_req, stream<rtlMacLookupReply> &macLookup_resp, stream<rtlMacUpdateRequest> &macUpdate_req, stream<rtlMacUpdateReply> &macUpdate_resp) {
 	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
 
 	static enum aState {ARP_IDLE, ARP_UPDATE, ARP_LOOKUP} arpState;
 	static ap_uint<32>	at_inputIP;
@@ -293,8 +298,8 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
 	#pragma	 HLS resource core=AXI4Stream variable = macUpdate_req	metadata = "-bus_bundle macUpdate_req"
 	#pragma	 HLS resource core=AXI4Stream variable = macUpdate_resp	metadata = "-bus_bundle macUpdate_resp"
 
-	#pragma HLS INTERFACE ap_none register port=myMacAddress
-	#pragma HLS INTERFACE ap_none register port=myIpAddress
+	#pragma HLS INTERFACE ap_stable register port=myMacAddress
+	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 
 	/*#pragma HLS INTERFACE port=arpDataIn 		axis
 	#pragma HLS INTERFACE port=arpDataOut 		axis

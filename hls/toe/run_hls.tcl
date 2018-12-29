@@ -28,13 +28,7 @@ open_solution "solution1"
 set_part {xc7vx690tffg1761-2}
 create_clock -period 6.4 -name default
 
-#csim_design -clean -argv {../../../../testVectors/io_fin_5.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat}
-#csim_design -clean -setup
+config_rtl  -disable_start_propagation
 csynth_design
-#cosim_design -tool modelsim -rtl verilog -trace_level all -argv {../../../../testVectors/in9.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat}
 export_design -format ip_catalog -display_name "10G TCP Offload Engine" -description "TCP Offload Engine supporting 10Gbps line rate, up to 10K concurrent sessions." -vendor "ethz.systems" -version "1.6"
-#if {[file exists "/public/ireland/xlabs/memcached/ipRepository/toe/"] == 1} {
-#	file delete -force /public/ireland/xlabs/memcached/ipRepository/toe/ 
-#}
-#file copy toe_prj/solution1/impl/ip/ /public/ireland/xlabs/memcached/ipRepository/toe/
 exit

@@ -179,7 +179,7 @@ void timerWrapper(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetransmitT
 					stream<appNotification>&			rtTimer2rxApp_notification,
 					stream<openStatus>&					rtTimer2txApp_notification)
 {
-	#pragma HLS INLINE off
+	#pragma HLS INLINE
 	#pragma HLS PIPELINE II=1
 	
 	static stream<ap_uint<16> > closeTimer2stateTable_releaseState("closeTimer2stateTable_releaseState");
@@ -628,11 +628,11 @@ void toe(	// Data & Memory Interface
 	#pragma HLS DATA_PACK variable=txDataRsp
 
 #if RX_DDR_BYPASS
-	#pragma HLS INTERFACE ap_none register port=axis_data_count
-	#pragma HLS INTERFACE ap_none register port=axis_max_data_count
+	#pragma HLS INTERFACE ap_stable register port=axis_data_count
+	#pragma HLS INTERFACE ap_stable register port=axis_max_data_count
 #endif
 
-	#pragma HLS INTERFACE ap_none register port=myIpAddress
+	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 	#pragma HLS INTERFACE ap_vld port=regSessionCount
 
 	/*

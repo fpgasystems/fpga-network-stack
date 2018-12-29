@@ -353,10 +353,10 @@ void dhcp_client(	stream<ap_uint<16> >&	openPort,
 #pragma HLS resource core=AXI4Stream variable=dataOut 			metadata="-bus_bundle m_axis_tx_data"
 #pragma HLS DATA_PACK variable=dataOutMeta
 
-#pragma HLS INTERFACE ap_none register	port=dhcpEnable
-#pragma HLS INTERFACE ap_none register	port=dhcpIpAddressOut
+#pragma HLS INTERFACE ap_stable register	port=dhcpEnable
+#pragma HLS INTERFACE ap_stable register	port=dhcpIpAddressOut
 #pragma HLS INTERFACE ap_stable			port=myMacAddress
-#pragma HLS INTERFACE ap_none register	port=inputIpAddress
+#pragma HLS INTERFACE ap_stable register	port=inputIpAddress
 
 	static stream<dhcpReplyMeta>		dhcp_replyMetaFifo("dhcp_replyMetaFifo");
 	static stream<dhcpRequestMeta>		dhcp_requestMetaFifo("dhcp_requestMetaFifo");

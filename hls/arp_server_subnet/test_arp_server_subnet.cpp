@@ -28,19 +28,15 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 ************************************************/
 
 #include "arp_server_subnet.hpp"
-//#include <iostream>
-
 
 int main()
 {
-	stream<axiWord> 			inFIFO("inFIFO");
-	stream<axiWord> 			outFIFO("outFIFO");
-	stream<ap_uint<32> > 		ipFIFO("ipFIFO");
-	stream<arpTableReply> 		macFIFO("macFIFO");
-
-	axiWord inData;
-	axiWord outData;
-	arpTableReply reply;
+	hls::stream<axiWord>          arpDataIn("arpDataIn");
+	hls::stream<ap_uint<32> >     macIpEncode_req("macIpEncode_req");
+	hls::stream<ap_uint<32> >     hostIpEncode_req("hostIpEncode_req");
+	hls::stream<axiWord>          arpDataOut("arpDataOut");
+	hls::stream<arpTableReply>    macIpEncode_rsp("macIpEncode_rsp");
+	hls::stream<arpTableReply>    hostIpEncode_rsp("hostIpEncode_rsp");
 
 	std::ifstream inputFile;
 	std::ofstream outputFile;
@@ -48,55 +44,59 @@ int main()
 	static ap_uint<32> ipAddress = 0x01010101;
 	static ap_uint<48> macAddress = 0xE59D02350A00;
 
-	//inputFile.open("/home/dsidler/workspace/toe/hls/arp_server/strange_arp.in");
-	//inputFile.open("/home/dasidler/toe/hls/arp_server_subnet/in.dat");
-	inputFile.open("/home/dasidler/toe/hls/arp_server_subnet/queryReply.dat");
+	inputFile.open("../../../../in.dat");
+	//inputFile.open("../../../../queryReply.dat");
 	if (!inputFile)
 	{
 		std::cout << "Error: could not open test input file." << std::endl;
 	}
 
-	outputFile.open("/home/dasidler/toe/hls/arp_server_subnet/out.dat");
+	outputFile.open("../../../../out.dat");
 	if (!outputFile)
 	{
 		std::cout << "Error: could not open test output file." << std::endl;
 	}
 
 
+	axiWord inWord;
 	uint16_t strbTemp;
 	uint64_t dataTemp;
 	uint16_t lastTemp;
 	while (inputFile >> std::hex >> dataTemp >> strbTemp >> lastTemp)
 	{
-		inData.data = dataTemp;
-		inData.keep = strbTemp;
-		inData.last = lastTemp;
-		inFIFO.write(inData);
+		inWord.data = dataTemp;
+		inWord.keep = strbTemp;
+		inWord.last = lastTemp;
+		arpDataIn.write(inWord);
 	}
 
 	int count = 0;
 	while (count < 250)
 	{
-		arp_server_subnet(inFIFO, ipFIFO, outFIFO, macFIFO, macAddress, ipAddress);
+		arp_server_subnet(	arpDataIn,
+							macIpEncode_req,
+							hostIpEncode_req,
+							arpDataOut,
+							macIpEncode_rsp,
+							hostIpEncode_rsp,
+							macAddress,
+							ipAddress);
 
 		if (count == 50)
-			ipFIFO.write(0x0a010101);
+			macIpEncode_req.write(0x0a010101);
 		count++;
 	}
 
-	while (!(outFIFO.empty()))
+	while (!arpDataOut.empty())
 	{
-		outFIFO.read(outData);
-		outputFile << std::hex;
-		outputFile << std::setfill('0');
-		outputFile << std::setw(16) << outData.data << " " << std::setw(2) << outData.keep << " ";
-		outputFile << std::setw(1) << outData.last << std::endl;
-		//outputFile << "TUSER: " << outData.user.range(31,24) << std::endl;
+		axiWord outWord = arpDataOut.read();
+		printLE(outputFile, outWord);
+		outputFile << std::endl;
 	}
 
-	while (!macFIFO.empty())
+	while (!macIpEncode_rsp.empty())
 	{
-		macFIFO.read(reply);
+		arpTableReply reply = macIpEncode_rsp.read();
 		std::cout << std::hex << reply.macAddress;
 		if (reply.hit)
 		{

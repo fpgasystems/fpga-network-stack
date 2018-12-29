@@ -36,11 +36,11 @@ void client(	hls::stream<ap_uint<16> >& sessioIdFifo,
 				hls::stream<appTxMeta>& txMetaData, hls::stream<axiWord>& txData)
 {
 #pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
 	// Reads new data from memory and writes it into fifo
 	// Read & write metadata only once per package
 	static ap_uint<1> esac_fsmState = 0;
-	//static ap_uint<16> ksvc_length;
 
 	ap_uint<16> sessionID;
 	ap_uint<16> length;
@@ -76,7 +76,8 @@ void dummy(	hls::stream<ipTuple>& openConnection, hls::stream<openStatus>& openC
 			hls::stream<ap_uint<16> >& closeConnection,
 			hls::stream<appTxRsp>& txStatus)
 {
-	#pragma HLS PIPELINE II=1
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
 	openStatus newConn;
 	ipTuple tuple;
@@ -102,53 +103,73 @@ void dummy(	hls::stream<ipTuple>& openConnection, hls::stream<openStatus>& openC
 }
 
 
-void open_port(	hls::stream<ap_uint<16> >& listenPort, hls::stream<bool>& listenPortStatus,
-				hls::stream<appNotification>& notifications, hls::stream<appReadRequest>& readRequest,
-				hls::stream<ap_uint<16> >& lenghtFifo)
+void open_port(	hls::stream<ap_uint<16> >&		listenPort,
+				hls::stream<bool>&				listenSts)
 {
 #pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
-	static bool listenDone = false;
-	static bool waitPortStatus = false;
+	static ap_uint<2> state = 0;
+	#pragma HLS reset variable=state
+
+	bool listenDone = false;
+
+	switch (state)
+	{
+	case 0:
+		listenPort.write(7);
+		state = 1;
+		break;
+	case 1:
+		if (!listenSts.empty())
+		{
+			listenSts.read(listenDone);
+			if (listenDone)
+			{
+				state = 2;
+			}
+			else
+			{
+				state = 0;
+			}
+		}
+		break;
+	case 2:
+		//IDLE
+		break;
+	}//switch
+
+}
+
+void notification_handler(	hls::stream<appNotification>&	notific,
+							hls::stream<appReadRequest>&	readReq,
+							hls::stream<ap_uint<16> >&		lenghtFifo)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
 	appNotification notification;
 
-	// Open/Listen on Port at startup
-	if (!listenDone && !waitPortStatus)
-	{
-#ifndef __SYNTHESIS__
-		listenPort.write(11213);
-#else
-		//listenPort.write(11213);
-		listenPort.write(7);
-#endif
-		waitPortStatus = true;
-	}
-	// Check if listening on Port was successful, otherwise try again
-	else if (waitPortStatus && !listenPortStatus.empty())
-	{
-		listenPortStatus.read(listenDone);
-		waitPortStatus = false;
-	}
-
 	// Receive notifications, about new data which is available
-	if (!notifications.empty())
+	if (!notific.empty())
 	{
-		notifications.read(notification);
+		notific.read(notification);
 		std::cout << notification.ipAddress << "\t" << notification.dstPort << std::endl;
 		if (notification.length != 0)
 		{
-			readRequest.write(appReadRequest(notification.sessionID, notification.length));
+			readReq.write(appReadRequest(notification.sessionID, notification.length));
 			lenghtFifo.write(notification.length);
 		}
 	}
 }
 
-void server(	hls::stream<ap_uint<16> >& rxMetaData, hls::stream<axiWord>& rxData,
-				hls::stream<ap_uint<16> >& sessioIdFifo, hls::stream<axiWord>& dataFifo)
+void server(	hls::stream<ap_uint<16> >& rxMetaData,
+				hls::stream<axiWord>& rxData,
+				hls::stream<ap_uint<16> >& sessioIdFifo,
+				hls::stream<axiWord>& dataFifo)
 {
 #pragma HLS PIPELINE II=1
-
+#pragma HLS INLINE off
 
 	// Reads new data from memory and writes it into fifo
 	// Read & write metadata only once per package
@@ -181,28 +202,53 @@ void server(	hls::stream<ap_uint<16> >& rxMetaData, hls::stream<axiWord>& rxData
 	}
 }
 
-/** @ingroup kvs_server
- *
- */
-void echo_server_application(	hls::stream<ap_uint<16> >& listenPort,
-								hls::stream<bool>& listenPortStatus,
-								hls::stream<appNotification>& notifications,
-								hls::stream<appReadRequest>& readRequest,
-								hls::stream<ap_uint<16> >& rxMetaData,
-								hls::stream<axiWord>& rxData,
-								hls::stream<ipTuple>& openConnection,
-								hls::stream<openStatus>& openConStatus,
-								hls::stream<ap_uint<16> >& closeConnection,
-								hls::stream<appTxMeta>& txMetaData,
-								hls::stream<axiWord> & txData,
-								hls::stream<appTxRsp>& txStatus)
+void echo_server_application(	hls::stream<ap_uint<16> >&		listenPort,
+								hls::stream<bool>&				listenPortStatus,
+								hls::stream<appNotification>&	notifications,
+								hls::stream<appReadRequest>&	readRequest,
+								hls::stream<ap_uint<16> >&		rxMetaData,
+								hls::stream<axiWord>&			rxData,
+								hls::stream<ipTuple>&			openConnection,
+								hls::stream<openStatus>&		openConStatus,
+								hls::stream<ap_uint<16> >&		closeConnection,
+								hls::stream<appTxMeta>&			txMetaData,
+								hls::stream<axiWord> &			txData,
+								hls::stream<appTxRsp>&			txStatus)
 {
 	#pragma HLS DATAFLOW
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 
+
+/*#pragma HLS INTERFACE axis port=listenPort name=m_axis_listen_port
+#pragma HLS INTERFACE axis port=listenPortStatus name=s_axis_listen_port_status
+	//#pragma HLS INTERFACE axis port=closePort name=m_axis_close_port
+
+#pragma HLS INTERFACE axis port=notifications name=s_axis_notifications
+#pragma HLS INTERFACE axis port=readRequest name=m_axis_read_package
+#pragma HLS DATA_PACK variable=notifications
+#pragma HLS DATA_PACK variable=readRequest
+
+#pragma HLS INTERFACE axis port=rxMetaData name=s_axis_rx_metadata
+#pragma HLS INTERFACE axis port=rxData name=s_axis_rx_data
+//#pragma HLS DATA_PACK variable=rxMetaData
+
+#pragma HLS INTERFACE axis port=openConnection name=m_axis_open_connection
+#pragma HLS INTERFACE axis port=openConStatus name=s_axis_open_status
+#pragma HLS DATA_PACK variable=openConnection
+#pragma HLS DATA_PACK variable=openConStatus
+
+#pragma HLS INTERFACE axis port=closeConnection name=m_axis_close_connection
+
+#pragma HLS INTERFACE axis port=txMetaData name=m_axis_tx_metadata
+#pragma HLS INTERFACE axis port=txData name=m_axis_tx_data
+#pragma HLS INTERFACE axis port=txStatus name=s_axis_tx_status
+#pragma HLS DATA_PACK variable=txMetaData
+//#pragma HLS DATA_PACK variable=txData
+#pragma HLS DATA_PACK variable=txStatus*/
+
+//For now we rely on the old pragma, since the new pragma is not tested enough
 #pragma HLS resource core=AXI4Stream variable=listenPort metadata="-bus_bundle m_axis_listen_port"
 #pragma HLS resource core=AXI4Stream variable=listenPortStatus metadata="-bus_bundle s_axis_listen_port_status"
-//#pragma HLS INTERFACE axis port=listenPortStatus metadata="-bus_bundle s_axis_listen_port_status"
 	//#pragma HLS resource core=AXI4Stream variable=closePort metadata="-bus_bundle m_axis_close_port"
 
 #pragma HLS resource core=AXI4Stream variable=notifications metadata="-bus_bundle s_axis_notifications"
@@ -223,10 +269,9 @@ void echo_server_application(	hls::stream<ap_uint<16> >& listenPort,
 
 #pragma HLS resource core=AXI4Stream variable=txMetaData metadata="-bus_bundle m_axis_tx_metadata"
 #pragma HLS resource core=AXI4Stream variable=txData metadata="-bus_bundle m_axis_tx_data"
-//#pragma HLS INTERFACE axis port=txData
 #pragma HLS resource core=AXI4Stream variable=txStatus metadata="-bus_bundle s_axis_tx_status"
 #pragma HLS DATA_PACK variable=txMetaData
-	#pragma HLS DATA_PACK variable=txData
+#pragma HLS DATA_PACK variable=txData
 #pragma HLS DATA_PACK variable=txStatus
 
 	static hls::stream<ap_uint<16> >		esa_sessionidFifo("esa_sessionidFifo");
@@ -236,11 +281,11 @@ void echo_server_application(	hls::stream<ap_uint<16> >& listenPort,
 #pragma HLS stream variable=esa_sessionidFifo depth=64
 #pragma HLS stream variable=esa_lengthFifo depth=64
 #pragma HLS stream variable=esa_dataFifo depth=2048
-//#pragma HLS DATA_PACK variable=kvs_dataFifo
 
 	client(esa_sessionidFifo, esa_lengthFifo, esa_dataFifo, txMetaData, txData);
 	server(rxMetaData, rxData, esa_sessionidFifo, esa_dataFifo);
-	open_port(listenPort, listenPortStatus, notifications, readRequest, esa_lengthFifo);
+	open_port(listenPort, listenPortStatus);
+	notification_handler(notifications, readRequest, esa_lengthFifo);
 	dummy(openConnection, openConStatus, closeConnection, txStatus);
 
 

@@ -46,13 +46,12 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 {
 #pragma HLS pipeline II=1
 
-	enum tai_states {READ_REQUEST, READ_META};
+	enum tai_states {READ_REQUEST, READ_META, RETRY_SPACE};
 	static tai_states tai_state = READ_REQUEST;
-
 	static appTxMeta tasi_writeMeta;
-	static ap_uint<16> tasi_maxWriteLength = 0;
-	static txAppTxSarReply tasi_writeSar;
+	static ap_uint<8> waitCounter;
 
+	txAppTxSarReply writeSar;
 	sessionState state;
 
 	// FSM requests metadata, decides if packet goes to buffer or not
@@ -74,30 +73,57 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 		if (!txSar2txApp_upd_rsp.empty() && !stateTable2txApp_rsp.empty())
 		{
 			stateTable2txApp_rsp.read(state);
-			txSar2txApp_upd_rsp.read(tasi_writeSar);
-			tasi_maxWriteLength = (tasi_writeSar.ackd - tasi_writeSar.mempt) - 1;
+			txSar2txApp_upd_rsp.read(writeSar);
+			ap_uint<16> maxWriteLength = (writeSar.ackd - writeSar.mempt) - 1;
+#if (TCP_NODELAY)
+			//tasi_writeSar.mempt and txSar.not_ackd are supposed to be equal (with a few cycles delay)
+			ap_uint<16> usedLength = ((ap_uint<16>) writeSar.mempt - writeSar.ackd);
+			ap_uint<16> usableWindow = 0;
+			if (writeSar.min_window > usedLength)
+			{
+				usableWindow = writeSar.min_window - usedLength;
+			}
+#endif
 			if (state != ESTABLISHED)
 			{
 				tasi_writeToBufFifo.write(pkgPushMeta(true));
 				// Notify app about fail
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, tasi_maxWriteLength, ERROR_NOCONNCECTION));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
+				tai_state = READ_REQUEST;
 			}
-			else if(tasi_writeMeta.length > tasi_maxWriteLength)
+#if !(TCP_NODELAY)
+			else if(tasi_writeMeta.length > maxWriteLength)
+#else
+			else if(tasi_writeMeta.length > maxWriteLength || usableWindow < tasi_writeMeta.length)
+#endif
 			{
-				tasi_writeToBufFifo.write(pkgPushMeta(true));
+				//tasi_writeToBufFifo.write(pkgPushMeta(true));
 				// Notify app about fail
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, tasi_maxWriteLength, ERROR_NOSPACE));
+				//appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
+				waitCounter = 0;
+				tai_state = RETRY_SPACE;
 			}
 			else //if (state == ESTABLISHED && pkgLen <= tasi_maxWriteLength)
 			{
 				// TODO there seems some redundancy
-				tasi_writeToBufFifo.write(pkgPushMeta(tasi_writeMeta.sessionID, tasi_writeSar.mempt, tasi_writeMeta.length));
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, tasi_maxWriteLength, NO_ERROR));
+				tasi_writeToBufFifo.write(pkgPushMeta(tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, NO_ERROR));
 				//tasi_eventCacheFifo.write(eventMeta(tasi_writeSessionID, tasi_writeSar.mempt, pkgLen));
-				txAppStream2eventEng_setEvent.write(event(TX, tasi_writeMeta.sessionID, tasi_writeSar.mempt, tasi_writeMeta.length));
-				txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID, tasi_writeSar.mempt+tasi_writeMeta.length));
+				txAppStream2eventEng_setEvent.write(event(TX, tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
+				txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID, writeSar.mempt+tasi_writeMeta.length));
+				tai_state = READ_REQUEST;
 			}
-			tai_state = READ_REQUEST;
+		}
+		break;
+	case RETRY_SPACE:
+		waitCounter++;
+		if (waitCounter == 100)
+		{
+			// Get session state
+			txApp2stateTable_req.write(tasi_writeMeta.sessionID);
+			// Get Ack pointer
+			txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID));
+			tai_state = READ_META;
 		}
 		break;
 	} //switch

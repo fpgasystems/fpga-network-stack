@@ -27,7 +27,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 #include "echo_server_application.hpp"
-#include <iohls::stream>
 
 int main()
 {
@@ -46,6 +45,7 @@ int main()
 	hls::stream<appTxRsp>	txStatus;
 
 	int count = 0;
+	int portOpened = -1;
 	while (count < 50)
 	{
 		echo_server_application(	listenPort, listenPortStatus,
@@ -57,10 +57,12 @@ int main()
 									txStatus);
 		if (!listenPort.empty())
 		{
-			listenPort.read();
+			ap_uint<16> port = listenPort.read();
+			std::cout << std::dec << "opening port: " << port << std::endl;
 			listenPortStatus.write(true);
+			portOpened = 0;
 		}
 		count++;
 	}
-	return 0;
+	return portOpened;
 }

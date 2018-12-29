@@ -161,10 +161,16 @@ void tx_app_table(	stream<txSarAckPush>&		txSar2txApp_ack_push,
 			// At init this is actually not_ackd
 			app_table[ackPush.sessionID].ackd = ackPush.ackd-1;
 			app_table[ackPush.sessionID].mempt = ackPush.ackd;
+#if (TCP_NODELAY)
+			app_table[ackPush.sessionID].min_window = ackPush.min_window;
+#endif
 		}
 		else
 		{
 			app_table[ackPush.sessionID].ackd = ackPush.ackd;
+#if (TCP_NODELAY)
+			app_table[ackPush.sessionID].min_window = ackPush.min_window;
+#endif
 		}
 	}
 	else if (!txApp_upd_req.empty())
@@ -177,7 +183,11 @@ void tx_app_table(	stream<txSarAckPush>&		txSar2txApp_ack_push,
 		}
 		else // Read
 		{
+#if !(TCP_NODELAY)
 			txApp_upd_rsp.write(txAppTxSarReply(txAppUpdate.sessionID, app_table[txAppUpdate.sessionID].ackd, app_table[txAppUpdate.sessionID].mempt));
+#else
+			txApp_upd_rsp.write(txAppTxSarReply(txAppUpdate.sessionID, app_table[txAppUpdate.sessionID].ackd, app_table[txAppUpdate.sessionID].mempt, app_table[txAppUpdate.sessionID].min_window));
+#endif
 		}
 	}
 

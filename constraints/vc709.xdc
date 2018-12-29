@@ -30,10 +30,10 @@ set_property IOSTANDARD LVCMOS18 [get_ports button_west]
 
 set_property PACKAGE_PIN AR40 [get_ports button_north]
 set_property IOSTANDARD LVCMOS18 [get_ports button_north]
-#set_property PACKAGE_PIN AP40 [get_ports button_south]
-#set_property IOSTANDARD LVCMOS18 [get_ports button_south]
-#set_property PACKAGE_PIN AV39 [get_ports button_center]
-#set_property IOSTANDARD LVCMOS18 [get_ports button_center]
+set_property PACKAGE_PIN AP40 [get_ports button_south]
+set_property IOSTANDARD LVCMOS18 [get_ports button_south]
+set_property PACKAGE_PIN AV39 [get_ports button_center]
+set_property IOSTANDARD LVCMOS18 [get_ports button_center]
 
 
 #UART

@@ -680,7 +680,7 @@ void ip_handler(stream<axiWord>&		s_axis_raw,
 	#pragma  HLS resource core=AXI4Stream variable=m_axis_UDP metadata="-bus_bundle m_axis_UDP"
 	#pragma HLS resource core=AXI4Stream variable=m_axis_TCP metadata="-bus_bundle m_axis_TCP"
 
-	#pragma HLS INTERFACE ap_none register port=myIpAddress
+	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 
 	static stream<axiWord>		ipDataFifo("ipDataFifo");
 	static stream<axiWord>		ipDataCheckFifo("ipDataCheckFifo");

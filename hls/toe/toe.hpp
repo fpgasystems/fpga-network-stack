@@ -45,11 +45,12 @@ static const ap_uint<16> MSS=1460; //536
 static const uint16_t MAX_SESSIONS = 10000;
 
 // TCP_NODELAY flag, to disable Nagle's Algorithm
-#define TCP_NODELAY 0
+#define TCP_NODELAY 1
 
 // RX_DDR_BYPASS flag, to enable DDR bypass on RX path
 #define RX_DDR_BYPASS 0
 
+#define FAST_RETRANSMIT 1
 
 #define noOfTxSessions 1 // Number of Tx Sessions to open for testing
 extern uint32_t packetCounter;
@@ -312,9 +313,17 @@ struct txAppTxSarReply
 	ap_uint<16> sessionID;
 	ap_uint<16> ackd;
 	ap_uint<16> mempt;
+#if (TCP_NODELAY)
+	ap_uint<16> min_window;
+#endif
 	txAppTxSarReply() {}
+#if !(TCP_NODELAY)
 	txAppTxSarReply(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> pt)
-			:sessionID(id), ackd(ackd), mempt(pt) {}
+		:sessionID(id), ackd(ackd), mempt(pt) {}
+#else
+	txAppTxSarReply(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> pt, ap_uint<16> min_window)
+		:sessionID(id), ackd(ackd), mempt(pt), min_window(min_window) {}
+#endif
 };
 
 struct txAppTxSarPush
@@ -330,12 +339,22 @@ struct txSarAckPush
 {
 	ap_uint<16> sessionID;
 	ap_uint<16> ackd;
+#if (TCP_NODELAY)
+	ap_uint<16> min_window;
+#endif
 	ap_uint<1>	init;
 	txSarAckPush() {}
+#if !(TCP_NODELAY)
 	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd)
-			:sessionID(id), ackd(ackd), init(0) {}
+		:sessionID(id), ackd(ackd), init(0) {}
 	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd, ap_uint<1> init)
-			:sessionID(id), ackd(ackd), init(init) {}
+		:sessionID(id), ackd(ackd), init(init) {}
+#else
+	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> min_window)
+		:sessionID(id), ackd(ackd), min_window(min_window), init(0) {}
+	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> min_window, ap_uint<1> init)
+		:sessionID(id), ackd(ackd), min_window(min_window), init(init) {}
+#endif
 };
 
 struct txTxSarReply

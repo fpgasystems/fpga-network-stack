@@ -841,11 +841,15 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						// Sent ACK
 						//rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
 					}
+#if FAST_RETRANSMIT
 					if (txSar.count == 3 && !txSar.fastRetransmitted)
 					{
 						rxEng2eventEng_setEvent.write(event(RT, fsm_meta.sessionID));
 					}
 					else if (fsm_meta.meta.length != 0)
+#else
+					if (fsm_meta.meta.length != 0)
+#endif
 					{
 						rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
 					}

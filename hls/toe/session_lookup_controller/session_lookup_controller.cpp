@@ -43,6 +43,7 @@ void sessionIdManager(	stream<ap_uint<14> >&		new_id,
 #pragma HLS INLINE off
 
 	static ap_uint<14> counter = 0;
+	#pragma HLS reset variable=counter
 	ap_uint<14> sessionID;
 
 	if (!fin_id.empty())
