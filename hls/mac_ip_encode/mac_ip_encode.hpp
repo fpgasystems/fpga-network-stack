@@ -54,6 +54,17 @@ struct arpTableReply
 			:macAddress(macAdd), hit(hit) {}
 };
 
+struct subSums
+{
+	ap_uint<17>		sum0;
+	ap_uint<17>		sum1;
+	ap_uint<17>		sum2;
+	ap_uint<17>		sum3;
+	subSums() {}
+	subSums(ap_uint<17> sums[4])
+		:sum0(sums[0]), sum1(sums[1]), sum2(sums[2]), sum3(sums[3]) {}
+};
+
 
 /** @defgroup mac_ip_encode MAC-IP encode
  *

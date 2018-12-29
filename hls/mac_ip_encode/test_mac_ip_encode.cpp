@@ -37,7 +37,7 @@ int main()
 	axiWord inData;
 	axiWord outData;
 	stream<axiWord> arpFIFO;
-	stream<axiWord> icmpFIFO;
+	stream<axiWord> icmpFIFO("icmpFIFO");
 	stream<axiWord> udpFIFO;
 	stream<axiWord> tcpFIFO;
 	stream<axiWord> outFIFO;
@@ -57,25 +57,25 @@ int main()
 	ap_uint<32> requestIpAddress;
 	//ap_uint<48> macAddress = 0x699a45dd6000;
 
-	//std::ifstream icmpFile;
+	std::ifstream icmpFile;
 	std::ifstream tcpFile;
 	std::ofstream outputFile;
 
-	/*icmpFile.open("/home/dsidler/workspace/toe/hls/mac_ip_encode/icmp.in");
+	/*icmpFile.open("../../../../icmp.in");
 	if (!icmpFile)
 	{
 		std::cout << "Error: could not open icmp input file." << std::endl;
 		return -1;
 	}*/
 
-	tcpFile.open("/home/dasidler/toe/hls/mac_ip_encode/tcp.in");
+	tcpFile.open("../../../../in.dat");
 	if (!tcpFile)
 	{
 		std::cout << "Error: could not open tcp input file." << std::endl;
 		return -1;
 	}
 
-	outputFile.open("/home/dasidler/toe/hls/mac_ip_encode/tcp.out");
+	outputFile.open("../../../../tcp.out");
 	if (!outputFile)
 	{
 		std::cout << "Error: could not open test output file." << std::endl;
@@ -86,13 +86,13 @@ int main()
 	uint16_t lastTemp;
 	int count = 0;
 
-	/*while (icmpFile >> std::hex >> dataTemp >> strbTemp >> lastTemp)
+	while (icmpFile >> std::hex >> dataTemp >> strbTemp >> lastTemp)
 	{
 		inData.data = dataTemp;
 		inData.keep = strbTemp;
 		inData.last = lastTemp;
 		icmpFIFO.write(inData);
-	}*/
+	}
 	while (tcpFile >> std::hex >> dataTemp >> strbTemp >> lastTemp)
 	{
 		inData.data = dataTemp;

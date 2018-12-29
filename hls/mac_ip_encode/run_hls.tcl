@@ -13,7 +13,7 @@ create_clock -period 6.4 -name default
 #csim_design  -clean
 csynth_design
 #cosim_design -tool xsim -rtl verilog -trace_level all 
-export_design -format ip_catalog -display_name "MAC IP Encoder for 10G TCP Offload Engine" -vendor "xilinx.labs" -version "1.04"
+export_design -format ip_catalog -display_name "MAC IP Encoder for 10G TCP Offload Engine" -vendor "xilinx.labs" -version "1.06"
 
 exit
 

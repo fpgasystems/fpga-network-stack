@@ -32,55 +32,22 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 /** @ingroup mac_ip_encode
  *
  */
-void compute_ip_checksum(stream<axiWord>&				dataIn,
-						stream<axiWord>&			dataOut,
-						stream<ap_uint<16> >&		checksumFiFoOut)
+void compute_ip_checksum(stream<axiWord>&		dataIn,
+						stream<axiWord>&		dataOut,
+						stream<subSums>&		subSumFiFoOut)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
 	static ap_uint<17> cics_ip_sums[4] = {0, 0, 0, 0};
 	static ap_uint<4> cics_ipHeaderLen = 0;
-	static bool cics_checksumWritten = true;
 	static ap_uint<3> cics_wordCount = 0;
-	static ap_uint<2> cics_state = 0;
 
 	axiWord currWord;
 	ap_uint<16> temp;
 
 	currWord.last = 0;
-	if(!cics_checksumWritten)
-	{
-		switch (cics_state)
-		{
-		case 0:
-			cics_ip_sums[0] += cics_ip_sums[2];
-			cics_ip_sums[1] += cics_ip_sums[3];
-			cics_ip_sums[0] = (cics_ip_sums[0] + (cics_ip_sums[0] >> 16)) & 0xFFFF;
-			cics_ip_sums[1] = (cics_ip_sums[1] + (cics_ip_sums[1] >> 16)) & 0xFFFF;
-			cics_state++;
-			break;
-		case 1:
-			cics_ip_sums[0] += cics_ip_sums[1];
-			cics_ip_sums[0] = (cics_ip_sums[0] + (cics_ip_sums[0] >> 16)) & 0xFFFF;
-			cics_state++;
-			break;
-		case 2:
-			cics_ip_sums[0] = ~cics_ip_sums[0];
-			checksumFiFoOut.write(cics_ip_sums[0](15, 0));
-			cics_state++;
-			break;
-		case 3:
-			cics_ip_sums[0] = 0;
-			cics_ip_sums[1] = 0;
-			cics_ip_sums[2] = 0;
-			cics_ip_sums[3] = 0;
-			cics_checksumWritten = true;
-			cics_state = 0;
-			break;
-		}
-	}
-	else if (!dataIn.empty() && cics_checksumWritten)
+	if (!dataIn.empty())
 	{
 		dataIn.read(currWord);
 		switch (cics_wordCount)
@@ -128,7 +95,7 @@ void compute_ip_checksum(stream<axiWord>&				dataIn,
 					cics_ip_sums[i] = (cics_ip_sums[i] + (cics_ip_sums[i] >> 16)) & 0xFFFF;
 				}
 				cics_ipHeaderLen = 0;
-				cics_checksumWritten = false;
+				subSumFiFoOut.write(subSums(cics_ip_sums));
 				break;
 			case 4:
 				for (int i = 0; i < 4; i++)
@@ -140,7 +107,7 @@ void compute_ip_checksum(stream<axiWord>&				dataIn,
 					cics_ip_sums[i] = (cics_ip_sums[i] + (cics_ip_sums[i] >> 16)) & 0xFFFF;
 				}
 				cics_ipHeaderLen = 0;
-				cics_checksumWritten = false;
+				subSumFiFoOut.write(subSums(cics_ip_sums));
 				break;
 			default:
 				// Sum up everything
@@ -160,9 +127,33 @@ void compute_ip_checksum(stream<axiWord>&				dataIn,
 		dataOut.write(currWord);
 		if (currWord.last)
 		{
+			cics_ip_sums[0] = 0;
+			cics_ip_sums[1] = 0;
+			cics_ip_sums[2] = 0;
+			cics_ip_sums[3] = 0;
 			cics_wordCount = 0;
 		}
 	}
+}
+
+void finalize_ip_checksum(	stream<subSums>&		subSumFiFoIn,
+							stream<ap_uint<16> >& checkSumFifoOut)
+{
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+	if (!subSumFiFoIn.empty()) {
+		subSums icic_ip_sums = subSumFiFoIn.read();
+		icic_ip_sums.sum0 += icic_ip_sums.sum2;
+		icic_ip_sums.sum1 += icic_ip_sums.sum3;
+		icic_ip_sums.sum0 = (icic_ip_sums.sum0 + (icic_ip_sums.sum0 >> 16)) & 0xFFFF;
+		icic_ip_sums.sum1 = (icic_ip_sums.sum1 + (icic_ip_sums.sum1 >> 16)) & 0xFFFF;
+		icic_ip_sums.sum0 += icic_ip_sums.sum1;
+		icic_ip_sums.sum0 = (icic_ip_sums.sum0 + (icic_ip_sums.sum0 >> 16)) & 0xFFFF;
+		icic_ip_sums.sum0 = ~icic_ip_sums.sum0;
+		checkSumFifoOut.write(icic_ip_sums.sum0(15, 0));
+	}
+
 }
 
 /** @ingroup mac_ip_encode
@@ -392,21 +383,25 @@ void mac_ip_encode( stream<axiWord>&			dataIn,
 	static stream<axiWord> dataStreamBuffer0;
 	static stream<axiWord> dataStreamBuffer1;
 	static stream<axiWord> dataStreamBuffer2;
-	#pragma HLS stream variable=dataStreamBuffer0 depth=16 //must hold ip header for checksum computation
-	#pragma HLS stream variable=dataStreamBuffer1 depth=16
-	#pragma HLS stream variable=dataStreamBuffer2 depth=16
+	#pragma HLS stream variable=dataStreamBuffer0 depth=2
+	#pragma HLS stream variable=dataStreamBuffer1 depth=32
+	#pragma HLS stream variable=dataStreamBuffer2 depth=2
 	#pragma HLS DATA_PACK variable=dataStreamBuffer0
 	#pragma HLS DATA_PACK variable=dataStreamBuffer1
 	#pragma HLS DATA_PACK variable=dataStreamBuffer2
 
+	static stream<subSums>		subSumFifo("subSumFifo");
 	static stream<ap_uint<16> > checksumFifo("checksumFifo");
+	#pragma HLS stream variable=subSumFifo depth=2
 	#pragma HLS stream variable=checksumFifo depth=16
 
-	compute_ip_checksum(dataIn, dataStreamBuffer0, checksumFifo);
 
-	ip_checksum_insert(dataStreamBuffer0, checksumFifo, dataStreamBuffer1);
+	extract_ip_address(dataIn, dataStreamBuffer0, arpTableOut, regSubNetMask, regDefaultGateway);
 
-	extract_ip_address(dataStreamBuffer1, dataStreamBuffer2, arpTableOut, regSubNetMask, regDefaultGateway);
+	compute_ip_checksum(dataStreamBuffer0, dataStreamBuffer1, subSumFifo);
+	finalize_ip_checksum(subSumFifo, checksumFifo);
+
+	ip_checksum_insert(dataStreamBuffer1, checksumFifo, dataStreamBuffer2);
 
 	handle_arp_reply(dataStreamBuffer2, arpTableIn, dataOut, myMacAddress);
 }
