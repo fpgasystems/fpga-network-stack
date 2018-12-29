@@ -12,7 +12,7 @@ create_clock -period 6.4 -name default
 #csim_design  -clean
 csynth_design
 #cosim_design -tool xsim -rtl verilog -trace_level none 
-export_design -format ip_catalog -display_name "IP Handler for 10G TCP Offload Engine" -vendor "ethz.systems" -version "1.2"
+export_design -format ip_catalog -display_name "IP Handler for 10G TCP Offload Engine" -vendor "ethz.systems" -version "1.3"
 
 exit
 
