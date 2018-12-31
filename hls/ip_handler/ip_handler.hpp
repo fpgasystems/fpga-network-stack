@@ -28,8 +28,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 ************************************************/
 
 #include "../axi_utils.hpp"
+#include "../packet.hpp"
 
-using namespace hls;
+const int ETH_HEADER_SIZE = 112;
 
 const uint16_t ARP = 0x0806;
 const uint16_t IPv4 = 0x0800;
@@ -54,14 +55,31 @@ struct subSums
 		:sum0(s0), sum1(s1), sum2(s2), sum3(s3), ipMatch(match) {}
 };
 
+
+/**
+ * [47:0] MAC destination
+ * [95:48] MAC source
+ * [111:96] Ethertype
+ */ 
+template <int W>
+class ethHeader : public packetHeader<W, ETH_HEADER_SIZE> {
+	using packetHeader<W, ETH_HEADER_SIZE>::header;
+
+public:
+	ap_uint<16> getEthertype()
+	{
+		return reverse((ap_uint<16>)header(111,96));
+	}
+};
+
 /** @defgroup ip_handler IP handler
  *
  */
-void ip_handler(stream<axiWord>&		s_axis_raw,
-				stream<axiWord>&		m_axis_ARP,
-				stream<axiWord>&		m_axis_ICMPv6,
-				stream<axiWord>&		m_axis_IPv6UDP,
-				stream<axiWord>&		m_axis_ICMP,
-				stream<axiWord>&		m_axis_UDP,
-				stream<axiWord>&		m_axis_TCP,
+void ip_handler(hls::stream<axiWord>&		s_axis_raw,
+				hls::stream<axiWord>&		m_axis_ARP,
+				hls::stream<axiWord>&		m_axis_ICMPv6,
+				hls::stream<axiWord>&		m_axis_IPv6UDP,
+				hls::stream<axiWord>&		m_axis_ICMP,
+				hls::stream<axiWord>&		m_axis_UDP,
+				hls::stream<axiWord>&		m_axis_TCP,
 				ap_uint<32>				myIpAddress);

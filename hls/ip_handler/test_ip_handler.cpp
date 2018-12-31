@@ -29,9 +29,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 #include "ip_handler.hpp"
 
 
-using namespace hls;
-using namespace std;
-
 int main(int argc, char* argv[]) {
 	stream<axiWord> inFIFO("inFIFO");
 	stream<axiWord> outFifoARP("outFifoARP");
@@ -86,7 +83,7 @@ int main(int argc, char* argv[]) {
 
 	axiWord inWord;
 	int count = 0;
-	while (scan(inputFile, inWord)) {
+	while (scanLE(inputFile, inWord)) {
 		inFIFO.write(inWord);
 		ip_handler(inFIFO, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
 	}
@@ -96,22 +93,28 @@ int main(int argc, char* argv[]) {
 	}
 
 	axiWord outWord;
+	outputFile << "ICMPv6" << std::endl;
 	while (!outFifoICMPv6.empty())
 	{
 		outFifoICMPv6.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
-		/*outputFile << std::setw(8) << ((uint32_t) outWord.data(63, 32));
-		outputFile << std::setw(8) << ((uint32_t) outWord.data(31, 0));
-		outputFile << " " << std::setw(2) << ((uint32_t) outWord.keep) << " ";
-		outputFile << std::setw(1) << ((uint32_t) outWord.last) << std::endl;*/
 	}
 
-	/*outputFile << std::hex << std::noshowbase;
-	outputFile << std::setfill('0');
+	outputFile << "IPv6 UDP" << std::endl;
+	while (!outFifoIPv6UDP.empty())
+	{
+		outFifoIPv6UDP.read(outWord);
+		print(outputFile, outWord);
+		outputFile << std::endl;
+	}
+
+	outputFile << "ARP" << std::endl;
 	while (!(outFifoARP.empty())) {
-		outFifoARP.read(outData);
-		outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
+		outFifoARP.read(outWord);
+		print(outputFile, outWord);
+		outputFile << std::endl;
+		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
 		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
 		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
 		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
@@ -122,11 +125,14 @@ int main(int argc, char* argv[]) {
 			cerr << "X";
 		} else {
 			cerr << ".";
-		}
+		}*/
 	}
+	outputFile << "ICMP" << std::endl;
 	while (!(outFifoICMP.empty())) {
-		outFifoICMP.read(outData);
-		outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
+		outFifoICMP.read(outWord);
+		print(outputFile, outWord);
+		outputFile << std::endl;
+		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
 		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
 		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
 		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
@@ -137,11 +143,14 @@ int main(int argc, char* argv[]) {
 			cerr << "X";
 		} else {
 			cerr << ".";
-		}
+		}*/
 	}
+	outputFile << "UDP" << std::endl;
 	while (!(outFifoUDP.empty())) {
-		outFifoUDP.read(outData);
-		outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
+		outFifoUDP.read(outWord);
+		print(outputFile, outWord);
+		outputFile << std::endl;
+		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
 		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
 		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
 		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
@@ -152,11 +161,14 @@ int main(int argc, char* argv[]) {
 			cerr << "X";
 		} else {
 			cerr << ".";
-		}
+		}*/
 	}
+	outputFile << "TCP" << std::endl;
 	while (!(outFifoTCP.empty())) {
-		outFifoTCP.read(outData);
-		outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
+		outFifoTCP.read(outWord);
+		print(outputFile, outWord);
+		outputFile << std::endl;
+		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
 		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
 		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
 		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
@@ -167,9 +179,9 @@ int main(int argc, char* argv[]) {
 			cerr << "X";
 		} else {
 			cerr << ".";
-		}
+		}*/
 	}
-	cerr << " done." << endl << endl;
+	/*cerr << " done." << endl << endl;
 	if (errCount == 0) {
 	   	cerr << "*** Test Passed ***" << endl << endl;
 	    return 0;

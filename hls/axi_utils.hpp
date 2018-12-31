@@ -168,6 +168,31 @@ bool scanLE(std::istream& inputFile, ap_uint<D>& data)
 }
 
 template<int D>
+bool scanLE(std::istream& inputFile, net_axis<D>& word)
+{
+	uint16_t temp;
+	uint32_t keepTemp;
+	uint16_t lastTemp;
+	for (int i = (D/8)-1; i >= 0; i--)
+	{
+		if (inputFile >> std::hex >> temp)
+		{
+			word.data(i*8+7, i*8) = temp;
+		}
+		else
+		{
+			//std::cerr << "[ERROR]: could not scan input" << std::endl;
+			return false;
+		}
+	}
+	inputFile >> keepTemp;
+	inputFile >> lastTemp;
+	word.keep = keepTemp;
+	word.last = lastTemp;
+	return inputFile;
+}
+
+template<int D>
 void print(std::ostream& output, ap_uint<D> data)
 {
 	output << std::hex;
