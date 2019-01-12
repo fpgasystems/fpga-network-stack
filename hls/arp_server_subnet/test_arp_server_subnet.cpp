@@ -31,9 +31,17 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 int main()
 {
+	hls::stream<net_axis<64> >          arpDataIn64("arpDataIn64");
+	hls::stream<net_axis<128> >          arpDataIn128("arpDataIn128");
+	hls::stream<net_axis<256> >          arpDataIn256("arpDataIn256");
 	hls::stream<axiWord>          arpDataIn("arpDataIn");
+
 	hls::stream<ap_uint<32> >     macIpEncode_req("macIpEncode_req");
 	hls::stream<ap_uint<32> >     hostIpEncode_req("hostIpEncode_req");
+
+	hls::stream<net_axis<64> >          arpDataOut64("arpDataOut64");
+	hls::stream<net_axis<128> >          arpDataOut128("arpDataOut128");
+	hls::stream<net_axis<256> >          arpDataOut256("arpDataOut256");
 	hls::stream<axiWord>          arpDataOut("arpDataOut");
 	hls::stream<arpTableReply>    macIpEncode_rsp("macIpEncode_rsp");
 	hls::stream<arpTableReply>    hostIpEncode_rsp("hostIpEncode_rsp");
@@ -58,7 +66,7 @@ int main()
 	}
 
 
-	axiWord inWord;
+	net_axis<64> inWord;
 	uint16_t strbTemp;
 	uint64_t dataTemp;
 	uint16_t lastTemp;
@@ -67,7 +75,7 @@ int main()
 		inWord.data = dataTemp;
 		inWord.keep = strbTemp;
 		inWord.last = lastTemp;
-		arpDataIn.write(inWord);
+		arpDataIn64.write(inWord);
 	}
 
 	int count = 0;
@@ -82,14 +90,32 @@ int main()
 							macAddress,
 							ipAddress);
 
-		if (count == 50)
+		if (count == 50) {
 			macIpEncode_req.write(0x0a010101);
+		}
+
+#if (AXI_WIDTH == 512)
+	convertStreamToDoubleWidth(arpDataIn64, arpDataIn128);
+	convertStreamToDoubleWidth(arpDataIn128, arpDataIn256);
+	convertStreamToDoubleWidth(arpDataIn256, arpDataIn);
+	convertStreamToHalfWidth<512, 951>(arpDataOut, arpDataOut256);
+	convertStreamToHalfWidth<256, 952>(arpDataOut256, arpDataOut128);
+	convertStreamToHalfWidth<128, 953>(arpDataOut128, arpDataOut64);
+#else
+	if (!arpDataIn64.empty()) {
+		arpDataIn.write(arpDataIn64.read());
+	}
+	if (!arpDataOut.empty()) {
+		arpDataOut64.write(arpDataOut.read());
+	}
+#endif
+
 		count++;
 	}
 
-	while (!arpDataOut.empty())
+	while (!arpDataOut64.empty())
 	{
-		axiWord outWord = arpDataOut.read();
+		net_axis<64> outWord = arpDataOut64.read();
 		printLE(outputFile, outWord);
 		outputFile << std::endl;
 	}
