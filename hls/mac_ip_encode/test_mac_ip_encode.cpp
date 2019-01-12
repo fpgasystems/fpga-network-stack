@@ -29,21 +29,26 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "mac_ip_encode.hpp"
 
-using namespace hls;
-
 int main()
 {
-#pragma HLS inline region off
-	axiWord inData;
-	axiWord outData;
-	stream<axiWord> arpFIFO;
-	stream<axiWord> icmpFIFO("icmpFIFO");
-	stream<axiWord> udpFIFO;
-	stream<axiWord> tcpFIFO;
-	stream<axiWord> outFIFO;
-	//stream<ap_uint<16> > checksumFIFO;
-	stream<ap_uint<32> > arpTableIn;
-	stream<arpTableReply> arpTableOut;
+	net_axis<64> inData;
+	net_axis<64> outData;
+	hls::stream<axiWord>		arpFIFO;
+	hls::stream<net_axis<64> >	icmpFifo64("icmpFifo64");
+	hls::stream<axiWord>		icmpFifo("icmpFifo");
+	hls::stream<axiWord> 		udpFIFO;
+	hls::stream<net_axis<64> >	tcpFifo64("tcpFifo64");
+	hls::stream<net_axis<128> >	tcpFifo128("tcpFifo128");
+	hls::stream<net_axis<256> >	tcpFifo256("tcpFifo256");
+	hls::stream<axiWord>			tcpFifo("tcpFifo");
+
+	hls::stream<net_axis<64> >	outFifo64("outFifo");
+	hls::stream<net_axis<128> >	outFifo128("outFifo");
+	hls::stream<net_axis<256> >	outFifo256("outFifo");
+	hls::stream<axiWord>			outFifo("outFifo");
+	//hls::stream<ap_uint<16> > checksumFIFO;
+	hls::stream<ap_uint<32> >	arpTableIn;
+	hls::stream<arpTableReply>	arpTableOut;
 	ap_uint<32>					regSubNetMask;
 	ap_uint<32>					regDefaultGateway;
 	ap_uint<48>					regMacAddress;
@@ -91,27 +96,44 @@ int main()
 		inData.data = dataTemp;
 		inData.keep = strbTemp;
 		inData.last = lastTemp;
-		icmpFIFO.write(inData);
+		icmpFifo64.write(inData);
 	}
 	while (tcpFile >> std::hex >> dataTemp >> strbTemp >> lastTemp)
 	{
 		inData.data = dataTemp;
 		inData.keep = strbTemp;
 		inData.last = lastTemp;
-		tcpFIFO.write(inData);
+		tcpFifo64.write(inData);
 	}
 
 	int numbLookup = 0;
 	while (count < 250)
 	{
-		mac_ip_encode(tcpFIFO, arpTableOut, outFIFO, arpTableIn, regMacAddress, regSubNetMask, regDefaultGateway);
+
+#if (AXI_WIDTH == 512)
+	convertStreamToDoubleWidth(tcpFifo64, tcpFifo128);
+	convertStreamToDoubleWidth(tcpFifo128, tcpFifo256);
+	convertStreamToDoubleWidth(tcpFifo256, tcpFifo);
+	convertStreamToHalfWidth<512, 951>(outFifo, outFifo256);
+	convertStreamToHalfWidth<256, 952>(outFifo256, outFifo128);
+	convertStreamToHalfWidth<128, 953>(outFifo128, outFifo64);
+#else
+	if (!tcpFifo64.empty()) {
+		tcpFifo.write(tcpFifo64.read());
+	}
+	if (!outFifo.empty()) {
+		outFifo64.write(outFifo.read());
+	}
+#endif
+
+		mac_ip_encode(tcpFifo, arpTableOut, outFifo, arpTableIn, regMacAddress, regSubNetMask, regDefaultGateway);
 		if (!arpTableIn.empty())
 		{
 			// Make sure ARP request goes out
 			int countArp = 0;
 			while (countArp < 50)
 			{
-				mac_ip_encode(tcpFIFO, arpTableOut, outFIFO, arpTableIn, regMacAddress, regSubNetMask, regDefaultGateway);
+				mac_ip_encode(tcpFifo, arpTableOut, outFifo, arpTableIn, regMacAddress, regSubNetMask, regDefaultGateway);
 				countArp++;
 			}
 			arpTableIn.read(requestIpAddress);
@@ -130,9 +152,9 @@ int main()
 	}
 
 
-	while (!(outFIFO.empty()))
+	while (!(outFifo64.empty()))
 	{
-		outFIFO.read(outData);
+		outFifo64.read(outData);
 		outputFile << std::hex << std::noshowbase;
 		outputFile << std::setfill('0');
 		outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
