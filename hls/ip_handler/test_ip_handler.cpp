@@ -30,20 +30,48 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 
 int main(int argc, char* argv[]) {
-	stream<axiWord> inFIFO("inFIFO");
-	stream<axiWord> outFifoARP("outFifoARP");
-	stream<axiWord> outFifoTCP("outFifoTCP");
-	stream<axiWord> outFifoUDP("outFifoUDP");
-	stream<axiWord> outFifoICMP("outFifoICMP");
-	stream<axiWord> outFifoICMPexp("outFifoICMPexp");
-	stream<axiWord> outFifoICMPv6("outFifoICMPv6");
-	stream<axiWord> outFifoIPv6UDP("outFifoIPv6UDP");
+	hls::stream<net_axis<64> > inFifo64("inFIFO");
+	hls::stream<net_axis<128> > inFifo128("inFIFO");
+	hls::stream<net_axis<256> > inFifo256("inFIFO");
+	hls::stream<axiWord> inFifo("inFIFO");
+
+	hls::stream<net_axis<64> > outFifoARP64("outFifoARP64");
+	hls::stream<net_axis<128> > outFifoARP128("outFifoARP128");
+	hls::stream<net_axis<256> > outFifoARP256("outFifoARP256");
+	hls::stream<axiWord> outFifoARP("outFifoARP");
+
+	hls::stream<net_axis<64> > outFifoTCP64("outFifoTCP64");
+	hls::stream<net_axis<128> > outFifoTCP128("outFifoTCP128");
+	hls::stream<net_axis<256> > outFifoTCP256("outFifoTCP256");
+	hls::stream<axiWord> outFifoTCP("outFifoTCP");
+
+	hls::stream<net_axis<64> > outFifoUDP64("outFifoUDP64");
+	hls::stream<net_axis<128> > outFifoUDP128("outFifoUDP128");
+	hls::stream<net_axis<256> > outFifoUDP256("outFifoUDP256");
+	hls::stream<axiWord> outFifoUDP("outFifoUDP");
+
+	hls::stream<net_axis<64> > outFifoICMP64("outFifoICMP64");
+	hls::stream<net_axis<128> > outFifoICMP128("outFifoICMP128");
+	hls::stream<net_axis<256> > outFifoICMP256("outFifoICMP256");
+	hls::stream<axiWord> outFifoICMP("outFifoICMP");
+
+	hls::stream<axiWord> outFifoICMPexp("outFifoICMPexp");
+
+	hls::stream<net_axis<64> > outFifoICMPv6_64("outFifoICMPv6_64");
+	hls::stream<net_axis<128> > outFifoICMPv6_128("outFifoICMPv6_128");
+	hls::stream<net_axis<256> > outFifoICMPv6_256("outFifoICMPv6_256");
+	hls::stream<axiWord> outFifoICMPv6("outFifoICMPv6");
+
+	hls::stream<net_axis<64> > outFifoIPv6UDP64("outFifoIPv6UDP64");
+	hls::stream<net_axis<128> > outFifoIPv6UDP128("outFifoIPv6UDP128");
+	hls::stream<net_axis<256> > outFifoIPv6UDP256("outFifoIPv6UDP256");
+	hls::stream<axiWord> outFifoIPv6UDP("outFifoIPv6UDP");
 
 	std::ifstream inputFile;
 	std::ifstream goldenFile;
 	std::ofstream outputFile;
 
-	ap_uint<32> ipAddress 	= 0x01010101;
+	ap_uint<32> ipAddress 	= 0x0a010101;
     int 		errCount 	= 0;
 
 	/*inputFile.open("../../../../in.dat");
@@ -81,37 +109,71 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	axiWord inWord;
+	net_axis<64> inWord;
 	int count = 0;
 	while (scanLE(inputFile, inWord)) {
-		inFIFO.write(inWord);
-		ip_handler(inFIFO, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
+		inFifo64.write(inWord);
+		ip_handler(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
+
+#if (AXI_WIDTH == 512)
+		convertStreamToDoubleWidth(inFifo64, inFifo128);
+		convertStreamToDoubleWidth(inFifo128, inFifo256);
+		convertStreamToDoubleWidth(inFifo256, inFifo);
+		convertStreamToHalfWidth<512, 951>(outFifoTCP, outFifoTCP256);
+		convertStreamToHalfWidth<256, 952>(outFifoTCP256, outFifoTCP128);
+		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
+#else
+		if (!inFifo64.empty()) {
+			inFifo.write(inFifo64.read());
+		}
+		if (!outFifoTCP.empty()) {
+			outFifoTCP64.write(outFifoTCP.read());
+		}
+#endif
+
 	}
 	while (count < 30000)	{
-		ip_handler(inFIFO, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
+		ip_handler(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
+
+#if (AXI_WIDTH == 512)
+		convertStreamToDoubleWidth(inFifo64, inFifo128);
+		convertStreamToDoubleWidth(inFifo128, inFifo256);
+		convertStreamToDoubleWidth(inFifo256, inFifo);
+		convertStreamToHalfWidth<512, 951>(outFifoTCP, outFifoTCP256);
+		convertStreamToHalfWidth<256, 952>(outFifoTCP256, outFifoTCP128);
+		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
+#else
+		if (!inFifo64.empty()) {
+			inFifo.write(inFifo64.read());
+		}
+		if (!outFifoTCP.empty()) {
+			outFifoTCP64.write(outFifoTCP.read());
+		}
+#endif
+
 		count++;
 	}
 
-	axiWord outWord;
+	net_axis<64> outWord;
 	outputFile << "ICMPv6" << std::endl;
-	while (!outFifoICMPv6.empty())
+	while (!outFifoICMPv6_64.empty())
 	{
-		outFifoICMPv6.read(outWord);
+		outFifoICMPv6_64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
 	}
 
 	outputFile << "IPv6 UDP" << std::endl;
-	while (!outFifoIPv6UDP.empty())
+	while (!outFifoIPv6UDP64.empty())
 	{
-		outFifoIPv6UDP.read(outWord);
+		outFifoIPv6UDP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
 	}
 
 	outputFile << "ARP" << std::endl;
-	while (!(outFifoARP.empty())) {
-		outFifoARP.read(outWord);
+	while (!(outFifoARP64.empty())) {
+		outFifoARP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
 		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
@@ -128,8 +190,8 @@ int main(int argc, char* argv[]) {
 		}*/
 	}
 	outputFile << "ICMP" << std::endl;
-	while (!(outFifoICMP.empty())) {
-		outFifoICMP.read(outWord);
+	while (!(outFifoICMP64.empty())) {
+		outFifoICMP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
 		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
@@ -146,8 +208,8 @@ int main(int argc, char* argv[]) {
 		}*/
 	}
 	outputFile << "UDP" << std::endl;
-	while (!(outFifoUDP.empty())) {
-		outFifoUDP.read(outWord);
+	while (!(outFifoUDP64.empty())) {
+		outFifoUDP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
 		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
@@ -164,8 +226,8 @@ int main(int argc, char* argv[]) {
 		}*/
 	}
 	outputFile << "TCP" << std::endl;
-	while (!(outFifoTCP.empty())) {
-		outFifoTCP.read(outWord);
+	while (!(outFifoTCP64.empty())) {
+		outFifoTCP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
 		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));

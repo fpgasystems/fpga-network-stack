@@ -14,7 +14,7 @@ create_clock -period 6.4 -name default
 
 config_rtl -disable_start_propagation
 csynth_design
-export_design -format ip_catalog -display_name "IP Handler for 10G TCP Offload Engine" -vendor "ethz.systems.fpga" -version "1.3"
+export_design -format ip_catalog -display_name "IP Handler" -vendor "ethz.systems.fpga" -version "2.0"
 
 exit
 
