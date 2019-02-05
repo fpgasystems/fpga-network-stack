@@ -117,6 +117,14 @@ int main()
 	convertStreamToHalfWidth<512, 951>(outFifo, outFifo256);
 	convertStreamToHalfWidth<256, 952>(outFifo256, outFifo128);
 	convertStreamToHalfWidth<128, 953>(outFifo128, outFifo64);
+#elif (AXI_WIDTH == 256)
+	convertStreamToDoubleWidth(tcpFifo64, tcpFifo128);
+	convertStreamToDoubleWidth(tcpFifo128, tcpFifo);
+	convertStreamToHalfWidth<256, 952>(outFifo, outFifo128);
+	convertStreamToHalfWidth<128, 953>(outFifo128, outFifo64);
+#elif (AXI_WIDTH == 128)
+	convertStreamToDoubleWidth(tcpFifo64, tcpFifo);
+	convertStreamToHalfWidth<128, 953>(outFifo, outFifo64);
 #else
 	if (!tcpFifo64.empty()) {
 		tcpFifo.write(tcpFifo64.read());
