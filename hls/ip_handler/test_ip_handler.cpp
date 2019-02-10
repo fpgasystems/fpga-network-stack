@@ -122,6 +122,14 @@ int main(int argc, char* argv[]) {
 		convertStreamToHalfWidth<512, 951>(outFifoTCP, outFifoTCP256);
 		convertStreamToHalfWidth<256, 952>(outFifoTCP256, outFifoTCP128);
 		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
+#elif (AXI_WIDTH == 256)
+		convertStreamToDoubleWidth(inFifo64, inFifo128);
+		convertStreamToDoubleWidth(inFifo128, inFifo);
+		convertStreamToHalfWidth<256, 952>(outFifoTCP, outFifoTCP128);
+		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
+#elif (AXI_WIDTH == 128)
+		convertStreamToDoubleWidth(inFifo64, inFifo);
+		convertStreamToHalfWidth<128, 953>(outFifoTCP, outFifoTCP64);
 #else
 		if (!inFifo64.empty()) {
 			inFifo.write(inFifo64.read());
@@ -142,6 +150,14 @@ int main(int argc, char* argv[]) {
 		convertStreamToHalfWidth<512, 951>(outFifoTCP, outFifoTCP256);
 		convertStreamToHalfWidth<256, 952>(outFifoTCP256, outFifoTCP128);
 		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
+#elif (AXI_WIDTH == 256)
+		convertStreamToDoubleWidth(inFifo64, inFifo128);
+		convertStreamToDoubleWidth(inFifo128, inFifo);
+		convertStreamToHalfWidth<256, 952>(outFifoTCP, outFifoTCP128);
+		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
+#elif (AXI_WIDTH == 128)
+		convertStreamToDoubleWidth(inFifo64, inFifo);
+		convertStreamToHalfWidth<128, 953>(outFifoTCP, outFifoTCP64);
 #else
 		if (!inFifo64.empty()) {
 			inFifo.write(inFifo64.read());
