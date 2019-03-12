@@ -51,13 +51,13 @@ void process_udp(	stream<axiWord>& input,
 		{
 			//Check Dst Port
 			ap_uint<16> dstPort = pu_header.getDstPort();
-			//std::cout << "UDP dst Port: " << (uint16_t)dstPort << std::endl;
 			if (dstPort == regListenPort)
 			{
 				output.write(currWord);
 			}
 			if (!metaWritten)
 			{
+				std::cout << "UDP dst Port: " << (uint16_t)dstPort << std::endl;
 				metaOut.write(udpMeta(pu_header.getSrcPort(), dstPort, pu_header.getLength(), dstPort == regListenPort));
 				metaWritten = true;
 			}
@@ -94,11 +94,18 @@ void generate_udp(	stream<udpMeta>& metaIn,
 			header.setDstPort(meta.their_port);
 			header.setSrcPort(meta.my_port);
 			header.setLength(meta.length);
-			state = HEADER;
+			if (UDP_HEADER_SIZE >= AXI_WIDTH)
+			{
+				state = HEADER;
+			}
+			else
+			{
+				state = PARTIAL_HEADER;
+			}
 		}
 		break;
 	case HEADER:
-		if (header.consumeWord(currWord.data)) //TODO this gives a timing of 5.6ns
+		if (header.consumeWord(currWord.data) < AXI_WIDTH)
 		{
 			state = PARTIAL_HEADER;
 		}
@@ -110,7 +117,7 @@ void generate_udp(	stream<udpMeta>& metaIn,
 		if (!input.empty())
 		{
 			input.read(currWord);
-			header.consumePartialWord(currWord.data);
+			header.consumeWord(currWord.data);
 			output.write(currWord);
 			state = BODY;
 			if (currWord.last)
@@ -192,7 +199,7 @@ void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
 {
 #pragma HLS DATAFLOW
 #pragma HLS INTERFACE ap_ctrl_none register port=return
-//#pragma HLS INLINE
+#pragma HLS INLINE
 
 #pragma HLS resource core=AXI4Stream variable=s_axis_rx_meta metadata="-bus_bundle s_axis_rx_meta"
 #pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
