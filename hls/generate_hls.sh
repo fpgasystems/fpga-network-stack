@@ -1,11 +1,16 @@
 #!/bin/bash
 
-IP_CORES=(ip_handler mac_ip_encode arp_server_subnet icmp_server toe echo_server_application ethernet_frame_padding iperf_client udp ipv4 iperf_udp_client dhcp_client)
+#IP_CORES=(ip_handler mac_ip_encode arp_server_subnet icmp_server toe echo_server_application ethernet_frame_padding iperf_client)
+IP_CORES=(ipv4)
+# eliminate from the IP_CORES list udp, iperf_udp_client, ipv4, dhcp_client 
 
 
 if [[ $# > 0 ]]; then
 	if [ "$1" = "vcu709" ]; then
 		PART="xc7vx690tffg1761-2"
+	fi
+        if [ "$1" = "adm7v3" ]; then
+		PART="xc7vx690tffg1157-2"
 	fi
 	if [ "$1" = "vcu118" ]; then
 		PART="xcvu9p-flga2104-2L-e"
@@ -47,5 +52,5 @@ done
 
 
 echo "Copied all HLS IPs to ip repository."
-echo "Go to the projects directory and run vivado -mode batch -source create_<board>_proj.tcl to create the vivado project"
+echo "Go to the projects directory and run vivado -mode batch -source create_<board>_project.tcl to create the vivado project"
 
