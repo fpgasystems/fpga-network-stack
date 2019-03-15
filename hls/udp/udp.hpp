@@ -30,7 +30,7 @@
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
 #include "../ipv4/ipv4.hpp"
-#include "../ipv6/ipv6.hpp"
+//#include "../ipv6/ipv6.hpp"
 
 #define IP_VERSION 4
 
