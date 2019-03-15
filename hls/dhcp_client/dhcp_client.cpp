@@ -139,7 +139,7 @@ void send_message(	stream<dhcpRequestMeta>&	metaIn,
 
 	static ap_uint<6> sm_wordCount = 0;
 	static dhcpRequestMeta meta;
-	axiWord sendWord = {0, 0xFF, 0};
+	axiWord sendWord = axiWord(0, 0xFF, 0);
 
 	switch (sm_wordCount)
 	{
