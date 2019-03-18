@@ -30,7 +30,6 @@ log.txt
 
 #vivado ip files
 *.xml
-hdl/
 misc/
 sim/
 synth/
