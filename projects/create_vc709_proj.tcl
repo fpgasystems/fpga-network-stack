@@ -53,7 +53,7 @@ update_compile_order -fileset sources_1
 
 #FIFOs
 
-create_ip -name axis_data_fifo -vendor xilinx.com -library ip -version 1.1 -module_name axis_data_fifo_64_cc -dir $ip_dir/vc709
+create_ip -name axis_data_fifo -vendor xilinx.com -library ip -version 2.0 -module_name axis_data_fifo_64_cc -dir $ip_dir/vc709
 set_property -dict [list CONFIG.TDATA_NUM_BYTES {8} CONFIG.IS_ACLK_ASYNC {1} CONFIG.HAS_TKEEP {1} CONFIG.HAS_TLAST {1} CONFIG.SYNCHRONIZATION_STAGES {3} CONFIG.Component_Name {axis_data_fifo_64_cc}] [get_ips axis_data_fifo_64_cc]
 generate_target {instantiation_template} [get_files $ip_dir/vc709/axis_data_fifo_64_cc/axis_data_fifo_64_cc.xci]
 update_compile_order -fileset sources_1

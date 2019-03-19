@@ -434,16 +434,11 @@ axis_data_fifo_64_cc axis_write_data_fifo_mem0 (
    .s_axis_tlast(s_axis_mem0_write_tlast),              // input wire s_axis_tlast
    
    .m_axis_aclk(c0_ui_clk),                // input wire m_axis_aclk
-   .m_axis_aresetn(c0_aresetn_r),          // input wire m_axis_aresetn
    .m_axis_tvalid(axis_mem0_cc_to_dm_write_tvalid),            // output wire m_axis_tvalid
    .m_axis_tready(axis_mem0_cc_to_dm_write_tready),            // input wire m_axis_tready
    .m_axis_tdata(axis_mem0_cc_to_dm_write_tdata),              // output wire [255 : 0] m_axis_tdata
    .m_axis_tkeep(axis_mem0_cc_to_dm_write_tkeep),              // output wire [31 : 0] m_axis_tkeep
-   .m_axis_tlast(axis_mem0_cc_to_dm_write_tlast),              // output wire m_axis_tlast
-   
-   .axis_data_count(),        // output wire [31 : 0] axis_data_count
-   .axis_wr_data_count(),  // output wire [31 : 0] axis_wr_data_count
-   .axis_rd_data_count()  // output wire [31 : 0] axis_rd_data_count
+   .m_axis_tlast(axis_mem0_cc_to_dm_write_tlast)              // output wire m_axis_tlast
  );
 
 axis_data_fifo_64_cc axis_read_data_fifo_mem0 (
@@ -456,16 +451,11 @@ axis_data_fifo_64_cc axis_read_data_fifo_mem0 (
    .s_axis_tlast(axis_mem0_dm_to_cc_read_tlast),              // input wire s_axis_tlast
    
    .m_axis_aclk(clk156_25),                // input wire m_axis_aclk
-   .m_axis_aresetn(reset156_25_n),          // input wire m_axis_aresetn
    .m_axis_tvalid(m_axis_mem0_read_tvalid),            // output wire m_axis_tvalid
    .m_axis_tready(m_axis_mem0_read_tready),            // input wire m_axis_tready
    .m_axis_tdata(m_axis_mem0_read_tdata),              // output wire [255 : 0] m_axis_tdata
    .m_axis_tkeep(m_axis_mem0_read_tkeep),              // output wire [31 : 0] m_axis_tkeep
-   .m_axis_tlast(m_axis_mem0_read_tlast),              // output wire m_axis_tlast
-   
-   .axis_data_count(),        // output wire [31 : 0] axis_data_count
-   .axis_wr_data_count(),  // output wire [31 : 0] axis_wr_data_count
-   .axis_rd_data_count()  // output wire [31 : 0] axis_rd_data_count
+   .m_axis_tlast(m_axis_mem0_read_tlast)              // output wire m_axis_tlast
  );
     end
  else begin
@@ -500,16 +490,11 @@ axis_data_fifo_64_cc axis_write_data_fifo_mem1 (
    .s_axis_tlast(s_axis_mem1_write_tlast),              // input wire s_axis_tlast
    
    .m_axis_aclk(c1_ui_clk),                // input wire m_axis_aclk
-   .m_axis_aresetn(c1_aresetn_r),          // input wire m_axis_aresetn
    .m_axis_tvalid(axis_mem1_cc_to_dm_write_tvalid),            // output wire m_axis_tvalid
    .m_axis_tready(axis_mem1_cc_to_dm_write_tready),            // input wire m_axis_tready
    .m_axis_tdata(axis_mem1_cc_to_dm_write_tdata),              // output wire [255 : 0] m_axis_tdata
    .m_axis_tkeep(axis_mem1_cc_to_dm_write_tkeep),              // output wire [31 : 0] m_axis_tkeep
-   .m_axis_tlast(axis_mem1_cc_to_dm_write_tlast),              // output wire m_axis_tlast
-   
-   .axis_data_count(),        // output wire [31 : 0] axis_data_count
-   .axis_wr_data_count(),  // output wire [31 : 0] axis_wr_data_count
-   .axis_rd_data_count()  // output wire [31 : 0] axis_rd_data_count
+   .m_axis_tlast(axis_mem1_cc_to_dm_write_tlast)              // output wire m_axis_tlast
  );
 
 axis_data_fifo_64_cc axis_read_data_fifo_mem1 (
@@ -522,16 +507,12 @@ axis_data_fifo_64_cc axis_read_data_fifo_mem1 (
    .s_axis_tlast(axis_mem1_dm_to_cc_read_tlast),              // input wire s_axis_tlast
    
    .m_axis_aclk(clk156_25),                // input wire m_axis_aclk
-   .m_axis_aresetn(reset156_25_n),          // input wire m_axis_aresetn
    .m_axis_tvalid(m_axis_mem1_read_tvalid),            // output wire m_axis_tvalid
    .m_axis_tready(m_axis_mem1_read_tready),            // input wire m_axis_tready
    .m_axis_tdata(m_axis_mem1_read_tdata),              // output wire [255 : 0] m_axis_tdata
    .m_axis_tkeep(m_axis_mem1_read_tkeep),              // output wire [31 : 0] m_axis_tkeep
-   .m_axis_tlast(m_axis_mem1_read_tlast),              // output wire m_axis_tlast
-   
-   .axis_data_count(),        // output wire [31 : 0] axis_data_count
-   .axis_wr_data_count(),  // output wire [31 : 0] axis_wr_data_count
-   .axis_rd_data_count()  // output wire [31 : 0] axis_rd_data_count
+   .m_axis_tlast(m_axis_mem1_read_tlast)              // output wire m_axis_tlast
+  
  );
     end
     else begin
