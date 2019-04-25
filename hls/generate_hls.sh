@@ -4,7 +4,7 @@ IP_CORES=(ip_handler mac_ip_encode arp_server_subnet icmp_server toe echo_server
 
 
 if [[ $# > 0 ]]; then
-	if [ "$1" = "vcu709" ]; then
+	if [ "$1" = "vc709" ]; then
 		PART="xc7vx690tffg1761-2"
 	fi
 	if [ "$1" = "vcu118" ]; then
