@@ -31,12 +31,12 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace hls;
 
-void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus,
-				stream<ap_uint<16> >&	closeConnection,
-				stream<ap_uint<16> >&	txMetaData, stream<axiWord>& txData,
-				stream<ap_int<17> >&	txStatus,
-				stream<bool>&			startSignal,
-				stream<bool>&			stopSignal,
+void client(	hls::stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus,
+				hls::stream<ap_uint<16> >&	closeConnection,
+				hls::stream<ap_uint<16> >&	txMetaData, stream<net_axis<64> >& txData,
+				hls::stream<ap_int<17> >&	txStatus,
+				hls::stream<bool>&			startSignal,
+				hls::stream<bool>&			stopSignal,
 				ap_uint<1>		runExperiment,
 				ap_uint<1>		dualModeEn,
 				ap_uint<14>		useConn,
@@ -64,7 +64,7 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 	openStatus status;
 
 
-	axiWord currWord;
+	net_axis<64> currWord;
 
 	/*
 	 * CLIENT FSM
@@ -281,9 +281,9 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 	}
 }
 
-void server(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-				stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-				stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData)
+void server(	hls::stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
+				hls::stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
+				hls::stream<ap_uint<16> >& rxMetaData, stream<net_axis<64> >& rxData)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -294,7 +294,7 @@ void server(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 	static bool listenDone = false;
 
 	appNotification notification;
-	axiWord receiveWord;
+	net_axis<64> receiveWord;
 
 	// Open Port 5001
 	if (!listenDone)
@@ -348,8 +348,8 @@ void server(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 	}
 }
 
-void clock (stream<bool>&	startSignal,
-			stream<bool>&	stopSignal)
+void clock (hls::stream<bool>&	startSignal,
+			hls::stream<bool>&	stopSignal)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -379,13 +379,13 @@ void clock (stream<bool>&	startSignal,
 		startSignal.read(startClock);
 	}
 }
-void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-					stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-					stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
-					stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
-					stream<ap_uint<16> >& closeConnection,
-					stream<ap_uint<16> >& txMetaData, stream<axiWord>& txData,
-					stream<ap_int<17> >& txStatus,
+void iperf_client(	hls::stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
+					hls::stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
+					hls::stream<ap_uint<16> >& rxMetaData, stream<net_axis<64> >& rxData,
+					hls::stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
+					hls::stream<ap_uint<16> >& closeConnection,
+					hls::stream<ap_uint<16> >& txMetaData, stream<net_axis<64> >& txData,
+					hls::stream<ap_int<17> >& txStatus,
 					ap_uint<1>		runExperiment,
 					ap_uint<1>		dualModeEn,
 					ap_uint<14>		useConn,
@@ -431,8 +431,8 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 	#pragma HLS INTERFACE ap_stable register port=regIpAddress2
 	#pragma HLS INTERFACE ap_stable register port=regIpAddress3
 
-	static stream<bool>		startSignalFifo("startSignalFifo");
-	static stream<bool>		stopSignalFifo("stopSignalFifo");
+	static hls::stream<bool>		startSignalFifo("startSignalFifo");
+	static hls::stream<bool>		stopSignalFifo("stopSignalFifo");
 	#pragma HLS STREAM variable=startSignalFifo depth=2
 	#pragma HLS STREAM variable=stopSignalFifo depth=2
 

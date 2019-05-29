@@ -34,18 +34,18 @@ using namespace hls;
 
 int main()
 {
-	stream<ap_uint<16> > listenPort("listenPort");
-	stream<bool> listenPortStatus("listenPortStatus");
-	stream<appNotification> notifications("notifications");
-	stream<appReadRequest> readRequest("readRequest");
-	stream<ap_uint<16> > rxMetaData("rxMetaData");
-	stream<axiWord> rxData("rxData");
-	stream<ipTuple> openConnection("openConnection");
-	stream<openStatus> openConStatus("openConStatus");
-	stream<ap_uint<16> > closeConnection("closeConnection");
-	stream<ap_uint<16> > txMetaData("txMetaData");
-	stream<axiWord> txData("txData");
-	stream<ap_int<17> > txStatus("txStatus");
+	hls::stream<ap_uint<16> > listenPort("listenPort");
+	hls::stream<bool> listenPortStatus("listenPortStatus");
+	hls::stream<appNotification> notifications("notifications");
+	hls::stream<appReadRequest> readRequest("readRequest");
+	hls::stream<ap_uint<16> > rxMetaData("rxMetaData");
+	hls::stream<net_axis<64> > rxData("rxData");
+	hls::stream<ipTuple> openConnection("openConnection");
+	hls::stream<openStatus> openConStatus("openConStatus");
+	hls::stream<ap_uint<16> > closeConnection("closeConnection");
+	hls::stream<ap_uint<16> > txMetaData("txMetaData");
+	hls::stream<net_axis<64> > txData("txData");
+	hls::stream<ap_int<17> > txStatus("txStatus");
 	ap_uint<1> runExperiment;
 	ap_uint<1> dualModeEn;
 	ap_uint<13> useConn;
@@ -56,7 +56,7 @@ int main()
 	ap_uint<32> ipAddress3 = 0x01010104;
 
 	ap_uint<16> sessionID;
-	axiWord currWord;
+	net_axis<64> currWord;
 	int count = 0;
 	dualModeEn = 0;
 	pkgWordCount = 8;

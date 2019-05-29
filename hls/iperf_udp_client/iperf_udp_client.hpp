@@ -50,6 +50,8 @@ static const ap_uint<16> PKG_WORDS = PKG_SIZE / 8;
 
 static const ap_uint<16> MY_PORT = 32768;
 
+typedef net_axis<64> axiWord; //TODO make this parametrizable
+
 
 void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
 						hls::stream<axiWord>&	rxData,

@@ -83,14 +83,15 @@ struct udpMetadata {
 		:sourceSocket(src), destinationSocket(dst) {}
 };
 
+template <int WIDTH>
 void dhcp_client(	stream<ap_uint<16> >&	openPort,
 					stream<bool>&			confirmPortStatus,
 					//stream<ap_uint<16> >&	realeasePort,
 					stream<udpMetadata>&	dataInMeta,
-					stream<axiWord>&		dataIn,
+					stream<net_axis<WIDTH> >&		dataIn,
 					stream<udpMetadata>&	dataOutMeta,
 					stream<ap_uint<16> >&	dataOutLength,
-					stream<axiWord>&		dataOut,
+					stream<net_axis<WIDTH> >&		dataOut,
 					ap_uint<1>&				dhcpEnable,
 					ap_uint<32>&			inputIpAddress,
 					ap_uint<32>&			dhcpIpAddressOut,

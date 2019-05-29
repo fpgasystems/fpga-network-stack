@@ -8,9 +8,11 @@
 #include <fstream>
 #include <iomanip>
 
-#define AXI_WIDTH 64
+//#define AXI_WIDTH 512
 
-const uint16_t PMTU = 1408; //dividable by 8, 16, 32, 64
+
+//TODO move to RoCE
+/*const uint16_t PMTU = 1408; //dividable by 8, 16, 32, 64
 const uint16_t PMTU_WORDS = PMTU / (AXI_WIDTH/8);
 const uint16_t MAX_QPS = 500;
 //This is not enabled/implemented for now due to simplification
@@ -47,21 +49,24 @@ typedef enum {
 bool checkIfResponse(ibOpCode code);
 bool checkIfWriteOrPartReq(ibOpCode code);
 bool checkIfAethHeader(ibOpCode code);
-bool checkIfRethHeader(ibOpCode code);
+bool checkIfRethHeader(ibOpCode code);*/
 
 //Adaptation of ap_axiu<>
-template <int D>
+template <int D, int R=1>
 struct net_axis
 {
 	ap_uint<D>		data;
 	ap_uint<D/8>	keep;
 	ap_uint<1>		last;
+	ap_uint<R>		dest;
 	net_axis() {}
 	net_axis(ap_uint<D> data, ap_uint<D/8> keep, ap_uint<1> last)
 		:data(data), keep(keep), last(last) {}
+	net_axis(ap_uint<D> data, ap_uint<D/8> keep, ap_uint<1> last, ap_uint<R> dest)
+		:data(data), keep(keep), last(last), dest(dest) {}
 };
 
-template <int D, int R>
+/*template <int D, int R=0>
 struct routed_net_axis
 {
 	ap_uint<D>		data;
@@ -75,8 +80,8 @@ struct routed_net_axis
 		:data(w.data), keep(w.keep), last(w.last), dest(r) {}
 };
 
-typedef net_axis<AXI_WIDTH> axiWord;
-typedef routed_net_axis<AXI_WIDTH, 1> routedAxiWord;
+//typedef net_axis<AXI_WIDTH> axiWord;
+typedef routed_net_axis<AXI_WIDTH, 1> routedAxiWord;*/
 
 template<int D>
 ap_uint<D> reverse(const ap_uint<D>& w)
@@ -231,8 +236,8 @@ void printLE(std::ostream& output, ap_uint<D>& data)
 #endif
 }
 
-template<int D>
-void printLE(std::ostream& output, net_axis<D>& word)
+template<int D, int R>
+void printLE(std::ostream& output, net_axis<D,R>& word)
 {
 #ifndef __SYNTHESIS__
 	output << std::hex;
@@ -243,10 +248,14 @@ void printLE(std::ostream& output, net_axis<D>& word)
 	}
 	output << std::setw(D/8/4) << (uint64_t) word.keep << " ";
 	output << std::setw(1) << (uint16_t)word.last;
+	if (R != 0)
+	{
+		output << std::setw(R) << " TDEST:" << (uint16_t)word.dest;
+	}
 #endif
 }
 
-template<int D, int R>
+/*template<int D, int R>
 void printLE(std::ostream& output, routed_net_axis<D, R>& word)
 {
 #ifndef __SYNTHESIS__
@@ -260,7 +269,7 @@ void printLE(std::ostream& output, routed_net_axis<D, R>& word)
 	output << std::setw(1) << (uint16_t)word.last;
 	output << std::setw(R) << " TDEST:" << (uint16_t)word.dest;
 #endif
-}
+}*/
 
 template <int W>
 void convertStreamToDoubleWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W*2> >&output)
@@ -366,11 +375,11 @@ void convertStreamToHalfWidth(hls::stream<net_axis<W> >& input, hls::stream<net_
 	}
 }
 
-template <class T>
+/*template <class T>
 void assignDest(T& d, T& s) {}
 
 template <>
-void assignDest<routedAxiWord>(routedAxiWord& d, routedAxiWord& s);
+void assignDest<routedAxiWord>(routedAxiWord& d, routedAxiWord& s);*/
 
 // The 2nd template parameter is a hack to use this function multiple times
 
@@ -415,7 +424,8 @@ void rshiftWordByOctet(	uint16_t offset,
 					sendWord.keep((W/8-1), (W/8)-offset) = currWord.keep(offset-1, 0);
 
 					sendWord.last = (currWord.keep((W/8-1), offset) == 0);
-					assignDest(sendWord, currWord);
+					sendWord.dest = currWord.dest;
+					//assignDest(sendWord, currWord);
 				}//else offset
 				output.write(sendWord);
 			}
@@ -440,7 +450,8 @@ void rshiftWordByOctet(	uint16_t offset,
 		sendWord.keep((W/8-1)-offset, 0) = prevWord.keep((W/8-1), offset);
 		sendWord.keep((W/8-1), (W/8)-offset) = 0;
 		sendWord.last = 1;
-		assignDest(sendWord, currWord);
+		sendWord.dest = prevWord.dest;
+		//assignDest(sendWord, currWord);
 
 		output.write(sendWord);
 		fsmState = PKG;
@@ -451,17 +462,17 @@ void rshiftWordByOctet(	uint16_t offset,
 // The 2nd template parameter is a hack to use this function multiple times
 template <int W, int whatever>
 void lshiftWordByOctet(	uint16_t offset,
-						hls::stream<axiWord>& input,
-						hls::stream<axiWord>& output)
+						hls::stream<net_axis<W> >& input,
+						hls::stream<net_axis<W> >& output)
 {
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 	static bool ls_firstWord = true;
 		static bool ls_writeRemainder = false;
-		static axiWord prevWord;
+		static net_axis<W> prevWord;
 
-		axiWord currWord;
-		axiWord sendWord;
+		net_axis<W> currWord;
+		net_axis<W> sendWord;
 
 		//std::cout << "ENTER lshiftWordByOctet" << std::endl;
 		//TODO use states

@@ -29,7 +29,7 @@
 
 #include "../axi_utils.hpp"
 
-void ethernet_fram_padding(	hls::stream<axiWord>&			dataIn,
-							hls::stream<axiWord>&			dataOut);
+void ethernet_fram_padding(	hls::stream<net_axis<64> >&			dataIn,
+							hls::stream<net_axis<64> >&			dataOut);
 
 #endif
