@@ -97,14 +97,14 @@ module network_stack #(
     
     axis_meta.slave     s_axis_tx_metadata,
     axi_stream.slave    s_axis_tx_data,
-    axis_meta.master    m_axis_tx_status
+    axis_meta.master    m_axis_tx_status,
     
     
     //UDP/IP Interface
-    /*axis_meta.master    m_axis_udp_metadata,
-    axi_stream.master   m_axis_udp_data,
-    axis_meta.slave     s_axis_udp_metadata,
-    axi_stream.slave    s_axis_udp_data*/
+    axis_meta.master    m_axis_udp_rx_metadata,
+    axi_stream.master   m_axis_udp_rx_data,
+    axis_meta.slave     s_axis_udp_tx_metadata,
+    axi_stream.slave    s_axis_udp_tx_data
     
  );
  
@@ -162,14 +162,21 @@ assign axi_mie_to_intercon_tlast = axis_mie_to_intercon.last;
 axi_stream #(.WIDTH(WIDTH))     axis_arp_to_arp_slice();
 axi_stream #(.WIDTH(64))     axis_icmp_to_icmp_slice(); //TODO
 
+//TCP
 axi_stream #(.WIDTH(WIDTH))     axis_iph_to_toe_slice();
 axi_stream #(.WIDTH(WIDTH))     axis_toe_slice_to_toe();
 
-
+//UDP
 axi_stream #(.WIDTH(WIDTH))     axis_udp_to_udp_slice();
 axi_stream #(.WIDTH(WIDTH))     axis_udp_slice_to_merge();
 axi_stream #(.WIDTH(WIDTH))     axis_iph_to_udp_slice();
 axi_stream #(.WIDTH(WIDTH))     axis_udp_slice_to_udp();
+
+//ROCE
+axi_stream #(.WIDTH(WIDTH))     axis_roce_to_roce_slice();
+axi_stream #(.WIDTH(WIDTH))     axis_roce_slice_to_merge();
+axi_stream #(.WIDTH(WIDTH))     axis_iph_to_roce_slice();
+axi_stream #(.WIDTH(WIDTH))     axis_roce_slice_to_udp();
 
 
 /*assign roce_received = (axi_iph_to_udp_slice_tvalid & axi_iph_to_udp_slice_tready);
@@ -559,6 +566,100 @@ toe_ip toe_inst (
  .debug()
  );
 
+/*
+ * UDP/IP
+ */
+
+axis_meta #(.WIDTH(48))         axis_ip_to_udp_meta();
+axis_meta #(.WIDTH(48))         axis_udp_to_ip_meta();
+
+axi_stream #(.WIDTH(WIDTH))       axis_ip_to_udp_data();
+axi_stream #(.WIDTH(WIDTH))       axis_udp_to_ip_data();
+
+/*axis_meta #(.WIDTH(176))        s_axis_udp_metadata();
+axis_meta #(.WIDTH(176))        m_axis_udp_metadata();
+
+axi_stream #(.WIDTH(WIDTH))      s_axis_udp_data();
+axi_stream #(.WIDTH(WIDTH))      m_axis_udp_data();*/
+ 
+ 
+ipv4_ip ipv4_inst (
+   .local_ipv4_address_V(local_ip_address[31:0]),    // input wire [31 : 0] local_ipv4_address_V
+   //RX
+   .s_axis_rx_data_TVALID(axis_udp_slice_to_udp.valid),  // input wire s_axis_rx_data_TVALID
+   .s_axis_rx_data_TREADY(axis_udp_slice_to_udp.ready),  // output wire s_axis_rx_data_TREADY
+   .s_axis_rx_data_TDATA(axis_udp_slice_to_udp.data),    // input wire [63 : 0] s_axis_rx_data_TDATA
+   .s_axis_rx_data_TKEEP(axis_udp_slice_to_udp.keep),    // input wire [7 : 0] s_axis_rx_data_TKEEP
+   .s_axis_rx_data_TLAST(axis_udp_slice_to_udp.last),    // input wire [0 : 0] s_axis_rx_data_TLAST
+   .m_axis_rx_meta_TVALID(axis_ip_to_udp_meta.valid),  // output wire m_axis_rx_meta_TVALID
+   .m_axis_rx_meta_TREADY(axis_ip_to_udp_meta.ready),  // input wire m_axis_rx_meta_TREADY
+   .m_axis_rx_meta_TDATA(axis_ip_to_udp_meta.data),    // output wire [47 : 0] m_axis_rx_meta_TDATA
+   .m_axis_rx_data_TVALID(axis_ip_to_udp_data.valid),  // output wire m_axis_rx_data_TVALID
+   .m_axis_rx_data_TREADY(axis_ip_to_udp_data.ready),  // input wire m_axis_rx_data_TREADY
+   .m_axis_rx_data_TDATA(axis_ip_to_udp_data.data),    // output wire [63 : 0] m_axis_rx_data_TDATA
+   .m_axis_rx_data_TKEEP(axis_ip_to_udp_data.keep),    // output wire [7 : 0] m_axis_rx_data_TKEEP
+   .m_axis_rx_data_TLAST(axis_ip_to_udp_data.last),    // output wire [0 : 0] m_axis_rx_data_TLAST
+   //TX
+   .s_axis_tx_meta_TVALID(axis_udp_to_ip_meta.valid),  // input wire s_axis_tx_meta_TVALID
+   .s_axis_tx_meta_TREADY(axis_udp_to_ip_meta.ready),  // output wire s_axis_tx_meta_TREADY
+   .s_axis_tx_meta_TDATA(axis_udp_to_ip_meta.data),    // input wire [47 : 0] s_axis_tx_meta_TDATA
+   .s_axis_tx_data_TVALID(axis_udp_to_ip_data.valid),  // input wire s_axis_tx_data_TVALID
+   .s_axis_tx_data_TREADY(axis_udp_to_ip_data.ready),  // output wire s_axis_tx_data_TREADY
+   .s_axis_tx_data_TDATA(axis_udp_to_ip_data.data),    // input wire [63 : 0] s_axis_tx_data_TDATA
+   .s_axis_tx_data_TKEEP(axis_udp_to_ip_data.keep),    // input wire [7 : 0] s_axis_tx_data_TKEEP
+   .s_axis_tx_data_TLAST(axis_udp_to_ip_data.last),    // input wire [0 : 0] s_axis_tx_data_TLAST
+   .m_axis_tx_data_TVALID(axis_udp_to_udp_slice.valid),  // output wire m_axis_tx_data_TVALID
+   .m_axis_tx_data_TREADY(axis_udp_to_udp_slice.ready),  // input wire m_axis_tx_data_TREADY
+   .m_axis_tx_data_TDATA(axis_udp_to_udp_slice.data),    // output wire [63 : 0] m_axis_tx_data_TDATA
+   .m_axis_tx_data_TKEEP(axis_udp_to_udp_slice.keep),    // output wire [7 : 0] m_axis_tx_data_TKEEP
+   .m_axis_tx_data_TLAST(axis_udp_to_udp_slice.last),    // output wire [0 : 0] m_axis_tx_data_TLAST
+ 
+   .aclk(net_clk),                                    // input wire aclk
+   .aresetn(net_aresetn)                              // input wire aresetn
+ );
+ 
+ udp_ip udp_inst (
+   //.reg_ip_address_V(udp_ip_address),                  // input wire [127 : 0] reg_ip_address_V
+   .reg_listen_port_V(16'h8000),
+   //RX
+   .s_axis_rx_meta_TVALID(axis_ip_to_udp_meta.valid),
+   .s_axis_rx_meta_TREADY(axis_ip_to_udp_meta.ready),
+   .s_axis_rx_meta_TDATA(axis_ip_to_udp_meta.data),
+   .s_axis_rx_data_TVALID(axis_ip_to_udp_data.valid),        // input wire s_axis_rx_data_TVALID
+   .s_axis_rx_data_TREADY(axis_ip_to_udp_data.ready),        // output wire s_axis_rx_data_TREADY
+   .s_axis_rx_data_TDATA(axis_ip_to_udp_data.data),          // input wire [63 : 0] s_axis_rx_data_TDATA
+   .s_axis_rx_data_TKEEP(axis_ip_to_udp_data.keep),          // input wire [7 : 0] s_axis_rx_data_TKEEP
+   .s_axis_rx_data_TLAST(axis_ip_to_udp_data.last),          // input wire [0 : 0] s_axis_rx_data_TLAST
+   .m_axis_rx_meta_TVALID(m_axis_udp_rx_metadata.valid),        // output wire m_axis_rx_meta_TVALID
+   .m_axis_rx_meta_TREADY(m_axis_udp_rx_metadata.ready),        // input wire m_axis_rx_meta_TREADY
+   .m_axis_rx_meta_TDATA(m_axis_udp_rx_metadata.data),          // output wire [159 : 0] m_axis_rx_meta_TDATA
+   .m_axis_rx_data_TVALID(m_axis_udp_rx_data.valid),        // output wire m_axis_rx_data_TVALID
+   .m_axis_rx_data_TREADY(m_axis_udp_rx_data.ready),        // input wire m_axis_rx_data_TREADY
+   .m_axis_rx_data_TDATA(m_axis_udp_rx_data.data),          // output wire [63 : 0] m_axis_rx_data_TDATA
+   .m_axis_rx_data_TKEEP(m_axis_udp_rx_data.keep),          // output wire [7 : 0] m_axis_rx_data_TKEEP
+   .m_axis_rx_data_TLAST(m_axis_udp_rx_data.last),          // output wire [0 : 0] m_axis_rx_data_TLAST
+   //TX
+   .s_axis_tx_meta_TVALID(s_axis_udp_tx_metadata.valid),
+   .s_axis_tx_meta_TREADY(s_axis_udp_tx_metadata.ready),
+   .s_axis_tx_meta_TDATA(s_axis_udp_tx_metadata.data),
+   .s_axis_tx_data_TVALID(s_axis_udp_tx_data.valid),        // input wire s_axis_tx_data_TVALID
+   .s_axis_tx_data_TREADY(s_axis_udp_tx_data.ready),        // output wire s_axis_tx_data_TREADY
+   .s_axis_tx_data_TDATA(s_axis_udp_tx_data.data),          // input wire [63 : 0] s_axis_tx_data_TDATA
+   .s_axis_tx_data_TKEEP(s_axis_udp_tx_data.keep),          // input wire [7 : 0] s_axis_tx_data_TKEEP
+   .s_axis_tx_data_TLAST(s_axis_udp_tx_data.last),          // input wire [0 : 0] s_axis_tx_data_TLAST
+   .m_axis_tx_meta_TVALID(axis_udp_to_ip_meta.valid),        // input wire m_axis_tx_meta_TVALID
+   .m_axis_tx_meta_TREADY(axis_udp_to_ip_meta.ready),        // output wire m_axis_tx_meta_TREADY
+   .m_axis_tx_meta_TDATA(axis_udp_to_ip_meta.data),          // input wire [159 : 0] m_axis_tx_meta_TDATA
+   .m_axis_tx_data_TVALID(axis_udp_to_ip_data.valid),        // output wire m_axis_tx_data_TVALID
+   .m_axis_tx_data_TREADY(axis_udp_to_ip_data.ready),        // input wire m_axis_tx_data_TREADY
+   .m_axis_tx_data_TDATA(axis_udp_to_ip_data.data),          // output wire [63 : 0] m_axis_tx_data_TDATA
+   .m_axis_tx_data_TKEEP(axis_udp_to_ip_data.keep),          // output wire [7 : 0] m_axis_tx_data_TKEEP
+   .m_axis_tx_data_TLAST(axis_udp_to_ip_data.last),          // output wire [0 : 0] m_axis_tx_data_TLAST
+ 
+   .aclk(net_clk),                                          // input wire aclk
+   .aresetn(net_aresetn)                                    // input wire aresetn
+ );
+
 
 /*
  * Test Dropper
@@ -715,47 +816,53 @@ end
 endgenerate
  
 ip_handler_ip ip_handler_inst (
-.m_axis_ARP_TVALID(axis_iph_to_arp_slice.valid), // output AXI4Stream_M_TVALID
-.m_axis_ARP_TREADY(axis_iph_to_arp_slice.ready), // input AXI4Stream_M_TREADY
-.m_axis_ARP_TDATA(axis_iph_to_arp_slice.data), // output [63 : 0] AXI4Stream_M_TDATA
-.m_axis_ARP_TKEEP(axis_iph_to_arp_slice.keep), // output [7 : 0] AXI4Stream_M_TSTRB
-.m_axis_ARP_TLAST(axis_iph_to_arp_slice.last), // output [0 : 0] AXI4Stream_M_TLAST
+.m_axis_arp_TVALID(axis_iph_to_arp_slice.valid), // output AXI4Stream_M_TVALID
+.m_axis_arp_TREADY(axis_iph_to_arp_slice.ready), // input AXI4Stream_M_TREADY
+.m_axis_arp_TDATA(axis_iph_to_arp_slice.data), // output [63 : 0] AXI4Stream_M_TDATA
+.m_axis_arp_TKEEP(axis_iph_to_arp_slice.keep), // output [7 : 0] AXI4Stream_M_TSTRB
+.m_axis_arp_TLAST(axis_iph_to_arp_slice.last), // output [0 : 0] AXI4Stream_M_TLAST
 
-.m_axis_ICMP_TVALID(axis_iph_to_icmp_slice.valid), // output AXI4Stream_M_TVALID
-.m_axis_ICMP_TREADY(axis_iph_to_icmp_slice.ready), // input AXI4Stream_M_TREADY
-.m_axis_ICMP_TDATA(axis_iph_to_icmp_slice.data), // output [63 : 0] AXI4Stream_M_TDATA
-.m_axis_ICMP_TKEEP(axis_iph_to_icmp_slice.keep), // output [7 : 0] AXI4Stream_M_TSTRB
-.m_axis_ICMP_TLAST(axis_iph_to_icmp_slice.last), // output [0 : 0] AXI4Stream_M_TLAST
+.m_axis_icmp_TVALID(axis_iph_to_icmp_slice.valid), // output AXI4Stream_M_TVALID
+.m_axis_icmp_TREADY(axis_iph_to_icmp_slice.ready), // input AXI4Stream_M_TREADY
+.m_axis_icmp_TDATA(axis_iph_to_icmp_slice.data), // output [63 : 0] AXI4Stream_M_TDATA
+.m_axis_icmp_TKEEP(axis_iph_to_icmp_slice.keep), // output [7 : 0] AXI4Stream_M_TSTRB
+.m_axis_icmp_TLAST(axis_iph_to_icmp_slice.last), // output [0 : 0] AXI4Stream_M_TLAST
 
-.m_axis_ICMPv6_TVALID(axis_iph_to_icmpv6_slice.valid),
-.m_axis_ICMPv6_TREADY(axis_iph_to_icmpv6_slice.ready),
-.m_axis_ICMPv6_TDATA(axis_iph_to_icmpv6_slice.data),
-.m_axis_ICMPv6_TKEEP(axis_iph_to_icmpv6_slice.keep),
-.m_axis_ICMPv6_TLAST(axis_iph_to_icmpv6_slice.last),
+.m_axis_icmpv6_TVALID(axis_iph_to_icmpv6_slice.valid),
+.m_axis_icmpv6_TREADY(axis_iph_to_icmpv6_slice.ready),
+.m_axis_icmpv6_TDATA(axis_iph_to_icmpv6_slice.data),
+.m_axis_icmpv6_TKEEP(axis_iph_to_icmpv6_slice.keep),
+.m_axis_icmpv6_TLAST(axis_iph_to_icmpv6_slice.last),
 
-.m_axis_IPv6UDP_TVALID(axis_iph_to_rocev6_slice.valid),
-.m_axis_IPv6UDP_TREADY(axis_iph_to_rocev6_slice.ready),
-.m_axis_IPv6UDP_TDATA(axis_iph_to_rocev6_slice.data), 
-.m_axis_IPv6UDP_TKEEP(axis_iph_to_rocev6_slice.keep),
-.m_axis_IPv6UDP_TLAST(axis_iph_to_rocev6_slice.last),
+.m_axis_ipv6udp_TVALID(axis_iph_to_rocev6_slice.valid),
+.m_axis_ipv6udp_TREADY(axis_iph_to_rocev6_slice.ready),
+.m_axis_ipv6udp_TDATA(axis_iph_to_rocev6_slice.data), 
+.m_axis_ipv6udp_TKEEP(axis_iph_to_rocev6_slice.keep),
+.m_axis_ipv6udp_TLAST(axis_iph_to_rocev6_slice.last),
 
-.m_axis_UDP_TVALID(axis_iph_to_udp_slice.valid),          // output AXI4Stream_M_TVALID
-.m_axis_UDP_TREADY(axis_iph_to_udp_slice.ready),          // input AXI4Stream_M_TREADY
-.m_axis_UDP_TDATA(axis_iph_to_udp_slice.data),            // output [63 : 0] AXI4Stream_M_TDATA
-.m_axis_UDP_TKEEP(axis_iph_to_udp_slice.keep),            // output [7 : 0] AXI4Stream_M_TSTRB
-.m_axis_UDP_TLAST(axis_iph_to_udp_slice.last),            // output [0 : 0]  
+.m_axis_udp_TVALID(axis_iph_to_udp_slice.valid),
+.m_axis_udp_TREADY(axis_iph_to_udp_slice.ready),
+.m_axis_udp_TDATA(axis_iph_to_udp_slice.data),
+.m_axis_udp_TKEEP(axis_iph_to_udp_slice.keep),
+.m_axis_udp_TLAST(axis_iph_to_udp_slice.last),
 
-.m_axis_TCP_TVALID(axis_iph_to_toe_slice.valid), // output AXI4Stream_M_TVALID
-.m_axis_TCP_TREADY(axis_iph_to_toe_slice.ready), // input AXI4Stream_M_TREADY
-.m_axis_TCP_TDATA(axis_iph_to_toe_slice.data), // output [63 : 0] AXI4Stream_M_TDATA
-.m_axis_TCP_TKEEP(axis_iph_to_toe_slice.keep), // output [7 : 0] AXI4Stream_M_TSTRB
-.m_axis_TCP_TLAST(axis_iph_to_toe_slice.last), // output [0 : 0] AXI4Stream_M_TLAST
+.m_axis_tcp_TVALID(axis_iph_to_toe_slice.valid),
+.m_axis_tcp_TREADY(axis_iph_to_toe_slice.ready),
+.m_axis_tcp_TDATA(axis_iph_to_toe_slice.data),
+.m_axis_tcp_TKEEP(axis_iph_to_toe_slice.keep),
+.m_axis_tcp_TLAST(axis_iph_to_toe_slice.last),
 
-.s_axis_raw_TVALID(axis_slice_to_ibh.valid), // input AXI4Stream_S_TVALID
-.s_axis_raw_TREADY(axis_slice_to_ibh.ready), // output AXI4Stream_S_TREADY
-.s_axis_raw_TDATA(axis_slice_to_ibh.data), // input [63 : 0] AXI4Stream_S_TDATA
-.s_axis_raw_TKEEP(axis_slice_to_ibh.keep), // input [7 : 0] AXI4Stream_S_TSTRB
-.s_axis_raw_TLAST(axis_slice_to_ibh.last), // input [0 : 0] AXI4Stream_S_TLAST
+.m_axis_roce_TVALID(axis_iph_to_roce_slice.valid),
+.m_axis_roce_TREADY(axis_iph_to_roce_slice.ready),
+.m_axis_roce_TDATA(axis_iph_to_roce_slice.data),
+.m_axis_roce_TKEEP(axis_iph_to_roce_slice.keep),
+.m_axis_roce_TLAST(axis_iph_to_roce_slice.last),
+
+.s_axis_raw_TVALID(axis_slice_to_ibh.valid),
+.s_axis_raw_TREADY(axis_slice_to_ibh.ready),
+.s_axis_raw_TDATA(axis_slice_to_ibh.data),
+.s_axis_raw_TKEEP(axis_slice_to_ibh.keep),
+.s_axis_raw_TLAST(axis_slice_to_ibh.last),
 
 .myIpAddress_V(iph_ip_address),
 
@@ -834,7 +941,7 @@ eth_encode_ip eth_encode_inst (
 generate
 if (WIDTH==64) begin
 // merges icmp and tcp
-axis_interconnect_3to1 ip_merger (
+axis_interconnect_4to1 ip_merger (
   .ACLK(net_clk),                                  // input wire ACLK
   .ARESETN(aresetn_reg),                            // input wire ARESETN
   .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
@@ -861,6 +968,12 @@ axis_interconnect_3to1 ip_merger (
   .S02_AXIS_TDATA(axis_toe_to_toe_slice.data),              // input wire [63 : 0] S02_AXIS_TDATA
   .S02_AXIS_TKEEP(axis_toe_to_toe_slice.keep),              // input wire [7 : 0] S02_AXIS_TKEEP
   .S02_AXIS_TLAST(axis_toe_to_toe_slice.last),              // input wire S02_AXIS_TLAST
+
+  .S03_AXIS_TVALID(axis_roce_slice_to_merge.valid),            // input wire S01_AXIS_TVALID
+  .S03_AXIS_TREADY(axis_roce_slice_to_merge.ready),            // output wire S01_AXIS_TREADY
+  .S03_AXIS_TDATA(axis_roce_slice_to_merge.data),              // input wire [63 : 0] S01_AXIS_TDATA
+  .S03_AXIS_TKEEP(axis_roce_slice_to_merge.keep),              // input wire [7 : 0] S01_AXIS_TKEEP
+  .S03_AXIS_TLAST(axis_roce_slice_to_merge.last),              // input wire S01_AXIS_TLAST
 
   .M00_AXIS_ACLK(net_clk),                // input wire M00_AXIS_ACLK
   .M00_AXIS_ARESETN(aresetn_reg),          // input wire M00_AXIS_ARESETN
@@ -932,7 +1045,7 @@ axis_64_to_512_converter icmp_out_data_converter (
   .m_axis_tlast(axis_icmp_slice_to_merge.last),
   .m_axis_tdest()
 );
-axis_interconnect_512_3to1 ip_merger (
+axis_interconnect_512_4to1 ip_merger (
   .ACLK(net_clk),                                  // input wire ACLK
   .ARESETN(aresetn_reg),                            // input wire ARESETN
   .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
@@ -959,6 +1072,12 @@ axis_interconnect_512_3to1 ip_merger (
   .S02_AXIS_TDATA(axis_toe_to_toe_slice.data),              // input wire [63 : 0] S02_AXIS_TDATA
   .S02_AXIS_TKEEP(axis_toe_to_toe_slice.keep),              // input wire [7 : 0] S02_AXIS_TKEEP
   .S02_AXIS_TLAST(axis_toe_to_toe_slice.last),              // input wire S02_AXIS_TLAST
+
+  .S03_AXIS_TVALID(axis_roce_slice_to_merge.valid),            // input wire S01_AXIS_TVALID
+  .S03_AXIS_TREADY(axis_roce_slice_to_merge.ready),            // output wire S01_AXIS_TREADY
+  .S03_AXIS_TDATA(axis_roce_slice_to_merge.data),              // input wire [63 : 0] S01_AXIS_TDATA
+  .S03_AXIS_TKEEP(axis_roce_slice_to_merge.keep),              // input wire [7 : 0] S01_AXIS_TKEEP
+  .S03_AXIS_TLAST(axis_roce_slice_to_merge.last),              // input wire S01_AXIS_TLAST
 
   .M00_AXIS_ACLK(net_clk),                // input wire M00_AXIS_ACLK
   .M00_AXIS_ARESETN(aresetn_reg),          // input wire M00_AXIS_ARESETN
@@ -1284,6 +1403,36 @@ axis_register_slice_64 axis_register_toe_in_slice(
 .m_axis_tkeep(axis_toe_slice_to_toe.keep),
 .m_axis_tlast(axis_toe_slice_to_toe.last)
 );
+ // ROCE Input Slice
+axis_register_slice_64 axis_register_roce_in_slice(
+.aclk(net_clk),
+.aresetn(aresetn_reg),
+.s_axis_tvalid(axis_iph_to_roce_slice.valid),
+.s_axis_tready(axis_iph_to_roce_slice.ready),
+.s_axis_tdata(axis_iph_to_roce_slice.data),
+.s_axis_tkeep(axis_iph_to_roce_slice.keep),
+.s_axis_tlast(axis_iph_to_roce_slice.last),
+.m_axis_tvalid(axis_roce_slice_to_roce.valid),
+.m_axis_tready(axis_roce_slice_to_roce.ready),
+.m_axis_tdata(axis_roce_slice_to_roce.data),
+.m_axis_tkeep(axis_roce_slice_to_roce.keep),
+.m_axis_tlast(axis_roce_slice_to_roce.last)
+);
+// ROCE Output Slice
+axis_register_slice_64 axis_register_roce_out_slice(
+.aclk(net_clk),
+.aresetn(aresetn_reg),
+.s_axis_tvalid(axis_roce_to_roce_slice.valid),
+.s_axis_tready(axis_roce_to_roce_slice.ready),
+.s_axis_tdata(axis_roce_to_roce_slice.data),
+.s_axis_tkeep(axis_roce_to_roce_slice.keep),
+.s_axis_tlast(axis_roce_to_roce_slice.last),
+.m_axis_tvalid(axis_roce_slice_to_merge.valid),
+.m_axis_tready(axis_roce_slice_to_merge.ready),
+.m_axis_tdata(axis_roce_slice_to_merge.data),
+.m_axis_tkeep(axis_roce_slice_to_merge.keep),
+.m_axis_tlast(axis_roce_slice_to_merge.last)
+);
 end
 if (WIDTH==512) begin
 axis_register_slice_512 axis_register_arp_in_slice(
@@ -1360,6 +1509,36 @@ axis_register_slice_512 axis_register_toe_in_slice(
 .m_axis_tdata(axis_toe_slice_to_toe.data),
 .m_axis_tkeep(axis_toe_slice_to_toe.keep),
 .m_axis_tlast(axis_toe_slice_to_toe.last)
+);
+// ROCE Input Slice
+axis_register_slice_512 axis_register_roce_in_slice(
+.aclk(net_clk),
+.aresetn(aresetn_reg),
+.s_axis_tvalid(axis_iph_to_roce_slice.valid),
+.s_axis_tready(axis_iph_to_roce_slice.ready),
+.s_axis_tdata(axis_iph_to_roce_slice.data),
+.s_axis_tkeep(axis_iph_to_roce_slice.keep),
+.s_axis_tlast(axis_iph_to_roce_slice.last),
+.m_axis_tvalid(axis_roce_slice_to_roce.valid),
+.m_axis_tready(axis_roce_slice_to_roce.ready),
+.m_axis_tdata(axis_roce_slice_to_roce.data),
+.m_axis_tkeep(axis_roce_slice_to_roce.keep),
+.m_axis_tlast(axis_roce_slice_to_roce.last)
+);
+// ROCE Output Slice
+axis_register_slice_512 axis_register_roce_out_slice(
+.aclk(net_clk),
+.aresetn(aresetn_reg),
+.s_axis_tvalid(axis_roce_to_roce_slice.valid),
+.s_axis_tready(axis_roce_to_roce_slice.ready),
+.s_axis_tdata(axis_roce_to_roce_slice.data),
+.s_axis_tkeep(axis_roce_to_roce_slice.keep),
+.s_axis_tlast(axis_roce_to_roce_slice.last),
+.m_axis_tvalid(axis_roce_slice_to_merge.valid),
+.m_axis_tready(axis_roce_slice_to_merge.ready),
+.m_axis_tdata(axis_roce_slice_to_merge.data),
+.m_axis_tkeep(axis_roce_slice_to_merge.keep),
+.m_axis_tlast(axis_roce_slice_to_merge.last)
 );
 end
 endgenerate
