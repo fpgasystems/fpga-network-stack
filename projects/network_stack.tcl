@@ -34,10 +34,6 @@ create_ip -name mac_ip_encode -vendor ethz.systems.fpga -library hls -version 2.
 generate_target {instantiation_template} [get_files $device_ip_dir/mac_ip_encode_ip/mac_ip_encode_ip.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name ethernet_frame_padding -vendor ethz.systems.fpga -library hls -version 0.1 -module_name ethernet_frame_padding_ip -dir $device_ip_dir
-generate_target {instantiation_template} [get_files $device_ip_dir/ethernet_frame_padding_ip/ethernet_frame_padding_ip.xci]
-update_compile_order -fileset sources_1
-
 create_ip -name icmp_server -vendor xilinx.labs -library hls -version 1.67 -module_name icmp_server_ip -dir $device_ip_dir
 generate_target {instantiation_template} [get_files $device_ip_dir/icmp_server_ip/icmp_server_ip.xci]
 update_compile_order -fileset sources_1

@@ -7,7 +7,12 @@ project(network-stack-example)
 # Include custom Find<Module>.cmake scripts to enable searching for Vivado HLS                                
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)  
 
-if (NOT DEFINED ENV{IPREPO_DIR})
+# Check if parent directory
+get_directory_property(hasParent PARENT_DIRECTORY)
+
+if (DEFINED ENV{IPREPO_DIR})
+   set(IPREPO_DIR $ENV{IPREPO_DIR})
+elseif (NOT IPREPO_DIR)
    set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo)
    message("set iprepor dir ${IPREPO_DIR}")
 endif()
@@ -27,7 +32,6 @@ endif()
 add_subdirectory(hls/arp_server_subnet)
 add_subdirectory(hls/dhcp_client)
 add_subdirectory(hls/echo_server_application)
-add_subdirectory(hls/ethernet_frame_padding)
 add_subdirectory(hls/icmp_server)
 add_subdirectory(hls/iperf_client)
 add_subdirectory(hls/iperf_udp_client)
@@ -36,26 +40,29 @@ add_subdirectory(hls/ipv4)
 add_subdirectory(hls/mac_ip_encode)
 add_subdirectory(hls/toe)
 add_subdirectory(hls/udp)
-
-
-#Vivado Project
-
-
-# Find Xilinx Vivado
-find_package(Vivado REQUIRED)
-if (NOT VIVADO_FOUND)
-   message(FATAL_ERROR "Vivado not found.")
+if (NOT hasParent)
+   add_subdirectory(hls/ethernet_frame_padding)
 endif()
 
-configure_file(${CMAKE_SOURCE_DIR}/projects/create_project.tcl.in create_project.tcl)
+#Vivado Project (create only if no parent)
+if (NOT hasParent)
 
-set (PROJECT_DEPENDS
-      ${CMAKE_SOURCE_DIR}/rtl/common/network_stack.v
-      ${CMAKE_SOURCE_DIR}/projects/create_project.tcl.in
-      ${CMAKE_SOURCE_DIR}/projects/network_stack.tcl)
+   # Find Xilinx Vivado
+   find_package(Vivado REQUIRED)
+   if (NOT VIVADO_FOUND)
+      message(FATAL_ERROR "Vivado not found.")
+   endif()
 
-add_custom_target(project
-   COMMAND ${VIVADO_BINARY} -mode batch -source create_project.tcl
-   DEPENDS ${PROJECT_DEPENDS})
+   configure_file(${CMAKE_SOURCE_DIR}/projects/create_project.tcl.in create_project.tcl)
+
+   set (PROJECT_DEPENDS
+        ${CMAKE_SOURCE_DIR}/rtl/common/network_stack.v
+        ${CMAKE_SOURCE_DIR}/projects/create_project.tcl.in
+        ${CMAKE_SOURCE_DIR}/projects/network_stack.tcl)
+
+   add_custom_target(project
+     COMMAND ${VIVADO_BINARY} -mode batch -source create_project.tcl
+     DEPENDS ${PROJECT_DEPENDS})
+endif()
 
 # add_dependencies(project ip)

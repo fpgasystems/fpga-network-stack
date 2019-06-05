@@ -64,7 +64,7 @@ set(EXAMPLE_HLS_DEPENDS
 
 
 #Setup HLS custom targets
-set(HLS_TARGETS synthesis csim ip)
+set(HLS_TARGETS synthesis csim ip installip)
 
 foreach (target ${HLS_TARGETS})
    if (NOT TARGET ${target})
@@ -79,6 +79,7 @@ endforeach()
 
 #target dependencies
 add_dependencies(ip.${PROJECT_NAME} synthesis.${PROJECT_NAME})
+add_dependencies(installip.${PROJECT_NAME} ip.${PROJECT_NAME})
 
 # Installation
 if (DEFINED ENV{IPREPO_DIR})
@@ -86,6 +87,6 @@ if (DEFINED ENV{IPREPO_DIR})
 elseif(NOT  IPREPO_DIR)
    set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo/)
 endif()
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip/
-   DESTINATION ${IPREPO_DIR}/${PROJECT_NAME}/)
+#install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip/
+#   DESTINATION ${IPREPO_DIR}/${PROJECT_NAME}/)
                                    
