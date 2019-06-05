@@ -37,6 +37,7 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 #pragma HLS pipeline II=1
 
 	static ipv4Header<WIDTH> header;
+	static ap_uint<4> headerWordsDropped = 0;
 	static bool metaWritten = false;
 
 	net_axis<WIDTH> currWord;
@@ -51,15 +52,18 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 			dataOut.write(currWord);
 			if (!metaWritten)
 			{
-				process2dropLengthFifo.write(header.getHeaderLength()-4);
+				process2dropLengthFifo.write(header.getHeaderLength() - headerWordsDropped);
 				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength()));
 				metaWritten = true;
 			}
 		}
+
+		headerWordsDropped += (WIDTH/32);
 		if (currWord.last)
 		{
 			metaWritten = false;
 			header.clear();
+			headerWordsDropped = 0;
 		}
 	}
 }
@@ -72,7 +76,7 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-	enum fsmStateType {META, DROP, BODY, SHIFT, LAST};
+	enum fsmStateType {META, DROP, BODY, SHIFT, LAST, SHIFT_FIVE, LAST_FIVE};
 	static fsmStateType doh_state = META;
 	static ap_uint<4> length;
 
@@ -87,14 +91,30 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		if (!process2dropLengthFifo.empty() && !process2dropFifo.empty())
 		{
 			process2dropLengthFifo.read(length);
-			if (length > 1)
+			//Handle differently depending on AXI bus width. TODO 128, 256
+			if (WIDTH == 64)
 			{
-				doh_state = DROP;
+				if (length > 1)
+				{
+					doh_state = DROP;
+				}
+				else
+				{
+					process2dropFifo.read(prevWord);
+					doh_state = SHIFT;
+				}
 			}
-			else
+			if (WIDTH == 512)
 			{
-				process2dropFifo.read(prevWord);
-				doh_state = SHIFT;
+				if (length == 5)
+				{
+					process2dropFifo.read(prevWord);
+					doh_state = SHIFT_FIVE;
+					if (prevWord.last)
+					{
+						doh_state = LAST_FIVE;
+					}
+				}
 			}
 		}
 		break;
@@ -144,11 +164,42 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 			}
 		}
 		break;
+	case SHIFT_FIVE:
+		if (!process2dropFifo.empty())
+		{
+			process2dropFifo.read(currWord);
+			sendWord.data(WIDTH-160-1, 0) = prevWord.data(WIDTH-1, 160);
+			sendWord.keep((WIDTH/8)-20-1, 0) = prevWord.keep((WIDTH/8)-1, 20);
+			sendWord.data(WIDTH-1, WIDTH-160) = currWord.data(160-1, 0);
+			sendWord.keep((WIDTH/8)-1, (WIDTH/8)-20) = currWord.keep(20-1, 0);
+			sendWord.last = (currWord.keep[20] == 0);
+			dataOut.write(sendWord);
+			prevWord = currWord;
+
+			if (sendWord.last)
+			{
+				doh_state = META;
+			}
+			else if (currWord.last)
+			{
+				doh_state = LAST_FIVE;
+			}
+		}
+		break;
 	case LAST:
 		sendWord.data(31, 0) = prevWord.data(63, 32);
 		sendWord.keep(3, 0) = prevWord.keep(7, 4);
 		sendWord.data(63, 32) = 0;
 		sendWord.keep(7, 4) = 0x0;
+		sendWord.last = 0x1;
+		dataOut.write(sendWord);
+		doh_state = META;
+		break;
+	case LAST_FIVE:
+		sendWord.data(WIDTH-160-1, 0) = prevWord.data(WIDTH-1, 160);
+		sendWord.keep((WIDTH/8)-20-1, 0) = prevWord.keep((WIDTH/8)-1, 20);
+		sendWord.data(WIDTH-1, WIDTH-160) = 0;
+		sendWord.keep((WIDTH/8)-1, (WIDTH/8)-20) = 0x0;
 		sendWord.last = 0x1;
 		dataOut.write(sendWord);
 		doh_state = META;
@@ -187,12 +238,18 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setDstAddr(meta.their_address);
 			header.setSrcAddr(local_ipv4_address);
 			header.setProtocol(protocol);
-
-			gi_state = HEADER;
+			if (IPV4_HEADER_SIZE >= WIDTH)
+			{
+				gi_state = HEADER;
+			}
+			else
+			{
+				gi_state = PARTIAL_HEADER;
+			}
 		}
 		break;
 	case HEADER:
-		if (header.consumeWord(currWord.data))
+		if (header.consumeWord(currWord.data) < WIDTH)
 		{
 			/*currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
 			currWord.last = 0;
