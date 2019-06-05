@@ -52,6 +52,7 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 			dataOut.write(currWord);
 			if (!metaWritten)
 			{
+				std::cout << "IP HEADER: src address: " << header.getSrcAddr() << ", length: " << header.getLength() << std::endl;
 				process2dropLengthFifo.write(header.getHeaderLength() - headerWordsDropped);
 				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength()));
 				metaWritten = true;
@@ -147,10 +148,10 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		if (!process2dropFifo.empty())
 		{
 			process2dropFifo.read(currWord);
-			sendWord.data(31, 0) = prevWord.data(63, 32);
-			sendWord.keep(3, 0) = prevWord.keep(7, 4);
-			sendWord.data(63, 32) = currWord.data(31, 0);
-			sendWord.keep(7, 4) = currWord.keep(3, 0);
+			sendWord.data(AXI_WIDTH-32-1, 0) = prevWord.data(AXI_WIDTH-1, 32);
+			sendWord.keep((AXI_WIDTH/8)-4-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 4);
+			sendWord.data(AXI_WIDTH-1, AXI_WIDTH-32) = currWord.data(31, 0);
+			sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-4) = currWord.keep(3, 0);
 			sendWord.last = (currWord.keep[4] == 0);
 			dataOut.write(sendWord);
 			prevWord = currWord;
@@ -187,10 +188,19 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		}
 		break;
 	case LAST:
-		sendWord.data(31, 0) = prevWord.data(63, 32);
-		sendWord.keep(3, 0) = prevWord.keep(7, 4);
-		sendWord.data(63, 32) = 0;
-		sendWord.keep(7, 4) = 0x0;
+		sendWord.data(AXI_WIDTH-32-1, 0) = prevWord.data(AXI_WIDTH-1, 32);
+		sendWord.keep((AXI_WIDTH/8)-4-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 4);
+		sendWord.data(AXI_WIDTH-1, AXI_WIDTH-32) = 0;
+		sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-4) = 0x0;
+		sendWord.last = 0x1;
+		dataOut.write(sendWord);
+		doh_state = META;
+		break;
+	case LAST_FIVE:
+		sendWord.data(AXI_WIDTH-160-1, 0) = prevWord.data(AXI_WIDTH-1, 160);
+		sendWord.keep((AXI_WIDTH/8)-20-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 20);
+		sendWord.data(AXI_WIDTH-1, AXI_WIDTH-160) = 0;
+		sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-20) = 0x0;
 		sendWord.last = 0x1;
 		dataOut.write(sendWord);
 		doh_state = META;

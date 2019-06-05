@@ -35,7 +35,7 @@
 #define IP_VERSION 4
 
 #if IP_VERSION == 6
-//typedef ipv6Meta ipMeta;
+typedef ipv6Meta ipMeta;
 #else
 typedef ipv4Meta ipMeta;
 #endif
