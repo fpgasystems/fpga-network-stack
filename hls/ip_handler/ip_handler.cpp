@@ -40,66 +40,29 @@ void detect_eth_protocol(	hls::stream<net_axis<WIDTH> >&	dataIn,
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
 
-	enum stateType {FIRST, MIDDLE, LAST};
-	static stateType state = FIRST;
 	static ethHeader<WIDTH> header;
-	static net_axis<WIDTH> prevWord;
 	static bool metaWritten = false;
 
-	switch (state)
+	if (!dataIn.empty())
 	{
-	case FIRST:
-		if (!dataIn.empty())
-		{
-			net_axis<WIDTH> word = dataIn.read();
-			header.parseWord(word.data);
-			prevWord = word;
-			state = MIDDLE;
-			if (word.last)
-			{
-				state = LAST;
-			}
-		}
-		break;
-	case MIDDLE:
-		if (!dataIn.empty())
-		{
-			net_axis<WIDTH> word = dataIn.read();
-			header.parseWord(word.data);
-
-			if (!metaWritten)
-			{
-				etherTypeFifo.write(header.getEthertype());
-				std::cout << "ether type: " << std::hex << header.getEthertype() << std::endl;
-				metaWritten = true;
-				if (WIDTH < 128 && header.getEthertype() == ARP)
-				{
-					dataOut.write(prevWord);
-				}
-			}
-			else
-			{
-				dataOut.write(prevWord);
-			}
-			prevWord = word;
-			if (word.last)
-			{
-				state = LAST;
-			}
-		}
-		break;
-	case LAST:
-		if (!metaWritten)
+		net_axis<WIDTH> word = dataIn.read();
+		header.parseWord(word.data);
+		printLE(std::cout, word);
+		std::cout << std::endl;
+		if (header.isReady() && !metaWritten)
 		{
 			etherTypeFifo.write(header.getEthertype());
-			std::cout << "ether type: " << header.getEthertype() << std::endl;
+			std::cout << "ether type: " << std::hex << header.getEthertype() << std::endl;
+			metaWritten = true;
 		}
-		dataOut.write(prevWord);
-		header.clear();
-		metaWritten = false;
-		state = FIRST;
-		break;
-	}//switch
+
+		dataOut.write(word);
+		if (word.last)
+		{
+			header.clear();
+			metaWritten = false;
+		}
+	}
 }
 
 template <int WIDTH>
@@ -126,11 +89,11 @@ void route_by_eth_protocol(	hls::stream<ap_uint<16> >&	etherTypeFifoIn,
 			{
 				ARPdataOut.write(word);
 			}
-			else if (rep_etherType == IPv4)
+			else if (rep_etherType == IPv4 && WIDTH > 64)
 			{
 				IPdataOut.write(word);
 			}
-			else if (rep_etherType == IPv6)
+			else if (rep_etherType == IPv6 && WIDTH > 64)
 			{
 				IPv6dataOut.write(word);
 			}
@@ -203,7 +166,6 @@ void extract_ip_meta(hls::stream<net_axis<WIDTH> >&		dataIn,
 }
 
 
-
 /** 
  *  Reads a packed and its valid flag in, if the packet is valid it is forwarded,
  *  otherwise it is dropped
@@ -236,7 +198,7 @@ void ip_invalid_dropper(hls::stream<net_axis<WIDTH> >&		dataIn,
 			}
 			else
 			{
-				std::cout << "dropping packet" << std::endl;
+				std::cout << "dropping packet, checksum valid: " << validChecksum << ", ip valid: " << validIpAddress << std::endl;
 				ipv4ValidFifoOut.write(false);
 				iid_state = DROP;
 			}
@@ -460,6 +422,7 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 				hls::stream<net_axis<WIDTH> >&		m_axis_ICMP,
 				hls::stream<net_axis<WIDTH> >&		m_axis_UDP,
 				hls::stream<net_axis<WIDTH> >&		m_axis_TCP,
+				hls::stream<net_axis<WIDTH> >&		m_axis_ROCE,
 				ap_uint<32>				myIpAddress)
 {
 	#pragma HLS INLINE
@@ -474,6 +437,7 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 	static hls::stream<net_axis<WIDTH> >		ipDataCheckFifo("ipDataCheckFifo");
 	static hls::stream<net_axis<WIDTH> >		ipDataDropFifo("ipDataDropFifo");
 	static hls::stream<net_axis<WIDTH> >		ipDataCutFifo("ipDataCutFifo");
+	static hls::stream<net_axis<WIDTH> >		udpDataFifo("udpDataFifo");
 	static hls::stream<subSums<WIDTH/16> >		iph_subSumsFifoOut("iph_subSumsFifoOut");
 	static hls::stream<bool>			validChecksumFifo("validChecksumFifo");
 	static hls::stream<bool>			validIpAddressFifo("validIpAddressFifo");
@@ -500,6 +464,7 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 	#pragma HLS STREAM variable=ipDataDropFifo depth=2
 	#pragma HLS STREAM variable=ipDataCutFifo depth=2
 #endif
+	#pragma HLS STREAM variable=udpDataFifo depth=1
 	#pragma HLS STREAM variable=iph_subSumsFifoOut depth=2
 	#pragma HLS STREAM variable=validChecksumFifo depth=4
 	#pragma HLS STREAM variable=validIpAddressFifo depth=32
@@ -510,6 +475,7 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 	#pragma HLS DATA_PACK variable=ipDataDropFifo
 	#pragma HLS DATA_PACK variable=iph_subSumsFifoOut
 	#pragma HLS DATA_PACK variable=ipDataCutFifo
+	#pragma HLS DATA_PACK variable=udpDataFifo
 
 	static hls::stream<net_axis<WIDTH> > ipv6DataFifo("ipv6DataFifo");
 	#pragma HLS STREAM variable=ipv6DataFifo depth=2
@@ -534,19 +500,25 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 
 	cut_length(ipDataDropFifo, ipDataCutFifo);
 
-	detect_ipv4_protocol(ipv4ProtocolFifo, ipv4ValidFifo, ipDataCutFifo, m_axis_ICMP, m_axis_UDP, m_axis_TCP);
+	detect_ipv4_protocol(ipv4ProtocolFifo, ipv4ValidFifo, ipDataCutFifo, m_axis_ICMP, udpDataFifo, m_axis_TCP);
 
 	detect_ipv6_protocol(ipv6DataFifo, m_axis_ICMPv6, m_axis_IPv6UDP);
+
+	// Altough RoCEv2 is using IPv4 & UDP, we cannot parse the IPv4 header here and remove it, due ot the ICRC of RoCE.
+	// The best solution is to duplicate the packet and let the UDP/IP and RoCE stack do filtering according to the port number
+	duplicate_stream(udpDataFifo, m_axis_UDP, m_axis_ROCE);
+
 }
 
 void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
-				hls::stream<net_axis<DATA_WIDTH> >&		m_axis_arp,
-				hls::stream<net_axis<DATA_WIDTH> >&		m_axis_icmpv6,
-				hls::stream<net_axis<DATA_WIDTH> >&		m_axis_ipv6udp,
-				hls::stream<net_axis<DATA_WIDTH> >&		m_axis_icmp,
-				hls::stream<net_axis<DATA_WIDTH> >&		m_axis_udp,
-				hls::stream<net_axis<DATA_WIDTH> >&		m_axis_tcp,
-				ap_uint<32>				myIpAddress)
+					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_arp,
+					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_icmpv6,
+					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_ipv6udp,
+					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_icmp,
+					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_udp,
+					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_tcp,
+					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_roce,
+					ap_uint<32>								myIpAddress)
 {
 	#pragma HLS DATAFLOW
 	#pragma HLS INTERFACE ap_ctrl_none register port=return
@@ -556,13 +528,14 @@ void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
 	#pragma HLS INTERFACE axis port=m_axis_ICMP
 	#pragma HLS INTERFACE axis port=m_axis_UDP
 	#pragma HLS INTERFACE axis port=m_axis_TCP*/ // leads to Combinatorial Loops
-	#pragma  HLS resource core=AXI4Stream variable=s_axis_raw metadata="-bus_bundle s_axis_raw"
-	#pragma  HLS resource core=AXI4Stream variable=m_axis_arp metadata="-bus_bundle m_axis_arp"
-	#pragma  HLS resource core=AXI4Stream variable=m_axis_icmpv6 metadata="-bus_bundle m_axis_icmpv6"
-	#pragma  HLS resource core=AXI4Stream variable=m_axis_ipv6udp metadata="-bus_bundle m_axis_ipv6udp"
-	#pragma  HLS resource core=AXI4Stream variable=m_axis_icmp metadata="-bus_bundle m_axis_icmp"
-	#pragma  HLS resource core=AXI4Stream variable=m_axis_udp metadata="-bus_bundle m_axis_udp"
+	#pragma HLS resource core=AXI4Stream variable=s_axis_raw metadata="-bus_bundle s_axis_raw"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_arp metadata="-bus_bundle m_axis_arp"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_icmpv6 metadata="-bus_bundle m_axis_icmpv6"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_ipv6udp metadata="-bus_bundle m_axis_ipv6udp"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_icmp metadata="-bus_bundle m_axis_icmp"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_udp metadata="-bus_bundle m_axis_udp"
 	#pragma HLS resource core=AXI4Stream variable=m_axis_tcp metadata="-bus_bundle m_axis_tcp"
+	#pragma HLS resource core=AXI4Stream variable=m_axis_roce metadata="-bus_bundle m_axis_roce"
 
 	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 
@@ -573,5 +546,6 @@ void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
                            m_axis_icmp,
                            m_axis_udp,
                            m_axis_tcp,
+						   m_axis_roce,
                            myIpAddress);
 }
