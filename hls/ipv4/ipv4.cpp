@@ -148,10 +148,10 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		if (!process2dropFifo.empty())
 		{
 			process2dropFifo.read(currWord);
-			sendWord.data(AXI_WIDTH-32-1, 0) = prevWord.data(AXI_WIDTH-1, 32);
-			sendWord.keep((AXI_WIDTH/8)-4-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 4);
-			sendWord.data(AXI_WIDTH-1, AXI_WIDTH-32) = currWord.data(31, 0);
-			sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-4) = currWord.keep(3, 0);
+			sendWord.data(WIDTH-32-1, 0) = prevWord.data(WIDTH-1, 32);
+			sendWord.keep((WIDTH/8)-4-1, 0) = prevWord.keep((WIDTH/8)-1, 4);
+			sendWord.data(WIDTH-1, WIDTH-32) = currWord.data(31, 0);
+			sendWord.keep((WIDTH/8)-1, (WIDTH/8)-4) = currWord.keep(3, 0);
 			sendWord.last = (currWord.keep[4] == 0);
 			dataOut.write(sendWord);
 			prevWord = currWord;
@@ -188,24 +188,15 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		}
 		break;
 	case LAST:
-		sendWord.data(AXI_WIDTH-32-1, 0) = prevWord.data(AXI_WIDTH-1, 32);
-		sendWord.keep((AXI_WIDTH/8)-4-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 4);
-		sendWord.data(AXI_WIDTH-1, AXI_WIDTH-32) = 0;
-		sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-4) = 0x0;
+		sendWord.data(WIDTH-32-1, 0) = prevWord.data(WIDTH-1, 32);
+		sendWord.keep((WIDTH/8)-4-1, 0) = prevWord.keep((WIDTH/8)-1, 4);
+		sendWord.data(WIDTH-1, WIDTH-32) = 0;
+		sendWord.keep((WIDTH/8)-1, (WIDTH/8)-4) = 0x0;
 		sendWord.last = 0x1;
 		dataOut.write(sendWord);
 		doh_state = META;
 		break;
-	case LAST_FIVE:
-		sendWord.data(AXI_WIDTH-160-1, 0) = prevWord.data(AXI_WIDTH-1, 160);
-		sendWord.keep((AXI_WIDTH/8)-20-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 20);
-		sendWord.data(AXI_WIDTH-1, AXI_WIDTH-160) = 0;
-		sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-20) = 0x0;
-		sendWord.last = 0x1;
-		dataOut.write(sendWord);
-		doh_state = META;
-		break;
-	case LAST_FIVE:
+		case LAST_FIVE:
 		sendWord.data(WIDTH-160-1, 0) = prevWord.data(WIDTH-1, 160);
 		sendWord.keep((WIDTH/8)-20-1, 0) = prevWord.keep((WIDTH/8)-1, 20);
 		sendWord.data(WIDTH-1, WIDTH-160) = 0;
