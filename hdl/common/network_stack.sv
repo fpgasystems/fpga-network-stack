@@ -117,20 +117,6 @@ axi_stream #(.WIDTH(WIDTH))     axis_iph_to_icmp_slice();
 axi_stream #(.WIDTH(WIDTH))     axis_iph_to_icmpv6_slice();
 axi_stream #(.WIDTH(WIDTH))     axis_iph_to_rocev6_slice();
 
-(* mark_debug = "true" *)wire            axi_iph_to_arp_slice_tvalid;
-(* mark_debug = "true" *)wire            axi_iph_to_arp_slice_tready;
-(* mark_debug = "true" *)wire            axi_iph_to_arp_slice_tlast;
-assign axi_iph_to_arp_slice_tvalid = axis_iph_to_arp_slice.valid;
-assign axi_iph_to_arp_slice_tready = axis_iph_to_arp_slice.ready;
-assign axi_iph_to_arp_slice_tlast = axis_iph_to_arp_slice.last;
-
-(* mark_debug = "true" *)wire            axi_iph_to_udp_slice_tvalid;
-(* mark_debug = "true" *)wire            axi_iph_to_udp_slice_tready;
-(* mark_debug = "true" *)wire            axi_iph_to_udp_slice_tlast;
-assign axi_iph_to_udp_slice_tvalid = axis_iph_to_udp_slice.valid;
-assign axi_iph_to_udp_slice_tready = axis_iph_to_udp_slice.ready;
-assign axi_iph_to_udp_slice_tlast = axis_iph_to_udp_slice.last;
-
 //Slice connections on RX path
 axi_stream #(.WIDTH(WIDTH))     axis_arp_slice_to_arp();
 axi_stream #(.WIDTH(64))     axis_icmp_slice_to_icmp();
@@ -139,24 +125,6 @@ axi_stream #(.WIDTH(WIDTH))     axis_iph_to_toe();
 // MAC-IP Encode Inputs
 axi_stream #(.WIDTH(WIDTH))     axis_intercon_to_mie();
 axi_stream #(.WIDTH(WIDTH))     axis_mie_to_intercon();
-
-(* mark_debug = "true" *)wire            axi_intercon_to_mie_tvalid;
-(* mark_debug = "true" *)wire            axi_intercon_to_mie_tready;
-//wire[63:0]      axi_intercon_to_mie_tdata;
-//wire[7:0]       axi_intercon_to_mie_tkeep;
-(* mark_debug = "true" *)wire            axi_intercon_to_mie_tlast;
-(* mark_debug = "true" *)wire            axi_mie_to_intercon_tvalid;
-(* mark_debug = "true" *)wire            axi_mie_to_intercon_tready;
-//wire[63:0]      axi_mie_to_intercon_tdata;
-//wire[7:0]       axi_mie_to_intercon_tkeep;
-(* mark_debug = "true" *)wire            axi_mie_to_intercon_tlast;
-
-assign axi_intercon_to_mie_tvalid = axis_intercon_to_mie.valid;
-assign axi_intercon_to_mie_tready = axis_intercon_to_mie.ready;
-assign axi_intercon_to_mie_tlast = axis_intercon_to_mie.last;
-assign axi_mie_to_intercon_tvalid = axis_mie_to_intercon.valid;
-assign axi_mie_to_intercon_tready = axis_mie_to_intercon.ready;
-assign axi_mie_to_intercon_tlast = axis_mie_to_intercon.last;
 
 //Slice connections on RX path
 axi_stream #(.WIDTH(WIDTH))     axis_arp_to_arp_slice();
@@ -176,7 +144,7 @@ axi_stream #(.WIDTH(WIDTH))     axis_udp_slice_to_udp();
 axi_stream #(.WIDTH(WIDTH))     axis_roce_to_roce_slice();
 axi_stream #(.WIDTH(WIDTH))     axis_roce_slice_to_merge();
 axi_stream #(.WIDTH(WIDTH))     axis_iph_to_roce_slice();
-axi_stream #(.WIDTH(WIDTH))     axis_roce_slice_to_udp();
+axi_stream #(.WIDTH(WIDTH))     axis_roce_slice_to_roce();
 
 
 /*assign roce_received = (axi_iph_to_udp_slice_tvalid & axi_iph_to_udp_slice_tready);
@@ -208,27 +176,6 @@ axi_stream #(.WIDTH(WIDTH))     axis_toe_to_toe_slice();
 axi_stream #(.WIDTH(WIDTH))   axis_ipv6_to_ethen();
 axi_stream #(.WIDTH(WIDTH))   axis_ethencode_to_intercon();
 
-// TCP Offload SmartCAM signals //
-wire        upd_req_TVALID;
-wire        upd_req_TREADY;
-wire[111:0] upd_req_TDATA; //(1 + 1 + 14 + 96) - 1 = 111
-wire        upd_rsp_TVALID;
-wire        upd_rsp_TREADY;
-wire[15:0]  upd_rsp_TDATA;
-
-wire        ins_req_TVALID;
-wire        ins_req_TREADY;
-wire[111:0] ins_req_TDATA;
-wire        del_req_TVALID;
-wire        del_req_TREADY;
-wire[111:0] del_req_TDATA;
-
-wire        lup_req_TVALID;
-wire        lup_req_TREADY;
-wire[97:0]  lup_req_TDATA; //should be 96, also wrong in SmartCam
-wire        lup_rsp_TVALID;
-wire        lup_rsp_TREADY;
-wire[15:0]  lup_rsp_TDATA;
 // DHCP Client IP address output //
 wire[31:0]  dhcpAddressOut;
 
@@ -315,11 +262,58 @@ assign ip_address_used = iph_ip_address;
 
 
 /*
- * TOE
- */
+ * TCP/IP
+ */ 
+logic       session_count_valid;
+logic[15:0] session_count_data;
+ 
+tcp_stack #(
+     .TCP_EN(0),
+     .WIDTH(WIDTH),
+     .RX_DDR_BYPASS_EN(RX_DDR_BYPASS_EN)
+ ) tcp_stack_inst(
+     .net_clk(net_clk), // input aclk
+     .net_aresetn(aresetn_reg), // input aresetn
+     
+     // streams to network
+     .s_axis_rx_data(axis_toe_slice_to_toe),
+     .m_axis_tx_data(axis_toe_to_toe_slice),
+     
+     // memory cmd streams
+     .m_axis_mem_read_cmd(m_axis_read_cmd),
+     .m_axis_mem_write_cmd(m_axis_write_cmd),
+     // memory sts streams
+     .s_axis_mem_read_sts(s_axis_read_sts),
+     .s_axis_mem_write_sts(s_axis_write_sts),
+     // memory data streams
+     .s_axis_mem_read_data(s_axis_read_data),
+     .m_axis_mem_write_data(m_axis_write_data),
+     
+     //Application
+     .s_axis_listen_port(s_axis_listen_port),
+     .m_axis_listen_port_status(m_axis_listen_port_status),
+     
+     .s_axis_open_connection(s_axis_open_connection),
+     .m_axis_open_status(m_axis_open_status),
+     .s_axis_close_connection(s_axis_close_connection),
+     
+     .m_axis_notifications(m_axis_notifications),
+     .s_axis_read_package(s_axis_read_package),
+     
+     .m_axis_rx_metadata(m_axis_rx_metadata),
+     .m_axis_rx_data(m_axis_rx_data),
+     
+     .s_axis_tx_metadata(s_axis_tx_metadata),
+     .s_axis_tx_data(s_axis_tx_data),
+     .m_axis_tx_status(m_axis_tx_status),
+     
+     .local_ip_address(toe_ip_address),
+     .session_count_valid(session_count_valid),
+     .session_count_data(session_count_data)
+);
  
  //TODO
-logic[15:0] regSessionCount_V;
+/*logic[15:0] regSessionCount_V;
 logic       regSessionCount_V_ap_vld;
 
 generate
@@ -364,7 +358,7 @@ assign m_axis_read_cmd[ddrPortNetworkTx].length = axis_read_cmd_data[ddrPortNetw
 
 
 
-toe_ip toe_inst (
+/*toe_ip toe_inst (
  // Data output
  .m_axis_tcp_data_TVALID(axis_toe_to_toe_slice.valid), // output AXI_M_Stream_TVALID
  .m_axis_tcp_data_TREADY(axis_toe_to_toe_slice.ready), // input AXI_M_Stream_TREADY
@@ -458,7 +452,7 @@ toe_ip toe_inst (
  
  /* Application Interface */
  // listen&close port
- .s_axis_listen_port_req_TVALID(s_axis_listen_port.valid),
+ /*.s_axis_listen_port_req_TVALID(s_axis_listen_port.valid),
  .s_axis_listen_port_req_TREADY(s_axis_listen_port.ready),
  .s_axis_listen_port_req_TDATA(s_axis_listen_port.data),
  .m_axis_listen_port_rsp_TVALID(m_axis_listen_port_status.valid),
@@ -564,13 +558,33 @@ toe_ip toe_inst (
  .upd_rsp_dout(upd_rsp_TDATA),
  
  .debug()
- );
+ );*/
 
 /*
  * UDP/IP
  */
-
-axis_meta #(.WIDTH(48))         axis_ip_to_udp_meta();
+udp_stack #(
+      .UDP_EN(0),
+      .WIDTH(WIDTH)
+  ) udp_stack_inst(
+      .net_clk(net_clk), // input aclk
+      .net_aresetn(aresetn_reg), // input aresetn
+      
+      // streams to network
+      .s_axis_rx_data(axis_udp_slice_to_udp),
+      .m_axis_tx_data(axis_udp_to_udp_slice),
+      
+      // Role
+      .m_axis_udp_rx_metadata(m_axis_udp_rx_metadata),
+      .m_axis_udp_rx_data(m_axis_udp_rx_data),
+      .s_axis_udp_tx_metadata(s_axis_udp_tx_metadata),
+      .s_axis_udp_tx_data(s_axis_udp_tx_data),
+      
+      .local_ip_address(local_ip_address[31:0]),
+      .listen_port(16'h8000)
+      
+);
+/*axis_meta #(.WIDTH(48))         axis_ip_to_udp_meta();
 axis_meta #(.WIDTH(48))         axis_udp_to_ip_meta();
 
 axi_stream #(.WIDTH(WIDTH))       axis_ip_to_udp_data();
@@ -583,8 +597,9 @@ axi_stream #(.WIDTH(WIDTH))      s_axis_udp_data();
 axi_stream #(.WIDTH(WIDTH))      m_axis_udp_data();*/
  
  
-ipv4_ip ipv4_inst (
+/*ipv4_ip ipv4_inst (
    .local_ipv4_address_V(local_ip_address[31:0]),    // input wire [31 : 0] local_ipv4_address_V
+   .protocol_V(8'h11), //UDP_PROTOCOL
    //RX
    .s_axis_rx_data_TVALID(axis_udp_slice_to_udp.valid),  // input wire s_axis_rx_data_TVALID
    .s_axis_rx_data_TREADY(axis_udp_slice_to_udp.ready),  // output wire s_axis_rx_data_TREADY
@@ -658,7 +673,7 @@ ipv4_ip ipv4_inst (
  
    .aclk(net_clk),                                          // input wire aclk
    .aresetn(net_aresetn)                                    // input wire aresetn
- );
+ );*/
 
 
 /*
@@ -723,7 +738,7 @@ roce_stack #(
     //RX
 `ifdef IP_VERSION4
      //IPv4
-    .s_axis_rx_data(axis_udp_slice_to_udp),
+    .s_axis_rx_data(axis_roce_slice_to_roce),
 `else
     //IPv6
     .s_axis_rx_data(axis_iph_to_rocev6_slice),
@@ -736,7 +751,7 @@ roce_stack #(
 `ifdef IP_VERSION4
     // IPv4
 `ifndef ENABLE_DROP 
-    .m_axis_tx_data(axis_udp_to_udp_slice),
+    .m_axis_tx_data(axis_roce_to_roce_slice),
 `else
     .m_axis_tx_data(roce_2_drop),
 `endif
@@ -871,11 +886,11 @@ ip_handler_ip ip_handler_inst (
 );
 
 // ARP lookup
-(* mark_debug = "true" *)wire        axis_arp_lookup_request_TVALID;
-(* mark_debug = "true" *)wire        axis_arp_lookup_request_TREADY;
+wire        axis_arp_lookup_request_TVALID;
+wire        axis_arp_lookup_request_TREADY;
 wire[31:0]  axis_arp_lookup_request_TDATA;
-(* mark_debug = "true" *)wire        axis_arp_lookup_reply_TVALID;
-(* mark_debug = "true" *)wire        axis_arp_lookup_reply_TREADY;
+wire        axis_arp_lookup_reply_TVALID;
+wire        axis_arp_lookup_reply_TREADY;
 wire[55:0]  axis_arp_lookup_reply_TDATA;
 
 mac_ip_encode_ip mac_ip_encode_inst (
@@ -947,9 +962,11 @@ axis_interconnect_4to1 ip_merger (
   .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
   .S01_AXIS_ACLK(net_clk),                // input wire S01_AXIS_ACLK
   .S02_AXIS_ACLK(net_clk),                // input wire S02_AXIS_ACLK
+  .S03_AXIS_ACLK(net_clk),                // input wire S03_AXIS_ACLK
   .S00_AXIS_ARESETN(aresetn_reg),          // input wire S00_AXIS_ARESETN
   .S01_AXIS_ARESETN(aresetn_reg),          // input wire S01_AXIS_ARESETN
   .S02_AXIS_ARESETN(aresetn_reg),          // input wire S02_AXIS_ARESETN
+  .S03_AXIS_ARESETN(aresetn_reg),          // input wire S03_AXIS_ARESETN
   
   .S00_AXIS_TVALID(axis_icmp_to_icmp_slice.valid),            // input wire S00_AXIS_TVALID
   .S00_AXIS_TREADY(axis_icmp_to_icmp_slice.ready),            // output wire S00_AXIS_TREADY
@@ -984,7 +1001,8 @@ axis_interconnect_4to1 ip_merger (
   .M00_AXIS_TLAST(axis_intercon_to_mie.last),              // output wire M00_AXIS_TLAST
   .S00_ARB_REQ_SUPPRESS(1'b0),  // input wire S00_ARB_REQ_SUPPRESS
   .S01_ARB_REQ_SUPPRESS(1'b0),  // input wire S01_ARB_REQ_SUPPRESS
-  .S02_ARB_REQ_SUPPRESS(1'b0)  // input wire S02_ARB_REQ_SUPPRESS
+  .S02_ARB_REQ_SUPPRESS(1'b0),  // input wire S02_ARB_REQ_SUPPRESS
+  .S03_ARB_REQ_SUPPRESS(1'b0)  // input wire S02_ARB_REQ_SUPPRESS
 );
 
 // merges ip and arp
@@ -1051,9 +1069,11 @@ axis_interconnect_512_4to1 ip_merger (
   .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
   .S01_AXIS_ACLK(net_clk),                // input wire S01_AXIS_ACLK
   .S02_AXIS_ACLK(net_clk),                // input wire S02_AXIS_ACLK
+  .S03_AXIS_ACLK(net_clk),                // input wire S03_AXIS_ACLK
   .S00_AXIS_ARESETN(aresetn_reg),          // input wire S00_AXIS_ARESETN
   .S01_AXIS_ARESETN(aresetn_reg),          // input wire S01_AXIS_ARESETN
   .S02_AXIS_ARESETN(aresetn_reg),          // input wire S02_AXIS_ARESETN
+  .S03_AXIS_ARESETN(aresetn_reg),          // input wire S03_AXIS_ARESETN
   
   .S00_AXIS_TVALID(axis_icmp_slice_to_merge.valid),            // input wire S00_AXIS_TVALID
   .S00_AXIS_TREADY(axis_icmp_slice_to_merge.ready),            // output wire S00_AXIS_TREADY
@@ -1088,7 +1108,8 @@ axis_interconnect_512_4to1 ip_merger (
   .M00_AXIS_TLAST(axis_intercon_to_mie.last),              // output wire M00_AXIS_TLAST
   .S00_ARB_REQ_SUPPRESS(1'b0),  // input wire S00_ARB_REQ_SUPPRESS
   .S01_ARB_REQ_SUPPRESS(1'b0),  // input wire S01_ARB_REQ_SUPPRESS
-  .S02_ARB_REQ_SUPPRESS(1'b0)  // input wire S02_ARB_REQ_SUPPRESS
+  .S02_ARB_REQ_SUPPRESS(1'b0),  // input wire S02_ARB_REQ_SUPPRESS
+  .S03_ARB_REQ_SUPPRESS(1'b0)  // input wire S02_ARB_REQ_SUPPRESS
 );
 
 // merges ip and arp
@@ -1820,7 +1841,7 @@ axis_64_to_512_converter roce_write_data_converter (
 end
 if (WIDTH==512) begin
 //TCP Data Path
-assign axis_rxread_data.valid = s_axis_txread_data.valid;
+/*assign axis_rxread_data.valid = s_axis_txread_data.valid;
 assign s_axis_rxread_data.ready = axis_txread_data.ready;
 assign axis_rxread_data.data = s_axis_txread_data.data;
 assign axis_rxread_data.keep = s_axis_txread_data.keep;
@@ -1842,7 +1863,7 @@ assign m_axis_txwrite_data.valid = axis_txwrite_data.valid;
 assign axis_txwrite_data.ready = m_axis_txwrite_data.ready;
 assign m_axis_txwrite_data.data = axis_txwrite_data.data;
 assign m_axis_txwrite_data.keep = axis_txwrite_data.keep;
-assign m_axis_txwrite_data.last = axis_txwrite_data.last;
+assign m_axis_txwrite_data.last = axis_txwrite_data.last;*/
 
 
 //RoCE Data Path
@@ -1890,7 +1911,7 @@ logic[31:0] arp_rx_pkg_counter;
 logic[31:0] arp_tx_pkg_counter;
 
 reg[7:0]  axis_stream_down_counter;
-(* mark_debug = "true" *)reg axis_stream_down;
+reg axis_stream_down;
 reg[7:0]  output_stream_down_counter;
 reg output_stream_down;
 
