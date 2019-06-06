@@ -97,7 +97,7 @@ void generate_udp(	stream<udpMeta>& metaIn,
 			header.setDstPort(meta.their_port);
 			header.setSrcPort(meta.my_port);
 			header.setLength(meta.length);
-			if (UDP_HEADER_SIZE >= AXI_WIDTH)
+			if (UDP_HEADER_SIZE >= WIDTH)
 			{
 				state = HEADER;
 			}
@@ -108,7 +108,7 @@ void generate_udp(	stream<udpMeta>& metaIn,
 		}
 		break;
 	case HEADER:
-		if (header.consumeWord(currWord.data) < AXI_WIDTH)
+		if (header.consumeWord(currWord.data) < WIDTH)
 		{
 			state = PARTIAL_HEADER;
 		}
