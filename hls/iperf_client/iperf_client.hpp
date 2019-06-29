@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ************************************************/
+#include "../axi_utils.hpp"
 #include "../toe/toe.hpp"
 
 using namespace hls;
@@ -44,13 +45,21 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 					stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
 					stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
 					stream<ap_uint<16> >& closeConnection,
-					stream<ap_uint<16> >& txMetaData, stream<axiWord>& txData,
+					stream<appTxMeta>& txMetaData, stream<axiWord>& txData,
 					stream<ap_int<17> >& txStatus,
 					ap_uint<1>		runExperiment,
 					ap_uint<1>		dualModeEn,
 					ap_uint<14>		useConn,
 					ap_uint<8>		pkgWordCount,
+               ap_uint<32>    timeInSeconds,
+               ap_uint<64>    timeInCycles,
 					ap_uint<32>		regIpAddress0,
 					ap_uint<32>		regIpAddress1,
 					ap_uint<32>		regIpAddress2,
-					ap_uint<32>		regIpAddress3);
+					ap_uint<32>		regIpAddress3,
+					ap_uint<32>		regIpAddress4,
+					ap_uint<32>		regIpAddress5,
+					ap_uint<32>		regIpAddress6,
+					ap_uint<32>		regIpAddress7,
+					ap_uint<32>		regIpAddress8,
+					ap_uint<32>		regIpAddress9);

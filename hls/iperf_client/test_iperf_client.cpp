@@ -43,23 +43,34 @@ int main()
 	stream<ipTuple> openConnection("openConnection");
 	stream<openStatus> openConStatus("openConStatus");
 	stream<ap_uint<16> > closeConnection("closeConnection");
-	stream<ap_uint<16> > txMetaData("txMetaData");
+	stream<appTxMeta> txMetaData("txMetaData");
 	stream<axiWord> txData("txData");
 	stream<ap_int<17> > txStatus("txStatus");
 	ap_uint<1> runExperiment;
 	ap_uint<1> dualModeEn;
 	ap_uint<13> useConn;
 	ap_uint<8> pkgWordCount;
+	ap_uint<32>    timeInSeconds;
+	ap_uint<64>    timeInCycles;
+
 	ap_uint<32> ipAddress0 = 0x01010101;
 	ap_uint<32> ipAddress1 = 0x01010102;
 	ap_uint<32> ipAddress2 = 0x01010103;
 	ap_uint<32> ipAddress3 = 0x01010104;
+	ap_uint<32> ipAddress4 = 0x01010101;
+	ap_uint<32> ipAddress5 = 0x01010102;
+	ap_uint<32> ipAddress6 = 0x01010107;
+	ap_uint<32> ipAddress7 = 0x01010108;
+	ap_uint<32> ipAddress8 = 0x01010109;
+	ap_uint<32> ipAddress9 = 0x0101010A;
 
 	ap_uint<16> sessionID;
 	axiWord currWord;
 	int count = 0;
 	dualModeEn = 0;
 	pkgWordCount = 8;
+	timeInSeconds = 10;
+	timeInCycles = 100;
 
 	while (count < 10000)
 	{
@@ -85,10 +96,25 @@ int main()
 						dualModeEn,
 						useConn,
 						pkgWordCount,
+						timeInSeconds,
+						timeInCycles,
 						ipAddress0,
 						ipAddress1,
 						ipAddress2,
-						ipAddress3);
+						ipAddress3,
+						ipAddress4,
+						ipAddress5,
+						ipAddress6,
+						ipAddress7,
+						ipAddress8,
+						ipAddress9);
+
+		if (!listenPort.empty())
+		{
+			ap_uint<16> port = listenPort.read();
+			std::cout << "Port " << port << " openend." << std::endl;
+			listenPortStatus.write(true);
+		}
 
 		if (!openConnection.empty())
 		{
@@ -98,8 +124,8 @@ int main()
 		}
 		if (!txMetaData.empty())
 		{
-			txMetaData.read(sessionID);
-			std::cout << "New Pkg: " << std::dec << sessionID << std::endl;
+			appTxMeta meta = txMetaData.read();
+			std::cout << "New Pkg: " << std::dec << meta.sessionID << ", length[B]: " << meta.length << std::endl;
 		}
 		while (!txData.empty())
 		{
