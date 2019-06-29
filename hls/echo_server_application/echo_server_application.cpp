@@ -32,8 +32,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 void client(	hls::stream<ap_uint<16> >& sessioIdFifo,
 				hls::stream<ap_uint<16> >& lengthFifo,
-				hls::stream<axiWord>& dataFifo,
-				hls::stream<appTxMeta>& txMetaData, hls::stream<axiWord>& txData)
+				hls::stream<net_axis<64> >& dataFifo,
+				hls::stream<appTxMeta>& txMetaData, hls::stream<net_axis<64> >& txData)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -44,7 +44,7 @@ void client(	hls::stream<ap_uint<16> >& sessioIdFifo,
 
 	ap_uint<16> sessionID;
 	ap_uint<16> length;
-	axiWord currWord;
+	net_axis<64> currWord;
 
 	switch (esac_fsmState)
 	{
@@ -164,9 +164,9 @@ void notification_handler(	hls::stream<appNotification>&	notific,
 }
 
 void server(	hls::stream<ap_uint<16> >& rxMetaData,
-				hls::stream<axiWord>& rxData,
+				hls::stream<net_axis<64> >& rxData,
 				hls::stream<ap_uint<16> >& sessioIdFifo,
-				hls::stream<axiWord>& dataFifo)
+				hls::stream<net_axis<64> >& dataFifo)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -176,7 +176,7 @@ void server(	hls::stream<ap_uint<16> >& rxMetaData,
 	static ap_uint<1> ksvs_fsmState = 0;
 
 	ap_uint<16> sessionID;
-	axiWord currWord;
+	net_axis<64> currWord;
 
 	switch (ksvs_fsmState)
 	{
@@ -207,12 +207,12 @@ void echo_server_application(	hls::stream<ap_uint<16> >&		listenPort,
 								hls::stream<appNotification>&	notifications,
 								hls::stream<appReadRequest>&	readRequest,
 								hls::stream<ap_uint<16> >&		rxMetaData,
-								hls::stream<axiWord>&			rxData,
+								hls::stream<net_axis<64> >&			rxData,
 								hls::stream<ipTuple>&			openConnection,
 								hls::stream<openStatus>&		openConStatus,
 								hls::stream<ap_uint<16> >&		closeConnection,
 								hls::stream<appTxMeta>&			txMetaData,
-								hls::stream<axiWord> &			txData,
+								hls::stream<net_axis<64> > &			txData,
 								hls::stream<appTxRsp>&			txStatus)
 {
 	#pragma HLS DATAFLOW
@@ -276,7 +276,7 @@ void echo_server_application(	hls::stream<ap_uint<16> >&		listenPort,
 
 	static hls::stream<ap_uint<16> >		esa_sessionidFifo("esa_sessionidFifo");
 	static hls::stream<ap_uint<16> >		esa_lengthFifo("esa_lengthFifo");
-	static hls::stream<axiWord>			esa_dataFifo("esa_dataFifo");
+	static hls::stream<net_axis<64> >			esa_dataFifo("esa_dataFifo");
 
 #pragma HLS stream variable=esa_sessionidFifo depth=64
 #pragma HLS stream variable=esa_lengthFifo depth=64

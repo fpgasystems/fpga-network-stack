@@ -24,19 +24,21 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "udp_config.hpp"
 #include "udp.hpp"
 
-void process_udp(	stream<axiWord>& input,
+template <int WIDTH>
+void process_udp(	stream<net_axis<WIDTH> >& input,
 					stream<udpMeta>& metaOut,
-					stream<axiWord>& output,
+					stream<net_axis<WIDTH> >& output,
                ap_uint<16>       regListenPort)
 {
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 
-	static udpHeader<AXI_WIDTH> pu_header;
+	static udpHeader<WIDTH> pu_header;
 	static bool metaWritten = false;
-	axiWord currWord;
+	net_axis<WIDTH> currWord;
 
 	if (!input.empty())
 	{
@@ -70,19 +72,20 @@ void process_udp(	stream<axiWord>& input,
 	}
 }
 
+template <int WIDTH>
 void generate_udp(	stream<udpMeta>& metaIn,
-					stream<axiWord>& input,
-					stream<axiWord>& output)
+					stream<net_axis<WIDTH> >& input,
+					stream<net_axis<WIDTH> >& output)
 {
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 
 	enum fsmState {META, HEADER, PARTIAL_HEADER, BODY};
 	static fsmState state = META;
-	static udpHeader<AXI_WIDTH> header; //TODO meta or header??
+	static udpHeader<WIDTH> header; //TODO meta or header??
 
 	udpMeta meta;
-	axiWord currWord;
+	net_axis<WIDTH> currWord;
 
 	switch (state)
 	{
@@ -94,7 +97,7 @@ void generate_udp(	stream<udpMeta>& metaIn,
 			header.setDstPort(meta.their_port);
 			header.setSrcPort(meta.my_port);
 			header.setLength(meta.length);
-			if (UDP_HEADER_SIZE >= AXI_WIDTH)
+			if (UDP_HEADER_SIZE >= WIDTH)
 			{
 				state = HEADER;
 			}
@@ -105,7 +108,7 @@ void generate_udp(	stream<udpMeta>& metaIn,
 		}
 		break;
 	case HEADER:
-		if (header.consumeWord(currWord.data) < AXI_WIDTH)
+		if (header.consumeWord(currWord.data) < WIDTH)
 		{
 			state = PARTIAL_HEADER;
 		}
@@ -140,8 +143,8 @@ void generate_udp(	stream<udpMeta>& metaIn,
 	}
 }
 
-/*void check_udp_checksum(	stream<axiWord>& input,
-						stream<axiWord>& output)
+/*void check_udp_checksum(	stream<net_axis<WIDTH> >& input,
+						stream<net_axis<WIDTH> >& output)
 {
 }*/
 
@@ -186,20 +189,67 @@ void merge_rx_meta(	stream<ipMeta>&		ipMetaIn,
 	}
 }
 
+
+template <int WIDTH>
 void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
-				hls::stream<axiWord>&	s_axis_rx_data,
+				hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
-				hls::stream<axiWord>&	m_axis_rx_data,
+				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
 				hls::stream<ipUdpMeta>&	s_axis_tx_meta,
-				hls::stream<axiWord>&	s_axis_tx_data,
+				hls::stream<net_axis<WIDTH> >&	s_axis_tx_data,
 				hls::stream<ipMeta>&		m_axis_tx_meta,
-				hls::stream<axiWord>&	m_axis_tx_data,
+				hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
 				ap_uint<128>		reg_ip_address,
 				ap_uint<16>			reg_listen_port)
 {
+#pragma HLS INLINE
+
+
+
+	/*
+	 * RX PATH
+	 */
+	static hls::stream<net_axis<WIDTH> >	rx_udp2shiftFifo("rx_udp2shiftFifo");
+	static hls::stream<udpMeta>	rx_udpMetaFifo("rx_udpMetaFifo");
+	#pragma HLS STREAM depth=2 variable=rx_udp2shiftFifo
+	#pragma HLS STREAM depth=2 variable=rx_udpMetaFifo
+
+	process_udp<WIDTH>(s_axis_rx_data, rx_udpMetaFifo, rx_udp2shiftFifo, reg_listen_port);
+	rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 2>(((UDP_HEADER_SIZE%WIDTH)/8), rx_udp2shiftFifo, m_axis_rx_data);
+
+	merge_rx_meta(s_axis_rx_meta, rx_udpMetaFifo, m_axis_rx_meta);
+
+	/*
+	 * TX PATH
+	 */
+	static hls::stream<net_axis<WIDTH> >	tx_shift2udpFifo("tx_shift2udpFifo");
+	static hls::stream<net_axis<WIDTH> >	tx_udp2shiftFifo("tx_udp2shiftFifo");
+	static hls::stream<udpMeta>	tx_udpMetaFifo("tx_udpMetaFifo");
+	#pragma HLS STREAM depth=2 variable=tx_shift2udpFifo
+	#pragma HLS STREAM depth=2 variable=tx_udp2shiftFifo
+	#pragma HLS STREAM depth=2 variable=tx_udpMetaFifo
+
+	split_tx_meta(s_axis_tx_meta, m_axis_tx_meta, tx_udpMetaFifo);
+
+	lshiftWordByOctet<WIDTH, 1>(((UDP_HEADER_SIZE%WIDTH)/8), s_axis_tx_data, tx_shift2udpFifo);
+
+	generate_udp<WIDTH>(tx_udpMetaFifo, tx_shift2udpFifo, m_axis_tx_data);
+}
+
+void udp_top(	hls::stream<ipMeta>&		s_axis_rx_meta,
+				hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
+				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
+				hls::stream<ipUdpMeta>&	s_axis_tx_meta,
+				hls::stream<net_axis<DATA_WIDTH> >&	s_axis_tx_data,
+				hls::stream<ipMeta>&		m_axis_tx_meta,
+				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_tx_data,
+				ap_uint<128>		reg_ip_address,
+				ap_uint<16>			reg_listen_port)
+
+{
 #pragma HLS DATAFLOW
 #pragma HLS INTERFACE ap_ctrl_none register port=return
-#pragma HLS INLINE
 
 #pragma HLS resource core=AXI4Stream variable=s_axis_rx_meta metadata="-bus_bundle s_axis_rx_meta"
 #pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
@@ -217,32 +267,15 @@ void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
 #pragma HLS INTERFACE ap_stable register port=reg_listen_port
 
 
-	/*
-	 * RX PATH
-	 */
-	static hls::stream<axiWord>	rx_udp2shiftFifo("rx_udp2shiftFifo");
-	static hls::stream<udpMeta>	rx_udpMetaFifo("rx_udpMetaFifo");
-	#pragma HLS STREAM depth=2 variable=rx_udp2shiftFifo
-	#pragma HLS STREAM depth=2 variable=rx_udpMetaFifo
-
-	process_udp(s_axis_rx_data, rx_udpMetaFifo, rx_udp2shiftFifo, reg_listen_port);
-	rshiftWordByOctet<axiWord, AXI_WIDTH, 2>(((UDP_HEADER_SIZE%AXI_WIDTH)/8), rx_udp2shiftFifo, m_axis_rx_data);
-
-	merge_rx_meta(s_axis_rx_meta, rx_udpMetaFifo, m_axis_rx_meta);
-
-	/*
-	 * TX PATH
-	 */
-	static hls::stream<axiWord>	tx_shift2udpFifo("tx_shift2udpFifo");
-	static hls::stream<axiWord>	tx_udp2shiftFifo("tx_udp2shiftFifo");
-	static hls::stream<udpMeta>	tx_udpMetaFifo("tx_udpMetaFifo");
-	#pragma HLS STREAM depth=2 variable=tx_shift2udpFifo
-	#pragma HLS STREAM depth=2 variable=tx_udp2shiftFifo
-	#pragma HLS STREAM depth=2 variable=tx_udpMetaFifo
-
-	split_tx_meta(s_axis_tx_meta, m_axis_tx_meta, tx_udpMetaFifo);
-
-	lshiftWordByOctet<AXI_WIDTH, 1>(((UDP_HEADER_SIZE%AXI_WIDTH)/8), s_axis_tx_data, tx_shift2udpFifo);
-
-	generate_udp(tx_udpMetaFifo, tx_shift2udpFifo, m_axis_tx_data);
+   udp<DATA_WIDTH>(s_axis_rx_meta,
+                   s_axis_rx_data,
+                   m_axis_rx_meta,
+                   m_axis_rx_data,
+                   s_axis_tx_meta,
+                   s_axis_tx_data,
+                   m_axis_tx_meta,
+                   m_axis_tx_data,
+                   reg_ip_address,
+                   reg_listen_port);
 }
+

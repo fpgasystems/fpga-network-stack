@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+#include "dhcp_client_config.hpp"
 #include "dhcp_client.hpp"
 
 using namespace hls;
@@ -57,7 +58,7 @@ void open_dhcp_port(stream<ap_uint<16> >&	openPort,
 
 
 void receive_message(	stream<udpMetadata>&	dataInMeta,
-						stream<axiWord>&		dataIn,
+						stream<net_axis<DATA_WIDTH> >&		dataIn,
 						stream<dhcpReplyMeta>&	metaOut,
 						ap_uint<48>				myMacAddress) {
 #pragma HLS PIPELINE II=1
@@ -69,7 +70,7 @@ void receive_message(	stream<udpMetadata>&	dataInMeta,
 	static ap_uint<6> rm_wordCount 	= 0;
 	static dhcpReplyMeta meta;
 
-	axiWord currWord;
+	net_axis<DATA_WIDTH> currWord;
 
 	if (!dataIn.empty()) {
 		dataIn.read(currWord);
@@ -131,7 +132,7 @@ void receive_message(	stream<udpMetadata>&	dataInMeta,
 void send_message(	stream<dhcpRequestMeta>&	metaIn,
 					stream<udpMetadata>&		dataOutMeta,
 					stream<ap_uint<16> >&		dataOutLength,
-					stream<axiWord>&			dataOut,
+					stream<net_axis<DATA_WIDTH> >&			dataOut,
 					ap_uint<48> 				myMacAddress)
 {
 #pragma HLS PIPELINE II=1
@@ -139,8 +140,11 @@ void send_message(	stream<dhcpRequestMeta>&	metaIn,
 
 	static ap_uint<6> sm_wordCount = 0;
 	static dhcpRequestMeta meta;
-	axiWord sendWord = axiWord(0, 0xFF, 0);
+	net_axis<DATA_WIDTH> sendWord;
 
+   sendWord.data = 0;
+   sendWord.keep = 0xff;
+   sendWord.last = 0; //TODO remove this
 	switch (sm_wordCount)
 	{
 	case 0:
@@ -331,10 +335,10 @@ void dhcp_client(	stream<ap_uint<16> >&	openPort,
 					stream<bool>&			confirmPortStatus,
 					//stream<ap_uint<16> >&	realeasePort,
 					stream<udpMetadata>&	dataInMeta,
-					stream<axiWord>&		dataIn,
+					stream<net_axis<DATA_WIDTH> >&		dataIn,
 					stream<udpMetadata>&	dataOutMeta,
 					stream<ap_uint<16> >&	dataOutLength,
-					stream<axiWord>&		dataOut,
+					stream<net_axis<DATA_WIDTH> >&		dataOut,
 					ap_uint<1>&				dhcpEnable,
 					ap_uint<32>&			inputIpAddress,
 					ap_uint<32>&			dhcpIpAddressOut,

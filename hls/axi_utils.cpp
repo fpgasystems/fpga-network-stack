@@ -1,6 +1,6 @@
 #include "axi_utils.hpp"
 
-bool checkIfResponse(ibOpCode code)
+/*bool checkIfResponse(ibOpCode code)
 {
 	return (code == RC_RDMA_READ_RESP_FIRST || code == RC_RDMA_READ_RESP_MIDDLE ||
 			code == RC_RDMA_READ_RESP_LAST || code == RC_RDMA_READ_RESP_ONLY ||
@@ -26,13 +26,13 @@ bool checkIfRethHeader(ibOpCode code)
 	return (code == RC_RDMA_WRITE_ONLY || code == RC_RDMA_WRITE_FIRST ||
 			code == RC_RDMA_PART_ONLY || code == RC_RDMA_PART_FIRST ||
 			code == RC_RDMA_READ_REQUEST || code == RC_RDMA_READ_CONSISTENT_REQUEST);
-}
+}*/
 
-template <>
+/*template <>
 void assignDest<routedAxiWord>(routedAxiWord& d, routedAxiWord& s)
 {
 	d.dest = s.dest;
-}
+}*/
 
 ap_uint<64> lenToKeep(ap_uint<32> length)
 {

@@ -29,8 +29,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../axi_utils.hpp"
 #include "../toe/toe.hpp"
 
-using namespace hls;
-
 #ifndef __SYNTHESIS__
 static const ap_uint<32> END_TIME		= 1000; //1000000;
 static const ap_uint<40> END_TIME_120	= 1000;
@@ -40,13 +38,18 @@ static const ap_uint<32> END_TIME		= 1546546546;//1501501501;
 static const ap_uint<40> END_TIME_120	= 18750000000;
 #endif
 
-void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-					stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-					stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
-					stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
-					stream<ap_uint<16> >& closeConnection,
-					stream<appTxMeta>& txMetaData, stream<axiWord>& txData,
-					stream<ap_int<17> >& txStatus,
+void iperf_client(	hls::stream<ap_uint<16> >& listenPort,
+					hls::stream<bool>& listenPortStatus,
+					hls::stream<appNotification>& notifications,
+					hls::stream<appReadRequest>& readRequest,
+					hls::stream<ap_uint<16> >& rxMetaData,
+					hls::stream<net_axis<64> >& rxData,
+					hls::stream<ipTuple>& openConnection,
+					hls::stream<openStatus>& openConStatus,
+					hls::stream<ap_uint<16> >& closeConnection,
+					hls::stream<appTxMeta>& txMetaData,
+					hls::stream<net_axis<64> >& txData,
+					hls::stream<ap_int<17> >& txStatus,
 					ap_uint<1>		runExperiment,
 					ap_uint<1>		dualModeEn,
 					ap_uint<14>		useConn,

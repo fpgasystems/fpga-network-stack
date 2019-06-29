@@ -36,12 +36,12 @@ int main()
 	hls::stream<appNotification> notifications;
 	hls::stream<appReadRequest> readRequest;
 	hls::stream<ap_uint<16> > rxMetaData;
-	hls::stream<axiWord> rxData;
+	hls::stream<net_axis<64> > rxData;
 	hls::stream<ipTuple> openConnection;
 	hls::stream<openStatus> openConStatus;
 	hls::stream<ap_uint<16> > closeConnection;
 	hls::stream<appTxMeta> txMetaData;
-	hls::stream<axiWord> txData;
+	hls::stream<net_axis<64> > txData;
 	hls::stream<appTxRsp>	txStatus;
 
 	int count = 0;

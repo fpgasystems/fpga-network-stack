@@ -24,12 +24,14 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "mac_ip_encode_config.hpp"
 #include "mac_ip_encode.hpp"
 #include "../ethernet/ethernet.hpp"
 #include "../ipv4/ipv4.hpp"
 
-void extract_ip_address(hls::stream<axiWord>&		dataIn,
-						hls::stream<axiWord>&		dataOut,
+template <int WIDTH>
+void extract_ip_address(hls::stream<net_axis<WIDTH> >&		dataIn,
+						hls::stream<net_axis<WIDTH> >&		dataOut,
 						hls::stream<ap_uint<32> >&	arpTableOut,
 						ap_uint<32>					regSubNetMask,
 						ap_uint<32>					regDefaultGateway)
@@ -38,12 +40,12 @@ void extract_ip_address(hls::stream<axiWord>&		dataIn,
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
 
-	static ipv4Header<AXI_WIDTH> header;
+	static ipv4Header<WIDTH> header;
 	static bool metaWritten = false;
 
 	if (!dataIn.empty())
 	{
-		axiWord currWord = dataIn.read();
+		net_axis<WIDTH> currWord = dataIn.read();
 		header.parseWord(currWord.data);
 		dataOut.write(currWord);
 
@@ -69,9 +71,10 @@ void extract_ip_address(hls::stream<axiWord>&		dataIn,
 	}
 }
 
-void insert_ip_checksum(hls::stream<axiWord>&		dataIn,
+template <int WIDTH>
+void insert_ip_checksum(hls::stream<net_axis<WIDTH> >&		dataIn,
 						hls::stream<ap_uint<16> >&	checksumFifoIn,
-						hls::stream<axiWord>&		dataOut)
+						hls::stream<net_axis<WIDTH> >&		dataOut)
 {
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
@@ -84,11 +87,13 @@ void insert_ip_checksum(hls::stream<axiWord>&		dataIn,
 	case 0:
 		if (!dataIn.empty() && !checksumFifoIn.empty())
 		{
-			axiWord currWord = dataIn.read();
+			net_axis<WIDTH> currWord = dataIn.read();
 			checksumFifoIn.read(checksum);
-#if AXI_WIDTH > 64
-			currWord.data(95, 80) = reverse(checksum);
-#endif
+         if (WIDTH > 64)
+         {
+			   currWord.data(95, 80) = reverse(checksum);
+         }
+
 			dataOut.write(currWord);
 			wordCount++;
 			if (currWord.last)
@@ -100,11 +105,12 @@ void insert_ip_checksum(hls::stream<axiWord>&		dataIn,
 	case 1:
 		if (!dataIn.empty())
 		{
-			axiWord currWord = dataIn.read();
+			net_axis<WIDTH> currWord = dataIn.read();
+         if (WIDTH == 64)
+         {
+			   currWord.data(31, 16) = reverse(checksum);
+         }
 
-#if AXI_WIDTH == 64
-			currWord.data(31, 16) = reverse(checksum);
-#endif
 			dataOut.write(currWord);
 			wordCount++;
 			if (currWord.last)
@@ -116,7 +122,7 @@ void insert_ip_checksum(hls::stream<axiWord>&		dataIn,
 	default:
 		if (!dataIn.empty())
 		{
-			axiWord currWord = dataIn.read();
+			net_axis<WIDTH> currWord = dataIn.read();
 			dataOut.write(currWord);
 			if (currWord.last)
 			{
@@ -127,10 +133,146 @@ void insert_ip_checksum(hls::stream<axiWord>&		dataIn,
 	}
 }
 
+template <int WIDTH>
+void handle_arp_reply (	hls::stream<arpTableReply>&		arpTableIn,
+						hls::stream<net_axis<WIDTH> >&	dataIn,
+						hls::stream<ethHeader<WIDTH> >&	headerOut,
+						hls::stream<net_axis<WIDTH> >&	dataOut,
+						ap_uint<48>					myMacAddress)
 
-void generate_ethernet(	hls::stream<axiWord>&		dataIn,
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	enum fsmStateType {ARP, FWD, DROP};
+	static fsmStateType har_state = ARP;
+
+	switch (har_state)
+	{
+	case ARP:
+		if (!arpTableIn.empty() && !dataIn.empty())
+		{
+			arpTableReply reply = arpTableIn.read();
+			net_axis<WIDTH> word = dataIn.read();
+
+			if (reply.hit)
+			{
+				//Construct Header
+				ethHeader<WIDTH> header;
+				header.clear();
+				header.setDstAddress(reply.macAddress);
+				header.setSrcAddress(myMacAddress);
+				header.setEthertype(0x0800);
+				headerOut.write(header);
+
+				dataOut.write(word);
+
+				if (!word.last)
+				{
+					har_state = FWD;
+				}
+			}
+			else
+			{
+				if (!word.last)
+				{
+					har_state = DROP;
+				}
+			}
+			
+		}
+		break;
+	case FWD:
+		if (!dataIn.empty())
+		{
+			net_axis<WIDTH> word = dataIn.read();
+			dataOut.write(word);
+			if (word.last)
+			{
+				har_state = ARP;
+			}
+		}
+		break;
+	case DROP:
+		if (!dataIn.empty())
+		{
+			net_axis<WIDTH> word = dataIn.read();
+			if (word.last)
+			{
+				har_state = ARP;
+			}
+		}
+		break;
+	}
+}
+
+template <int WIDTH>
+void insert_ethernet_header(hls::stream<ethHeader<WIDTH> >&		headerIn,
+							hls::stream<net_axis<WIDTH> >&		dataIn,
+							hls::stream<net_axis<WIDTH> >&		dataOut)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	enum fsmStateType {HEADER, PARTIAL_HEADER, BODY};
+	static fsmStateType ge_state = (ETH_HEADER_SIZE >= WIDTH) ? HEADER : PARTIAL_HEADER;
+	static ethHeader<WIDTH> header;
+
+	switch (ge_state)
+	{
+	case HEADER:
+	{
+		if (!headerIn.empty()) // This works because for 64bit there is only one full header word 
+		{
+			headerIn.read(header);
+			net_axis<WIDTH> currWord;
+			//Always holds, no check required
+			//if (header.consumeWord(currWord.data) < (WIDTH/8))
+			{
+				ge_state = PARTIAL_HEADER;
+			}
+			currWord.keep = ~0;
+			currWord.last = 0;
+			dataOut.write(currWord);
+		}
+		break;
+	}
+	case PARTIAL_HEADER:
+		if ((!headerIn.empty() || (ETH_HEADER_SIZE >= WIDTH)) && !dataIn.empty())
+		{
+			if (ETH_HEADER_SIZE < WIDTH)
+			{
+				headerIn.read(header);
+			}
+			net_axis<WIDTH> currWord = dataIn.read();
+			header.consumeWord(currWord.data);
+			dataOut.write(currWord);
+
+			if (!currWord.last)
+			{
+				ge_state = BODY;
+			}
+		}
+		break;
+	case BODY:
+		if (!dataIn.empty())
+		{
+			net_axis<WIDTH> currWord = dataIn.read();
+			dataOut.write(currWord);
+			if (currWord.last)
+			{
+				ge_state = (ETH_HEADER_SIZE >= WIDTH) ? HEADER : PARTIAL_HEADER;
+			}
+		}
+		break;
+	} //switch
+
+}
+
+template <int WIDTH>
+void generate_ethernet(	hls::stream<net_axis<WIDTH> >&		dataIn,
 						hls::stream<arpTableReply>&	arpTableIn,
-						hls::stream<axiWord>&		dataOut,
+						hls::stream<net_axis<WIDTH> >&		dataOut,
 						ap_uint<48>					myMacAddress)
 {
 	#pragma HLS PIPELINE II=1
@@ -138,7 +280,7 @@ void generate_ethernet(	hls::stream<axiWord>&		dataIn,
 
 	enum fsmStateType {META, HEADER, PARTIAL_HEADER, BODY, DROP};
 	static fsmStateType ge_state=META;
-	static ethHeader<AXI_WIDTH> header;
+	static ethHeader<WIDTH> header;
 
 	arpTableReply reply;
 
@@ -155,7 +297,7 @@ void generate_ethernet(	hls::stream<axiWord>&		dataIn,
 				header.setDstAddress(reply.macAddress);
 				header.setSrcAddress(myMacAddress);
 				header.setEthertype(0x0800);
-				if (ETH_HEADER_SIZE >= AXI_WIDTH)
+				if (ETH_HEADER_SIZE >= WIDTH)
 				{
 					ge_state = HEADER;
 				}
@@ -172,8 +314,8 @@ void generate_ethernet(	hls::stream<axiWord>&		dataIn,
 		break;
 	case HEADER:
 	{
-		axiWord currWord;
-		if (header.consumeWord(currWord.data) < (AXI_WIDTH/8))
+		net_axis<WIDTH> currWord;
+		if (header.consumeWord(currWord.data) < (WIDTH/8))
 		{
 			ge_state = PARTIAL_HEADER;
 		}
@@ -185,7 +327,7 @@ void generate_ethernet(	hls::stream<axiWord>&		dataIn,
 	case PARTIAL_HEADER:
 		if (!dataIn.empty())
 		{
-			axiWord currWord = dataIn.read();
+			net_axis<WIDTH> currWord = dataIn.read();
 			header.consumeWord(currWord.data);
 			dataOut.write(currWord);
 			ge_state = BODY;
@@ -198,7 +340,7 @@ void generate_ethernet(	hls::stream<axiWord>&		dataIn,
 	case BODY:
 		if (!dataIn.empty())
 		{
-			axiWord currWord = dataIn.read();
+			net_axis<WIDTH> currWord = dataIn.read();
 			dataOut.write(currWord);
 			if (currWord.last)
 			{
@@ -209,7 +351,7 @@ void generate_ethernet(	hls::stream<axiWord>&		dataIn,
 	case DROP:
 		if (!dataIn.empty())
 		{
-			axiWord currWord = dataIn.read();
+			net_axis<WIDTH> currWord = dataIn.read();
 			if (currWord.last)
 			{
 				ge_state = META;
@@ -219,9 +361,69 @@ void generate_ethernet(	hls::stream<axiWord>&		dataIn,
 	}//switch
 }
 
-void mac_ip_encode( hls::stream<axiWord>&			dataIn,
+template <int WIDTH>
+void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 					hls::stream<arpTableReply>&		arpTableIn,
-					hls::stream<axiWord>&			dataOut,
+					hls::stream<net_axis<WIDTH> >&			dataOut,
+					hls::stream<ap_uint<32> >&		arpTableOut,
+					ap_uint<48>					myMacAddress,
+					ap_uint<32>					regSubNetMask,
+					ap_uint<32>					regDefaultGateway)
+{
+	#pragma HLS INLINE
+
+	// FIFOs
+	static hls::stream<net_axis<WIDTH> > dataStreamBuffer0("dataStreamBuffer0");
+	static hls::stream<net_axis<WIDTH> > dataStreamBuffer1("dataStreamBuffer1");
+	static hls::stream<net_axis<WIDTH> > dataStreamBuffer2("dataStreamBuffer2");
+	static hls::stream<net_axis<WIDTH> > dataStreamBuffer3("dataStreamBuffer3");
+	static hls::stream<net_axis<WIDTH> > dataStreamBuffer4("dataStreamBuffer4");
+
+#if DATA_WIDTH == 512
+	#pragma HLS stream variable=dataStreamBuffer0 depth=1
+	#pragma HLS stream variable=dataStreamBuffer1 depth=32
+	#pragma HLS stream variable=dataStreamBuffer2 depth=1
+	#pragma HLS stream variable=dataStreamBuffer3 depth=1
+	#pragma HLS stream variable=dataStreamBuffer4 depth=1
+#else
+	#pragma HLS stream variable=dataStreamBuffer0 depth=2
+	#pragma HLS stream variable=dataStreamBuffer1 depth=32
+	#pragma HLS stream variable=dataStreamBuffer2 depth=2
+	#pragma HLS stream variable=dataStreamBuffer3 depth=2
+	#pragma HLS stream variable=dataStreamBuffer4 depth=2
+#endif
+	#pragma HLS DATA_PACK variable=dataStreamBuffer0
+	#pragma HLS DATA_PACK variable=dataStreamBuffer1
+	#pragma HLS DATA_PACK variable=dataStreamBuffer2
+	#pragma HLS DATA_PACK variable=dataStreamBuffer3
+	#pragma HLS DATA_PACK variable=dataStreamBuffer4
+
+	static hls::stream<subSums<WIDTH/16> >	subSumFifo("subSumFifo");
+	static hls::stream<ap_uint<16> >		checksumFifo("checksumFifo");
+	static hls::stream<ethHeader<WIDTH> >	headerFifo("headerFifo");
+	#pragma HLS stream variable=subSumFifo depth=2
+	#pragma HLS stream variable=checksumFifo depth=16
+	#pragma HLS stream variable=headerFifo depth=2
+	#pragma HLS DATA_PACK variable=headerFifo
+
+	extract_ip_address(dataIn, dataStreamBuffer0, arpTableOut, regSubNetMask, regDefaultGateway);
+
+	compute_ipv4_checksum(dataStreamBuffer0, dataStreamBuffer1, subSumFifo, true);
+	finalize_ipv4_checksum<WIDTH/16>(subSumFifo, checksumFifo);
+
+	insert_ip_checksum(dataStreamBuffer1, checksumFifo, dataStreamBuffer2);
+
+
+	handle_arp_reply(arpTableIn, dataStreamBuffer2, headerFifo, dataStreamBuffer3, myMacAddress);
+	lshiftWordByOctet<WIDTH, 1>(((ETH_HEADER_SIZE%WIDTH)/8), dataStreamBuffer3, dataStreamBuffer4);
+	insert_ethernet_header(headerFifo, dataStreamBuffer4, dataOut);
+
+	//generate_ethernet(dataStreamBuffer3, arpTableIn, dataOut, myMacAddress);
+}
+
+void mac_ip_encode_top( hls::stream<net_axis<DATA_WIDTH> >&			dataIn,
+					hls::stream<arpTableReply>&		arpTableIn,
+					hls::stream<net_axis<DATA_WIDTH> >&			dataOut,
 					hls::stream<ap_uint<32> >&		arpTableOut,
 					ap_uint<48>					myMacAddress,
 					ap_uint<32>					regSubNetMask,
@@ -241,33 +443,12 @@ void mac_ip_encode( hls::stream<axiWord>&			dataIn,
 	#pragma HLS INTERFACE ap_stable register port=regSubNetMask
 	#pragma HLS INTERFACE ap_stable register port=regDefaultGateway
 
-	// FIFOs
-	static hls::stream<axiWord> dataStreamBuffer0("dataStreamBuffer0");
-	static hls::stream<axiWord> dataStreamBuffer1("dataStreamBuffer1");
-	static hls::stream<axiWord> dataStreamBuffer2("dataStreamBuffer2");
-	static hls::stream<axiWord> dataStreamBuffer3("dataStreamBuffer3");
-	#pragma HLS stream variable=dataStreamBuffer0 depth=2
-	#pragma HLS stream variable=dataStreamBuffer1 depth=32
-	#pragma HLS stream variable=dataStreamBuffer2 depth=2
-	#pragma HLS stream variable=dataStreamBuffer3 depth=2
-	#pragma HLS DATA_PACK variable=dataStreamBuffer0
-	#pragma HLS DATA_PACK variable=dataStreamBuffer1
-	#pragma HLS DATA_PACK variable=dataStreamBuffer2
-	#pragma HLS DATA_PACK variable=dataStreamBuffer3
+   mac_ip_encode<DATA_WIDTH>( dataIn,
+                              arpTableIn,
+                              dataOut,
+                              arpTableOut,
+                              myMacAddress,
+                              regSubNetMask,
+                              regDefaultGateway);
 
-	static hls::stream<subSums<AXI_WIDTH/16> >		subSumFifo("subSumFifo");
-	static hls::stream<ap_uint<16> >	checksumFifo("checksumFifo");
-	#pragma HLS stream variable=subSumFifo depth=2
-	#pragma HLS stream variable=checksumFifo depth=16
-
-
-	extract_ip_address(dataIn, dataStreamBuffer0, arpTableOut, regSubNetMask, regDefaultGateway);
-
-	compute_ipv4_checksum(dataStreamBuffer0, dataStreamBuffer1, subSumFifo, true);
-	finalize_ipv4_checksum<AXI_WIDTH/16>(subSumFifo, checksumFifo);
-
-	insert_ip_checksum(dataStreamBuffer1, checksumFifo, dataStreamBuffer2);
-
-	lshiftWordByOctet<AXI_WIDTH, 1>(((ETH_HEADER_SIZE%AXI_WIDTH)/8), dataStreamBuffer2, dataStreamBuffer3);
-	generate_ethernet(dataStreamBuffer3, arpTableIn, dataOut, myMacAddress);
 }

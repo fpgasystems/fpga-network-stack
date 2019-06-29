@@ -26,8 +26,8 @@
  */
 #include "ethernet_frame_padding.hpp"
 
-void ethernet_frame_padding(hls::stream<axiWord>&			dataIn,
-							hls::stream<axiWord>&			dataOut)
+void ethernet_frame_padding(hls::stream<net_axis<64> >&			dataIn,
+							hls::stream<net_axis<64> >&			dataOut)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INTERFACE ap_ctrl_none port=return
@@ -38,8 +38,8 @@ void ethernet_frame_padding(hls::stream<axiWord>&			dataIn,
 
 	static ap_uint<1> state = 0;
 	static ap_uint<8> wordCounter = 0;
-	axiWord currWord;
-	axiWord sendWord;
+	net_axis<64> currWord;
+	net_axis<64> sendWord;
 
 	switch(state)
 	{

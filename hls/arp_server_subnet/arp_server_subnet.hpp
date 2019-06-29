@@ -158,10 +158,11 @@ public:
 	}
 };
 
-void arp_server_subnet(	hls::stream<axiWord>&          arpDataIn,
+template <int WIDTH>
+void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
                   	  	hls::stream<ap_uint<32> >&     macIpEncode_req,
                   	  	hls::stream<ap_uint<32> >&     hostIpEncode_req,
-				        hls::stream<axiWord>&          arpDataOut,
+				        hls::stream<net_axis<WIDTH> >&          arpDataOut,
 				        hls::stream<arpTableReply>&    macIpEncode_rsp,
 				        hls::stream<arpTableReply>&    hostIpEncode_rsp,
 				        ap_uint<48> myMacAddress,

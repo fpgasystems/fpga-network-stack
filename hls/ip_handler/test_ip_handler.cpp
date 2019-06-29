@@ -26,46 +26,32 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+#include "ip_handler_config.hpp"
 #include "ip_handler.hpp"
-
 
 int main(int argc, char* argv[]) {
 	hls::stream<net_axis<64> > inFifo64("inFIFO");
-	hls::stream<net_axis<128> > inFifo128("inFIFO");
-	hls::stream<net_axis<256> > inFifo256("inFIFO");
-	hls::stream<axiWord> inFifo("inFIFO");
+	hls::stream<net_axis<DATA_WIDTH> > inFifo("inFIFO");
 
 	hls::stream<net_axis<64> > outFifoARP64("outFifoARP64");
-	hls::stream<net_axis<128> > outFifoARP128("outFifoARP128");
-	hls::stream<net_axis<256> > outFifoARP256("outFifoARP256");
-	hls::stream<axiWord> outFifoARP("outFifoARP");
+	hls::stream<net_axis<DATA_WIDTH> > outFifoARP("outFifoARP");
 
 	hls::stream<net_axis<64> > outFifoTCP64("outFifoTCP64");
-	hls::stream<net_axis<128> > outFifoTCP128("outFifoTCP128");
-	hls::stream<net_axis<256> > outFifoTCP256("outFifoTCP256");
-	hls::stream<axiWord> outFifoTCP("outFifoTCP");
+	hls::stream<net_axis<DATA_WIDTH> > outFifoTCP("outFifoTCP");
 
 	hls::stream<net_axis<64> > outFifoUDP64("outFifoUDP64");
-	hls::stream<net_axis<128> > outFifoUDP128("outFifoUDP128");
-	hls::stream<net_axis<256> > outFifoUDP256("outFifoUDP256");
-	hls::stream<axiWord> outFifoUDP("outFifoUDP");
+	hls::stream<net_axis<DATA_WIDTH> > outFifoUDP("outFifoUDP");
 
 	hls::stream<net_axis<64> > outFifoICMP64("outFifoICMP64");
-	hls::stream<net_axis<128> > outFifoICMP128("outFifoICMP128");
-	hls::stream<net_axis<256> > outFifoICMP256("outFifoICMP256");
-	hls::stream<axiWord> outFifoICMP("outFifoICMP");
+	hls::stream<net_axis<DATA_WIDTH> > outFifoICMP("outFifoICMP");
 
-	hls::stream<axiWord> outFifoICMPexp("outFifoICMPexp");
+	//hls::stream<net_axis<DATA_WIDTH> > outFifoICMPexp("outFifoICMPexp");
 
 	hls::stream<net_axis<64> > outFifoICMPv6_64("outFifoICMPv6_64");
-	hls::stream<net_axis<128> > outFifoICMPv6_128("outFifoICMPv6_128");
-	hls::stream<net_axis<256> > outFifoICMPv6_256("outFifoICMPv6_256");
-	hls::stream<axiWord> outFifoICMPv6("outFifoICMPv6");
+	hls::stream<net_axis<DATA_WIDTH> > outFifoICMPv6("outFifoICMPv6");
 
 	hls::stream<net_axis<64> > outFifoIPv6UDP64("outFifoIPv6UDP64");
-	hls::stream<net_axis<128> > outFifoIPv6UDP128("outFifoIPv6UDP128");
-	hls::stream<net_axis<256> > outFifoIPv6UDP256("outFifoIPv6UDP256");
-	hls::stream<axiWord> outFifoIPv6UDP("outFifoIPv6UDP");
+	hls::stream<net_axis<DATA_WIDTH> > outFifoIPv6UDP("outFifoIPv6UDP");
 
 	std::ifstream inputFile;
 	std::ifstream goldenFile;
@@ -111,61 +97,32 @@ int main(int argc, char* argv[]) {
 
 	net_axis<64> inWord;
 	int count = 0;
-	while (scanLE(inputFile, inWord)) {
+	while (scan(inputFile, inWord)) {
 		inFifo64.write(inWord);
 		ip_handler(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
 
-#if (AXI_WIDTH == 512)
-		convertStreamToDoubleWidth(inFifo64, inFifo128);
-		convertStreamToDoubleWidth(inFifo128, inFifo256);
-		convertStreamToDoubleWidth(inFifo256, inFifo);
-		convertStreamToHalfWidth<512, 951>(outFifoTCP, outFifoTCP256);
-		convertStreamToHalfWidth<256, 952>(outFifoTCP256, outFifoTCP128);
-		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
-#elif (AXI_WIDTH == 256)
-		convertStreamToDoubleWidth(inFifo64, inFifo128);
-		convertStreamToDoubleWidth(inFifo128, inFifo);
-		convertStreamToHalfWidth<256, 952>(outFifoTCP, outFifoTCP128);
-		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
-#elif (AXI_WIDTH == 128)
-		convertStreamToDoubleWidth(inFifo64, inFifo);
-		convertStreamToHalfWidth<128, 953>(outFifoTCP, outFifoTCP64);
-#else
-		if (!inFifo64.empty()) {
-			inFifo.write(inFifo64.read());
-		}
-		if (!outFifoTCP.empty()) {
-			outFifoTCP64.write(outFifoTCP.read());
-		}
-#endif
+		convertStreamWidth<64, 14>(inFifo64, inFifo);
+
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoARP,outFifoARP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMPv6,outFifoICMPv6_64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoIPv6UDP,outFifoIPv6UDP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMP,outFifoICMP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoUDP,outFifoUDP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoTCP,outFifoTCP64);
 
 	}
 	while (count < 30000)	{
 		ip_handler(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
 
-#if (AXI_WIDTH == 512)
-		convertStreamToDoubleWidth(inFifo64, inFifo128);
-		convertStreamToDoubleWidth(inFifo128, inFifo256);
-		convertStreamToDoubleWidth(inFifo256, inFifo);
-		convertStreamToHalfWidth<512, 951>(outFifoTCP, outFifoTCP256);
-		convertStreamToHalfWidth<256, 952>(outFifoTCP256, outFifoTCP128);
-		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
-#elif (AXI_WIDTH == 256)
-		convertStreamToDoubleWidth(inFifo64, inFifo128);
-		convertStreamToDoubleWidth(inFifo128, inFifo);
-		convertStreamToHalfWidth<256, 952>(outFifoTCP, outFifoTCP128);
-		convertStreamToHalfWidth<128, 953>(outFifoTCP128, outFifoTCP64);
-#elif (AXI_WIDTH == 128)
-		convertStreamToDoubleWidth(inFifo64, inFifo);
-		convertStreamToHalfWidth<128, 953>(outFifoTCP, outFifoTCP64);
-#else
-		if (!inFifo64.empty()) {
-			inFifo.write(inFifo64.read());
-		}
-		if (!outFifoTCP.empty()) {
-			outFifoTCP64.write(outFifoTCP.read());
-		}
-#endif
+		convertStreamWidth<64, 14>(inFifo64, inFifo);
+
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoARP,outFifoARP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMPv6,outFifoICMPv6_64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoIPv6UDP,outFifoIPv6UDP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMP,outFifoICMP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoUDP,outFifoUDP64);
+		convertStreamWidth<DATA_WIDTH, 15>(outFifoTCP,outFifoTCP64);
+
 
 		count++;
 	}
@@ -192,72 +149,24 @@ int main(int argc, char* argv[]) {
 		outFifoARP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
-		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
-		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
-		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
-		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
-		goldenFile >> std::hex >> dataTemp >> keepTemp >> lastTemp;
-		if (outData.data != dataTemp || outData.keep != keepTemp ||
-			outData.last != lastTemp) {
-			errCount++;
-			cerr << "X";
-		} else {
-			cerr << ".";
-		}*/
-	}
+			}
 	outputFile << "ICMP" << std::endl;
 	while (!(outFifoICMP64.empty())) {
 		outFifoICMP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
-		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
-		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
-		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
-		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
-		goldenFile >> std::hex >> dataTemp >> keepTemp >> lastTemp;
-		if (outData.data != dataTemp || outData.keep != keepTemp ||
-			outData.last != lastTemp) {
-			errCount++;
-			cerr << "X";
-		} else {
-			cerr << ".";
-		}*/
-	}
+			}
 	outputFile << "UDP" << std::endl;
 	while (!(outFifoUDP64.empty())) {
 		outFifoUDP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
-		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
-		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
-		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
-		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
-		goldenFile >> std::hex >> dataTemp >> keepTemp >> lastTemp;
-		if (outData.data != dataTemp || outData.keep != keepTemp ||
-			outData.last != lastTemp) {
-			errCount++;
-			cerr << "X";
-		} else {
-			cerr << ".";
-		}*/
-	}
+			}
 	outputFile << "TCP" << std::endl;
 	while (!(outFifoTCP64.empty())) {
 		outFifoTCP64.read(outWord);
 		print(outputFile, outWord);
 		outputFile << std::endl;
-		/*outputFile << std::setw(8) << ((uint32_t) outData.data(63, 32));
-		outputFile << std::setw(8) << ((uint32_t) outData.data(31, 0));
-		outputFile << " " << std::setw(2) << ((uint32_t) outData.keep) << " ";
-		outputFile << std::setw(1) << ((uint32_t) outData.last) << std::endl;
-		goldenFile >> std::hex >> dataTemp >> keepTemp >> lastTemp;
-		if (outData.data != dataTemp || outData.keep != keepTemp ||
-			outData.last != lastTemp) {
-			errCount++;
-			cerr << "X";
-		} else {
-			cerr << ".";
-		}*/
 	}
 	/*cerr << " done." << endl << endl;
 	if (errCount == 0) {

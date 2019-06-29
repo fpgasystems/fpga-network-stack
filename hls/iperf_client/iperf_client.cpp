@@ -73,7 +73,7 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 	openStatus status;
 
 
-	axiWord currWord;
+	net_axis<64> currWord;
 
 	/*
 	 * CLIENT FSM
@@ -324,9 +324,9 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 	}
 }
 
-void server(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-				stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-				stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData)
+void server(	hls::stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
+				hls::stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
+				hls::stream<ap_uint<16> >& rxMetaData, stream<net_axis<64> >& rxData)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -496,8 +496,8 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 	#pragma HLS INTERFACE ap_none register port=regIpAddress8
 	#pragma HLS INTERFACE ap_none register port=regIpAddress9
 
-	static stream<bool>		startSignalFifo("startSignalFifo");
-	static stream<bool>		stopSignalFifo("stopSignalFifo");
+	static hls::stream<bool>		startSignalFifo("startSignalFifo");
+	static hls::stream<bool>		stopSignalFifo("stopSignalFifo");
 	#pragma HLS STREAM variable=startSignalFifo depth=2
 	#pragma HLS STREAM variable=stopSignalFifo depth=2
 

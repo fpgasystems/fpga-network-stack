@@ -36,9 +36,10 @@ struct arpTableReply
 			:macAddress(macAdd), hit(hit) {}
 };
 
-void mac_ip_encode( hls::stream<axiWord>&			dataIn,
+template <int WIDTH>
+void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 					hls::stream<arpTableReply>&		arpTableIn,
-					hls::stream<axiWord>&			dataOut,
+					hls::stream<net_axis<WIDTH> >&			dataOut,
 					hls::stream<ap_uint<32> >&		arpTableOut,
 					ap_uint<48>					myMacAddress,
 					ap_uint<32>					regSubNetMask,

@@ -27,6 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 
+#include "../axi_utils.hpp"
 #include "../toe/toe.hpp"
 
 /** @defgroup echo_server_application Echo Server Application
@@ -34,8 +35,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
  */
 void echo_server_application(hls::stream<ap_uint<16> >& listenPort, hls::stream<bool>& listenPortStatus,
 								hls::stream<appNotification>& notifications, hls::stream<appReadRequest>& readRequest,
-								hls::stream<ap_uint<16> >& rxMetaData, hls::stream<axiWord>& rxData,
+								hls::stream<ap_uint<16> >& rxMetaData, hls::stream<net_axis<64> >& rxData,
 								hls::stream<ipTuple>& openConnection, hls::stream<openStatus>& openConStatus,
 								hls::stream<ap_uint<16> >& closeConnection,
-								hls::stream<appTxMeta>& txMetaData, hls::stream<axiWord>& txData,
+								hls::stream<appTxMeta>& txMetaData, hls::stream<net_axis<64> >& txData,
 								hls::stream<appTxRsp>& txStatus);

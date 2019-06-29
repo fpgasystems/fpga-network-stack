@@ -24,9 +24,11 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "arp_server_subnet_config.hpp"
 #include "arp_server_subnet.hpp"
 
-void process_arp_pkg(	hls::stream<axiWord>&		dataIn,
+template <int WIDTH>
+void process_arp_pkg(	hls::stream<net_axis<WIDTH> >&		dataIn,
 						hls::stream<arpReplyMeta>&	arpReplyMetaFifo,
 						hls::stream<arpTableEntry>& arpTableInsertFifo,
                       	ap_uint<32>             myIpAddress,
@@ -36,13 +38,13 @@ void process_arp_pkg(	hls::stream<axiWord>&		dataIn,
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
 
-	static arpHeader<AXI_WIDTH> header;
+	static arpHeader<WIDTH> header;
 	static ap_uint<16> pag_requestCounter = 0;
 	static ap_uint<16> pag_replyCounter = 0;
 
 	if (!dataIn.empty())
 	{
-		axiWord word = dataIn.read();
+		net_axis<WIDTH> word = dataIn.read();
 		header.parseWord(word.data);
 
 		if (word.last)
@@ -68,9 +70,10 @@ void process_arp_pkg(	hls::stream<axiWord>&		dataIn,
 	}
 }
 
+template <int WIDTH>
 void generate_arp_pkg(	hls::stream<arpReplyMeta>&     arpReplyMetaFifo,
 						hls::stream<ap_uint<32> >&     arpRequestMetaFifo,
-						hls::stream<axiWord>&          dataOut,
+						hls::stream<net_axis<WIDTH> >&          dataOut,
 						ap_uint<48>				  myMacAddress,
 						ap_uint<32>               myIpAddress)
 {
@@ -79,7 +82,7 @@ void generate_arp_pkg(	hls::stream<arpReplyMeta>&     arpReplyMetaFifo,
 
 	enum arpSendStateType {IDLE, HEADER, PARTIAL_HEADER};
 	static arpSendStateType gap_state = IDLE;
-	static arpHeader<AXI_WIDTH> header;
+	static arpHeader<WIDTH> header;
 	static ap_uint<4>		headerCount = 0;
 	static arpReplyMeta		replyMeta;
 	static ap_uint<32>		inputIP;
@@ -118,33 +121,40 @@ void generate_arp_pkg(	hls::stream<arpReplyMeta>&     arpReplyMetaFifo,
 		break;
 	case HEADER:
 	{
-		axiWord sendWord;
+		net_axis<WIDTH> sendWord;
 		#ifndef __SYNTHESIS___
 			sendWord.data = 0;
 		#endif
 		remainingLength = header.consumeWord(sendWord.data);
-#if AXI_WIDTH < 512
-		sendWord.keep = ~0;
-		sendWord.last = 0;
-#else
-		sendWord.keep = lenToKeep(42);
-		sendWord.last = 1;
-#endif
+
+      if (WIDTH < 512)
+      {
+		   sendWord.keep = ~0;
+		   sendWord.last = 0;
+      }
+      else
+      {
+		   sendWord.keep = lenToKeep(42);
+		   sendWord.last = 1;
+      }
 		dataOut.write(sendWord);
 		std::cout << std::dec << "remaining lengt: " << remainingLength << std::endl;
-		if (remainingLength < (AXI_WIDTH/8))
+		if (remainingLength < (WIDTH/8))
 		{
-#if AXI_WIDTH < 512
-			gap_state = PARTIAL_HEADER;
-#else
-			gap_state = IDLE;
-#endif
+         if (WIDTH < 512)
+         {
+			   gap_state = PARTIAL_HEADER;
+         }
+         else
+         {
+			   gap_state = IDLE;
+         }
 		}
 		break;
 	}
 	case PARTIAL_HEADER:
 	{
-		axiWord sendWord;
+		net_axis<WIDTH> sendWord;
 		#ifndef __SYNTHESIS___
 			sendWord.data = 0;
 		#endif
@@ -205,10 +215,57 @@ void arp_table( stream<arpTableEntry>&    	arpTableInsertFifo,
 
 }
 
-void arp_server_subnet(	hls::stream<axiWord>&          arpDataIn,
+template<int WIDTH>
+void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
                   	  	hls::stream<ap_uint<32> >&     macIpEncode_req,
                   	  	hls::stream<ap_uint<32> >&     hostIpEncode_req,
-				        hls::stream<axiWord>&          arpDataOut,
+				        hls::stream<net_axis<WIDTH> >&          arpDataOut,
+				        hls::stream<arpTableReply>&    macIpEncode_rsp,
+				        hls::stream<arpTableReply>&    hostIpEncode_rsp,
+				        ap_uint<48>				myMacAddress,
+				        ap_uint<32>				myIpAddress,
+						ap_uint<16>&			regRequestCount,
+						ap_uint<16>&			regReplyCount)
+{
+	#pragma HLS INLINE
+
+	static hls::stream<arpReplyMeta>     arpReplyMetaFifo("arpReplyMetaFifo");
+	#pragma HLS STREAM variable=arpReplyMetaFifo depth=4
+	#pragma HLS DATA_PACK variable=arpReplyMetaFifo
+
+	static hls::stream<ap_uint<32> >   arpRequestMetaFifo("arpRequestMetaFifo");
+	#pragma HLS STREAM variable=arpRequestMetaFifo depth=4
+	//#pragma HLS DATA_PACK variable=arpRequestMetaFifo
+
+	static hls::stream<arpTableEntry>    arpTableInsertFifo("arpTableInsertFifo");
+	#pragma HLS STREAM variable=arpTableInsertFifo depth=4
+	#pragma HLS DATA_PACK variable=arpTableInsertFifo
+
+	process_arp_pkg<WIDTH>(arpDataIn,
+  					arpReplyMetaFifo,
+					arpTableInsertFifo,
+					myIpAddress,
+					regRequestCount,
+					regReplyCount);
+
+  	generate_arp_pkg<WIDTH>(	arpReplyMetaFifo,
+						arpRequestMetaFifo,
+						arpDataOut,
+						myMacAddress,
+						myIpAddress);
+
+  	arp_table(	arpTableInsertFifo,
+				macIpEncode_req,
+				hostIpEncode_req,
+				macIpEncode_rsp,
+				hostIpEncode_rsp,
+				arpRequestMetaFifo);
+}
+
+void arp_server_subnet_top(	hls::stream<net_axis<DATA_WIDTH> >&          arpDataIn,
+                  	  	hls::stream<ap_uint<32> >&     macIpEncode_req,
+                  	  	hls::stream<ap_uint<32> >&     hostIpEncode_req,
+				        hls::stream<net_axis<DATA_WIDTH> >&          arpDataOut,
 				        hls::stream<arpTableReply>&    macIpEncode_rsp,
 				        hls::stream<arpTableReply>&    hostIpEncode_rsp,
 				        ap_uint<48>				myMacAddress,
@@ -227,40 +284,17 @@ void arp_server_subnet(	hls::stream<axiWord>&          arpDataIn,
 	#pragma  HLS resource core=AXI4Stream variable=hostIpEncode_rsp metadata="-bus_bundle m_axis_host_arp_lookup_reply"
 	#pragma HLS DATA_PACK variable=macIpEncode_rsp
 	#pragma HLS DATA_PACK variable=hostIpEncode_rsp
-
-
-	#pragma HLS INTERFACE ap_stable register port=myMacAddress
+   #pragma HLS INTERFACE ap_stable register port=myMacAddress
 	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 
-	static hls::stream<arpReplyMeta>     arpReplyMetaFifo("arpReplyMetaFifo");
-	#pragma HLS STREAM variable=arpReplyMetaFifo depth=4
-	#pragma HLS DATA_PACK variable=arpReplyMetaFifo
-
-	static hls::stream<ap_uint<32> >   arpRequestMetaFifo("arpRequestMetaFifo");
-	#pragma HLS STREAM variable=arpRequestMetaFifo depth=4
-	//#pragma HLS DATA_PACK variable=arpRequestMetaFifo
-
-	static hls::stream<arpTableEntry>    arpTableInsertFifo("arpTableInsertFifo");
-	#pragma HLS STREAM variable=arpTableInsertFifo depth=4
-	#pragma HLS DATA_PACK variable=arpTableInsertFifo
-
-	process_arp_pkg(arpDataIn,
-  					arpReplyMetaFifo,
-					arpTableInsertFifo,
-					myIpAddress,
-					regRequestCount,
-					regReplyCount);
-
-  	generate_arp_pkg(	arpReplyMetaFifo,
-						arpRequestMetaFifo,
-						arpDataOut,
-						myMacAddress,
-						myIpAddress);
-
-  	arp_table(	arpTableInsertFifo,
-				macIpEncode_req,
-				hostIpEncode_req,
-				macIpEncode_rsp,
-				hostIpEncode_rsp,
-				arpRequestMetaFifo);
+   arp_server_subnet<DATA_WIDTH>(arpDataIn,
+                                 macIpEncode_req,
+                                 hostIpEncode_req,
+                                 arpDataOut,
+                                 macIpEncode_rsp,
+                                 hostIpEncode_rsp,
+                                 myMacAddress,
+                                 myIpAddress,
+                                 regRequestCount,
+                                 regReplyCount);
 }

@@ -35,11 +35,12 @@ const uint8_t ICMPv6 = 0x3a;
 const uint8_t UDP = 0x11;
 const uint8_t TCP = 0x06;
 
-void ip_handler(hls::stream<axiWord>&		s_axis_raw,
-				hls::stream<axiWord>&		m_axis_ARP,
-				hls::stream<axiWord>&		m_axis_ICMPv6,
-				hls::stream<axiWord>&		m_axis_IPv6UDP,
-				hls::stream<axiWord>&		m_axis_ICMP,
-				hls::stream<axiWord>&		m_axis_UDP,
-				hls::stream<axiWord>&		m_axis_TCP,
+template <int WIDTH>
+void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
+				hls::stream<net_axis<WIDTH> >&		m_axis_ARP,
+				hls::stream<net_axis<WIDTH> >&		m_axis_ICMPv6,
+				hls::stream<net_axis<WIDTH> >&		m_axis_IPv6UDP,
+				hls::stream<net_axis<WIDTH> >&		m_axis_ICMP,
+				hls::stream<net_axis<WIDTH> >&		m_axis_UDP,
+				hls::stream<net_axis<WIDTH> >&		m_axis_TCP,
 				ap_uint<32>				myIpAddress);

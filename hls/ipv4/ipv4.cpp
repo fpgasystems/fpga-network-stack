@@ -24,21 +24,23 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "ipv4_config.hpp"
 #include "ipv4.hpp"
 
-void process_ipv4(	stream<axiWord>&		dataIn,
+template <int WIDTH>
+void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 					stream<ap_uint<4> >&	process2dropLengthFifo,
 					stream<ipv4Meta>&			MetaOut,
-					stream<axiWord>&		dataOut)
+					stream<net_axis<WIDTH> >&		dataOut)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-	static ipv4Header<AXI_WIDTH> header;
+	static ipv4Header<WIDTH> header;
 	static ap_uint<4> headerWordsDropped = 0;
 	static bool metaWritten = false;
 
-	axiWord currWord;
+	net_axis<WIDTH> currWord;
 
 	if (!dataIn.empty())
 	{
@@ -57,7 +59,7 @@ void process_ipv4(	stream<axiWord>&		dataIn,
 			}
 		}
 
-		headerWordsDropped += (AXI_WIDTH/32);
+		headerWordsDropped += (WIDTH/32);
 		if (currWord.last)
 		{
 			metaWritten = false;
@@ -67,9 +69,10 @@ void process_ipv4(	stream<axiWord>&		dataIn,
 	}
 }
 
+template <int WIDTH>
 void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
-							stream<axiWord>&	process2dropFifo,
-							stream<axiWord>&	dataOut)
+							stream<net_axis<WIDTH> >&	process2dropFifo,
+							stream<net_axis<WIDTH> >&	dataOut)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
@@ -78,41 +81,42 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 	static fsmStateType doh_state = META;
 	static ap_uint<4> length;
 
-	static axiWord prevWord;
-	axiWord currWord;
-	axiWord sendWord;
+	static net_axis<WIDTH> prevWord;
+	net_axis<WIDTH> currWord;
+	net_axis<WIDTH> sendWord;
 
-	//TODO length deduction depends on AXI_WIDTH
+	//TODO length deduction depends on WIDTH
 	switch (doh_state)
 	{
 	case META:
 		if (!process2dropLengthFifo.empty() && !process2dropFifo.empty())
 		{
 			process2dropLengthFifo.read(length);
-			//std::cout << "Header length: " << length << std::endl;
-
-#if AXI_WIDTH == 64
-			if (length > 1)
+			//Handle differently depending on AXI bus width. TODO 128, 256
+			if (WIDTH == 64)
 			{
-				doh_state = DROP;
-			}
-			else
-			{
-				process2dropFifo.read(prevWord);
-				doh_state = SHIFT;
-			}
-#elif AXI_WIDTH == 512
-			//TODO this is hack and works for AXI_WIDTH ==  512bit
-			if (length == 5)
-			{
-				process2dropFifo.read(prevWord);
-				doh_state = SHIFT_FIVE;
-				if (prevWord.last)
+				if (length > 1)
 				{
-					doh_state = LAST_FIVE;
+					doh_state = DROP;
+				}
+				else
+				{
+					process2dropFifo.read(prevWord);
+					doh_state = SHIFT;
 				}
 			}
-#endif
+			if (WIDTH == 512)
+			{
+				if (length == 5)
+				{
+					process2dropFifo.read(prevWord);
+					doh_state = SHIFT_FIVE;
+					if (prevWord.last)
+					{
+						doh_state = LAST_FIVE;
+					}
+				}
+			}
 		}
 		break;
 	case DROP:
@@ -144,10 +148,10 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		if (!process2dropFifo.empty())
 		{
 			process2dropFifo.read(currWord);
-			sendWord.data(AXI_WIDTH-32-1, 0) = prevWord.data(AXI_WIDTH-1, 32);
-			sendWord.keep((AXI_WIDTH/8)-4-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 4);
-			sendWord.data(AXI_WIDTH-1, AXI_WIDTH-32) = currWord.data(31, 0);
-			sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-4) = currWord.keep(3, 0);
+			sendWord.data(WIDTH-32-1, 0) = prevWord.data(WIDTH-1, 32);
+			sendWord.keep((WIDTH/8)-4-1, 0) = prevWord.keep((WIDTH/8)-1, 4);
+			sendWord.data(WIDTH-1, WIDTH-32) = currWord.data(31, 0);
+			sendWord.keep((WIDTH/8)-1, (WIDTH/8)-4) = currWord.keep(3, 0);
 			sendWord.last = (currWord.keep[4] == 0);
 			dataOut.write(sendWord);
 			prevWord = currWord;
@@ -165,13 +169,14 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		if (!process2dropFifo.empty())
 		{
 			process2dropFifo.read(currWord);
-			sendWord.data(AXI_WIDTH-160-1, 0) = prevWord.data(AXI_WIDTH-1, 160);
-			sendWord.keep((AXI_WIDTH/8)-20-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 20);
-			sendWord.data(AXI_WIDTH-1, AXI_WIDTH-160) = currWord.data(160-1, 0);
-			sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-20) = currWord.keep(20-1, 0);
+			sendWord.data(WIDTH-160-1, 0) = prevWord.data(WIDTH-1, 160);
+			sendWord.keep((WIDTH/8)-20-1, 0) = prevWord.keep((WIDTH/8)-1, 20);
+			sendWord.data(WIDTH-1, WIDTH-160) = currWord.data(160-1, 0);
+			sendWord.keep((WIDTH/8)-1, (WIDTH/8)-20) = currWord.keep(20-1, 0);
 			sendWord.last = (currWord.keep[20] == 0);
 			dataOut.write(sendWord);
 			prevWord = currWord;
+
 			if (sendWord.last)
 			{
 				doh_state = META;
@@ -183,19 +188,19 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 		}
 		break;
 	case LAST:
-		sendWord.data(AXI_WIDTH-32-1, 0) = prevWord.data(AXI_WIDTH-1, 32);
-		sendWord.keep((AXI_WIDTH/8)-4-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 4);
-		sendWord.data(AXI_WIDTH-1, AXI_WIDTH-32) = 0;
-		sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-4) = 0x0;
+		sendWord.data(WIDTH-32-1, 0) = prevWord.data(WIDTH-1, 32);
+		sendWord.keep((WIDTH/8)-4-1, 0) = prevWord.keep((WIDTH/8)-1, 4);
+		sendWord.data(WIDTH-1, WIDTH-32) = 0;
+		sendWord.keep((WIDTH/8)-1, (WIDTH/8)-4) = 0x0;
 		sendWord.last = 0x1;
 		dataOut.write(sendWord);
 		doh_state = META;
 		break;
-	case LAST_FIVE:
-		sendWord.data(AXI_WIDTH-160-1, 0) = prevWord.data(AXI_WIDTH-1, 160);
-		sendWord.keep((AXI_WIDTH/8)-20-1, 0) = prevWord.keep((AXI_WIDTH/8)-1, 20);
-		sendWord.data(AXI_WIDTH-1, AXI_WIDTH-160) = 0;
-		sendWord.keep((AXI_WIDTH/8)-1, (AXI_WIDTH/8)-20) = 0x0;
+		case LAST_FIVE:
+		sendWord.data(WIDTH-160-1, 0) = prevWord.data(WIDTH-1, 160);
+		sendWord.keep((WIDTH/8)-20-1, 0) = prevWord.keep((WIDTH/8)-1, 20);
+		sendWord.data(WIDTH-1, WIDTH-160) = 0;
+		sendWord.keep((WIDTH/8)-1, (WIDTH/8)-20) = 0x0;
 		sendWord.last = 0x1;
 		dataOut.write(sendWord);
 		doh_state = META;
@@ -203,20 +208,22 @@ void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 	} //switch
 }
 
+template <int WIDTH>
 void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
-					stream<axiWord>&	tx_shift2ipv4Fifo,
-					stream<axiWord>&	m_axis_tx_data,
-					ap_uint<32>			local_ipv4_address)
+					stream<net_axis<WIDTH> >&	tx_shift2ipv4Fifo,
+					stream<net_axis<WIDTH> >&	m_axis_tx_data,
+					ap_uint<32>			local_ipv4_address,
+					ap_uint<8>			protocol)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
 	enum fsmStateType {META, HEADER, PARTIAL_HEADER, BODY};
 	static fsmStateType gi_state=META;
-	static ipv4Header<AXI_WIDTH> header;
+	static ipv4Header<WIDTH> header;
 
 	ipv4Meta meta;
-	axiWord currWord;
+	net_axis<WIDTH> currWord;
 	ap_uint<16>  length;
 
 	switch (gi_state)
@@ -231,8 +238,8 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setLength(length);
 			header.setDstAddr(meta.their_address);
 			header.setSrcAddr(local_ipv4_address);
-			header.setProtocol(UDP_PROTOCOL);
-			if (IPV4_HEADER_SIZE >= AXI_WIDTH)
+			header.setProtocol(protocol);
+			if (IPV4_HEADER_SIZE >= WIDTH)
 			{
 				gi_state = HEADER;
 			}
@@ -243,7 +250,7 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 		}
 		break;
 	case HEADER:
-		if (header.consumeWord(currWord.data) < AXI_WIDTH)
+		if (header.consumeWord(currWord.data) < WIDTH)
 		{
 			/*currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
 			currWord.last = 0;
@@ -286,34 +293,26 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 	}
 }
 
-void ipv4(		stream<axiWord>&	s_axis_rx_data,
-				stream<ipv4Meta>&		m_axis_rx_meta,
-				stream<axiWord>&	m_axis_rx_data,
-				stream<ipv4Meta>&		s_axis_tx_meta,
-				stream<axiWord>&	s_axis_tx_data,
-				stream<axiWord>&	m_axis_tx_data,
-				ap_uint<32>			local_ipv4_address)
+
+template <int WIDTH>
+void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+				hls::stream<ipv4Meta>&		m_axis_rx_meta,
+				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
+				hls::stream<ipv4Meta>&		s_axis_tx_meta,
+				hls::stream<net_axis<WIDTH> >&	s_axis_tx_data,
+				hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
+				ap_uint<32>			local_ipv4_address,
+				ap_uint<8>			protocol)
 {
-#pragma HLS DATAFLOW
-#pragma HLS INTERFACE ap_ctrl_none register port=return
 #pragma HLS INLINE
 
-#pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
-#pragma HLS resource core=AXI4Stream variable=m_axis_rx_meta metadata="-bus_bundle m_axis_rx_meta"
-#pragma HLS resource core=AXI4Stream variable=m_axis_rx_data metadata="-bus_bundle m_axis_rx_data"
-#pragma HLS resource core=AXI4Stream variable=s_axis_tx_meta metadata="-bus_bundle s_axis_tx_meta"
-#pragma HLS resource core=AXI4Stream variable=s_axis_tx_data metadata="-bus_bundle s_axis_tx_data"
-#pragma HLS resource core=AXI4Stream variable=m_axis_tx_data metadata="-bus_bundle m_axis_tx_data"
-#pragma HLS DATA_PACK variable=m_axis_rx_meta
-#pragma HLS DATA_PACK variable=s_axis_tx_meta
-#pragma HLS INTERFACE ap_stable register port=local_ipv4_address
 
 	/*
 	 * FIFOs
 	 */
-	static stream<ap_uint<4> > rx_process2dropLengthFifo("rx_process2dropLengthFifo");
-	static stream<axiWord> rx_process2dropFifo("rx_process2dropFifo");
-	static stream<axiWord> tx_shift2ipv4Fifo("tx_shift2ipv4Fifo");
+	static hls::stream<ap_uint<4> > rx_process2dropLengthFifo("rx_process2dropLengthFifo");
+	static hls::stream<net_axis<WIDTH> > rx_process2dropFifo("rx_process2dropFifo");
+	static hls::stream<net_axis<WIDTH> > tx_shift2ipv4Fifo("tx_shift2ipv4Fifo");
 	#pragma HLS STREAM depth=2 variable=rx_process2dropLengthFifo
 	#pragma HLS STREAM depth=8 variable=rx_process2dropFifo
 	#pragma HLS STREAM depth=8 variable=tx_shift2ipv4Fifo
@@ -328,5 +327,42 @@ void ipv4(		stream<axiWord>&	s_axis_rx_data,
 	/*
 	 * TX PATH
 	 */
-	lshiftWordByOctet<AXI_WIDTH, 2>(((IPV4_HEADER_SIZE%AXI_WIDTH)/8), s_axis_tx_data, tx_shift2ipv4Fifo);
-	generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address);}
+	lshiftWordByOctet<WIDTH, 2>(((IPV4_HEADER_SIZE%WIDTH)/8), s_axis_tx_data, tx_shift2ipv4Fifo);
+	generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address, protocol);
+}
+
+void ipv4_top(		hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+				hls::stream<ipv4Meta>&		m_axis_rx_meta,
+				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
+				hls::stream<ipv4Meta>&		s_axis_tx_meta,
+				hls::stream<net_axis<DATA_WIDTH> >&	s_axis_tx_data,
+				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_tx_data,
+				ap_uint<32>			local_ipv4_address,
+				ap_uint<8>			protocol)
+{
+#pragma HLS DATAFLOW
+#pragma HLS INTERFACE ap_ctrl_none register port=return
+
+#pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
+#pragma HLS resource core=AXI4Stream variable=m_axis_rx_meta metadata="-bus_bundle m_axis_rx_meta"
+#pragma HLS resource core=AXI4Stream variable=m_axis_rx_data metadata="-bus_bundle m_axis_rx_data"
+#pragma HLS resource core=AXI4Stream variable=s_axis_tx_meta metadata="-bus_bundle s_axis_tx_meta"
+#pragma HLS resource core=AXI4Stream variable=s_axis_tx_data metadata="-bus_bundle s_axis_tx_data"
+#pragma HLS resource core=AXI4Stream variable=m_axis_tx_data metadata="-bus_bundle m_axis_tx_data"
+#pragma HLS DATA_PACK variable=m_axis_rx_meta
+#pragma HLS DATA_PACK variable=s_axis_tx_meta
+#pragma HLS INTERFACE ap_stable register port=local_ipv4_address
+#pragma HLS INTERFACE ap_stable register port=protocol
+
+   ipv4<DATA_WIDTH>(s_axis_rx_data,
+        m_axis_rx_meta,
+        m_axis_rx_data,
+        s_axis_tx_meta,
+        s_axis_tx_data,
+        m_axis_tx_data,
+        local_ipv4_address,
+		protocol);
+
+};
+
+
