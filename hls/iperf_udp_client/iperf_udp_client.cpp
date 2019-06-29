@@ -27,8 +27,9 @@
 #include "iperf_udp_client.hpp"
 #include <iostream>
 
+template <int WIDTH>
 void client(hls::stream<ipUdpMeta>&	txMetaData,
-			hls::stream<axiWord>& txData,
+			hls::stream<net_axis<WIDTH> >& txData,
 			hls::stream<bool>&			startSignal,
 			hls::stream<bool>&			stopSignal,
 			hls::stream<bool>&			doneSignalFifo,
@@ -38,7 +39,7 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 {
 #pragma HLS PIPELINE II=1
 
-	enum iperfFsmStateType {IDLE, START, START_PKG, START_PKG2, START_PKG3, WRITE_PKG, CHECK_TIME, WAIT_RESPONSE, PKG_GAP};
+	enum iperfFsmStateType {IDLE, START, CONSTRUCT_HEADER, HEADER, WRITE_PKG, /*CHECK_TIME,*/ WAIT_RESPONSE, PKG_GAP};
 	static iperfFsmStateType iperfFsmState = IDLE;
 	static bool timeOver = false;
 	static bool lastPkg = false;
@@ -50,9 +51,11 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 	static ap_uint<32> cycleCounter = 0;
 	static ap_uint<32> waitCounter = 0;
 	static ap_uint<8> packetGapCounter = 0;
+	static iperfHeader<WIDTH> header;
+	static bool metaWritten = false;
 
 	const ap_uint<16> theirPort = 0x1389;
-	axiWord currWord;
+	net_axis<WIDTH> currWord;
 
 	/*
 	 * CLIENT FSM
@@ -86,12 +89,44 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 			startSignal.write(true);
 			secondCounter = 0;
 			microsecondCounter = 0;
-			iperfFsmState = START_PKG;
+			iperfFsmState = CONSTRUCT_HEADER;
 		}
 		break;
-	case START_PKG:
-		txMetaData.write(ipUdpMeta(regTargetIpAddress, theirPort, MY_PORT, PKG_SIZE));
-		if (!lastPkg)
+	case CONSTRUCT_HEADER:
+		header.clear();
+		header.setSeqNumber(seqNumber, lastPkg);
+		header.setSeconds(secondCounter);
+		header.setMicroSeconds(microsecondCounter);
+		iperfFsmState = HEADER;
+		break;
+	case HEADER:
+		if (!metaWritten)
+		{
+			txMetaData.write(ipUdpMeta(regTargetIpAddress, theirPort, MY_PORT, PKG_SIZE));
+			metaWritten = true;
+		}
+
+		if (header.consumeWord(currWord.data) < WIDTH)
+		{
+			metaWritten = false;
+			wordCount++;//(IPERF_HEADER_SIZE / AXI_WIDTH);
+			iperfFsmState = WRITE_PKG;
+		}
+		currWord.keep = ~0;
+		//TODO handle 128 properly
+		if (WIDTH > 128)
+		{
+			for (int i = 3; i < (WIDTH/64); i++) {
+				#pragma HLS UNROLL
+				currWord.data(i*64+63, i*64) = 0x3736353433323130;
+				currWord.keep(i*8+7, i*8) = 0xff;
+			}
+		}
+		currWord.last = 0;
+		txData.write(currWord);
+		break;
+
+		/*if (!lastPkg)
 		{
 			currWord.data(7,0) = seqNumber(31, 24);
 			currWord.data(15,8) = seqNumber(23, 16);
@@ -137,17 +172,21 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 		txData.write(currWord);
 		wordCount++;
 		iperfFsmState = WRITE_PKG;
-		break;
+		break;*/
 	case WRITE_PKG:
 		if (wordCount < PKG_WORDS)
 		{
 			wordCount++;
-			currWord.data = 0x3736353433323130;
-			currWord.keep = 0xff;
+			for (int i = 0; i < (WIDTH/64); i++) {
+				#pragma HLS UNROLL
+				currWord.data(i*64+63, i*64) = 0x3736353433323130;
+				currWord.keep(i*8+7, i*8) = 0xff;
+			}
 			currWord.last = (wordCount == (PKG_WORDS));
 			txData.write(currWord);
 			if (currWord.last)
 			{
+				wordCount = 0;
 				if (lastPkg)
 				{
 					std::cout << "microseconds: " << std::dec << microsecondCounter << std::endl;
@@ -163,12 +202,23 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 				}
 				else
 				{
-					iperfFsmState = CHECK_TIME;
+					if (timeOver)
+					{
+						lastPkg = true;
+					}
+					if (regPacketGap != 0)
+					{
+						iperfFsmState = PKG_GAP;
+					}
+					else
+					{
+						iperfFsmState = CONSTRUCT_HEADER;
+					}
 				}
 			}
 		}
 		break;
-	case CHECK_TIME:
+	/*case CHECK_TIME:
 		if (timeOver)
 		{
 			lastPkg = true;
@@ -182,16 +232,16 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 			}
 			else
 			{
-				iperfFsmState = START_PKG;
+				iperfFsmState = CONSTRUCT_HEADER;
 			}
 		}
-		break;
+		break;*/
 	case WAIT_RESPONSE:
 		waitCounter++;
 		if (waitCounter == END_TIME_100ms)
 		{
 			waitCounter = 0;
-			iperfFsmState = START_PKG;
+			iperfFsmState = IDLE;
 		}
 		break;
 	case PKG_GAP:
@@ -203,7 +253,7 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 			if (packetGapCounter == regPacketGap)
 			{
 				packetGapCounter = 0;
-				iperfFsmState = START_PKG;
+				iperfFsmState = CONSTRUCT_HEADER;
 			}
 
 		}
@@ -252,8 +302,9 @@ void clock (hls::stream<bool>&	startSignal,
 	}
 }
 
+template <int WIDTH>
 void check_for_response(hls::stream<ipUdpMeta>&	rxMetaData,
-						hls::stream<axiWord>&	rxData,
+						hls::stream<net_axis<WIDTH> >&	rxData,
 						hls::stream<bool>&		doneSignalFifo)
 {
 	ipUdpMeta meta;
@@ -274,9 +325,9 @@ void check_for_response(hls::stream<ipUdpMeta>&	rxMetaData,
 
 
 void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
-						hls::stream<axiWord>&	rxData,
+						hls::stream<net_axis<DATA_WIDTH> >&	rxData,
 						hls::stream<ipUdpMeta>&	txMetaData,
-						hls::stream<axiWord>&	txData,
+						hls::stream<net_axis<DATA_WIDTH> >&	txData,
 						ap_uint<1>		runExperiment,
 						ap_uint<128>	regTargetIpAddress,
 						ap_uint<8>		regPacketGap)
@@ -307,7 +358,7 @@ void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
 	/*
 	 * Client
 	 */
-	client(	txMetaData,
+	client<DATA_WIDTH>(	txMetaData,
 			txData,
 			startSignalFifo,
 			stopSignalFifo,
@@ -320,7 +371,7 @@ void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
 	/*
 	 * Check Response
 	 */
-	check_for_response(rxMetaData, rxData, doneSignalFifo);
+	check_for_response<DATA_WIDTH>(rxMetaData, rxData, doneSignalFifo);
 
 	/*
 	 * Clock

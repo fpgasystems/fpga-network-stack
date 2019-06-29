@@ -27,7 +27,10 @@
 #ifndef IPERF_UDP_CLIENT_HPP
 #define IPERF_UDP_CLIENT_HPP
 
+#include "../packet.hpp"
 #include "../udp/udp.hpp"
+
+const unsigned int DATA_WIDTH = 512;
 
 #ifndef __SYNTHESIS__
 static const ap_uint<40> END_TIME_100ms	= 5;
@@ -46,15 +49,48 @@ static const ap_uint<40> END_TIME_120s	= 18750000000;
 
 
 static const ap_uint<16> PKG_SIZE = 1400;
-static const ap_uint<16> PKG_WORDS = PKG_SIZE / 8;
+static const ap_uint<16> PKG_WORDS = 2;//PKG_SIZE / (DATA_WIDTH/8);
 
 static const ap_uint<16> MY_PORT = 32768;
 
+const uint32_t IPERF_HEADER_SIZE = 192; 
+
+/**
+ * Iperf Header
+ */
+template <int W>
+class iperfHeader : public packetHeader<W, IPERF_HEADER_SIZE> {
+	using packetHeader<W, IPERF_HEADER_SIZE>::header;
+
+public:
+	iperfHeader()
+	{
+		//this is just for simplicity, to make the header multiple of 64
+		header(127, 96) = 0x35343332;
+		header(159,128) = 0;
+		header(191,160) = 0x33323130;
+	}
+
+	void setSeqNumber(ap_uint<32> seqNumb, ap_uint<1> isLast)
+	{
+		header(31,0) = reverse(seqNumb);
+		header[7] = isLast;
+	}
+	void setSeconds(ap_uint<32> seconds)
+	{
+		header(63, 32) = reverse(seconds);
+	}
+	void setMicroSeconds(ap_uint<32> microseconds)
+	{
+		header(95, 64) = reverse(microseconds);
+	}
+};
+
 
 void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
-						hls::stream<axiWord>&	rxData,
+						hls::stream<net_axis<DATA_WIDTH> >&	rxData,
 						hls::stream<ipUdpMeta>&	txMetaData,
-						hls::stream<axiWord>&	txData,
+						hls::stream<net_axis<DATA_WIDTH> >&	txData,
 						ap_uint<1>		runExperiment,
 						ap_uint<128>	regTargetIpAddress,
 						ap_uint<8>		regPacketGap);

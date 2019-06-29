@@ -30,9 +30,9 @@
 int main()
 {
 	hls::stream<ipUdpMeta>	rxMetaData("rxMetaData");
-	hls::stream<axiWord>		rxData("rxData");
+	hls::stream<net_axis<DATA_WIDTH> >		rxData("rxData");
 	hls::stream<ipUdpMeta>	txMetaData("txMetaData");
-	hls::stream<axiWord>		txData("txData");
+	hls::stream<net_axis<DATA_WIDTH> >		txData("txData");
 	ap_uint<1> runExperiment;
 	//ap_uint<32> myIpAddress = 0x01010101;
 	ap_uint<128> targetIpAddress = 0x0A010101;
@@ -41,11 +41,11 @@ int main()
 	targetIpAddress(127, 96) = 0x0A010101;
 
 	ap_uint<16> sessionID;
-	axiWord currWord;
+	net_axis<DATA_WIDTH> currWord;
 	int count = 0;
-	ap_uint<8>		packetGap = 1;
+	ap_uint<8>		packetGap = 0;
 
-	while (count < 10000)
+	while (count < 100000)
 	{
 		runExperiment = 0;
 		if (count == 20)
@@ -72,12 +72,14 @@ int main()
 		while (!txData.empty())
 		{
 			txData.read(currWord);
-			std::cout << std::hex << std::noshowbase;
+			printLE(std::cout, currWord);
+			std::cout << std::endl;
+			/*std::cout << std::hex << std::noshowbase;
 			std::cout << std::setfill('0');
 			std::cout << std::setw(8) << ((uint32_t) currWord.data(63, 32));
 			std::cout << std::setw(8) << ((uint32_t) currWord.data(31, 0));
 			std::cout << " " << std::setw(2) << ((uint32_t) currWord.keep) << " ";
-			std::cout << std::setw(1) << ((uint32_t) currWord.last) << std::endl;
+			std::cout << std::setw(1) << ((uint32_t) currWord.last) << std::endl;*/
 			//Check for last message
 			if (currWord.data(7,0) == 0xFF)
 			{
