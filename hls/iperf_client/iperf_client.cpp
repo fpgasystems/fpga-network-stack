@@ -26,14 +26,16 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ************************************************/
+#include "iperf_client_config.hpp"
 #include "iperf_client.hpp"
 #include <iostream>
 
-using namespace hls;
-
-void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus,
+template <int WIDTH>
+void client(	stream<ipTuple>&		openConnection,
+            stream<openStatus>& openConStatus,
 				stream<ap_uint<16> >&	closeConnection,
-				stream<appTxMeta>&	txMetaData, stream<axiWord>& txData,
+				stream<appTxMeta>&	txMetaData,
+				stream<net_axis<WIDTH> >& txData,
 				stream<ap_int<17> >&	txStatus,
 				stream<bool>&			startSignal,
 				stream<bool>&			stopSignal,
@@ -56,7 +58,7 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
-	enum iperfFsmStateType {IDLE, INIT_CON, WAIT_INIT, WAIT_CON, INIT_RUN, START_PKG, WRITE_PKG, CHECK_TIME};
+	enum iperfFsmStateType {IDLE, INIT_CON, WAIT_CON, CONSTRUCT_HEADER, INIT_RUN, START_PKG, WRITE_PKG, CHECK_TIME};
 	static iperfFsmStateType iperfFsmState = IDLE;
 	static ap_uint<16> experimentID[10000];
 	#pragma HLS RESOURCE variable=experimentID core=RAM_2P_LUTRAM
@@ -66,24 +68,31 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 	static ap_uint<14> closeIt = 0;
 	static bool timeOver = false;
 	static ap_uint<8> wordCount = 0;
-	static ap_uint<2> initWordCount = 0;
-	static ap_uint<8> initTimer = 0;
 	static ap_uint<4> ipAddressIdx = 0;
-	ipTuple openTuple;
-	openStatus status;
+	static iperfTcpHeader<WIDTH> header;
+	static bool metaWritten = false;
 
-
-	net_axis<64> currWord;
 
 	/*
 	 * CLIENT FSM
 	 */
 	switch (iperfFsmState)
 	{
+	case IDLE:
+		//done do nothing
+		sessionIt = 0;
+		closeIt = 0;
+		timeOver = false;
+		if (runExperiment)
+		{
+			iperfFsmState = INIT_CON;
+		}
+		break;
 	case INIT_CON:
 		//if (useConn[sessionIt])
 		if (sessionIt < useConn)
 		{
+			ipTuple openTuple;
 			switch (ipAddressIdx)
 			{
 			case 0:
@@ -110,22 +119,21 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 			case 7:
 				openTuple.ip_address = regIpAddress7;
 				break;
-         case 8:
-            openTuple.ip_address = regIpAddress8;
-            break;
-         case 9:
-            openTuple.ip_address = regIpAddress9;
-            break;
+			case 8:
+				openTuple.ip_address = regIpAddress8;
+				break;
+			case 9:
+				openTuple.ip_address = regIpAddress9;
+				break;
 			}
 			openTuple.ip_port = 5001;
 			openConnection.write(openTuple);
-         ipAddressIdx++;
-         if (ipAddressIdx == 10)
-         {
-            ipAddressIdx = 0;
-         }
+			ipAddressIdx++;
+			if (ipAddressIdx == 10)
+			{
+ 				ipAddressIdx = 0;
+			}
 		}
-      //iperfFsmState = WAIT_INIT;
 		sessionIt++;
 		if (sessionIt == useConn)
 		{
@@ -133,35 +141,20 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 			iperfFsmState = WAIT_CON;
 		}
 		break;
-   /*case WAIT_INIT:
-      initTimer++;
-      if (initTimer == 100) {
-         initTimer = 0;
-         iperfFsmState = INIT_CON;
-      }
-      break;*/
 	case WAIT_CON:
 		//if (useConn[sessionIt])
 		if (sessionIt < useConn)
 		{
 			if (!openConStatus.empty())
 			{
-				openConStatus.read(status);
+				openStatus status = openConStatus.read();
 				if (status.success)
 				{
 					experimentID[sessionIt] = status.sessionID;
-					//validID[sessionIt] = true;
-					//sessionIt++;
-					/*if (sessionIt == 0)
-					{
-						startClock = true;
-						iperfFsmState = START_PKG;
-					}*/
 					std::cout << "Connection successfully opened." << std::endl;
 				}
 				else
 				{
-					//iperfFsmState = IDLE;
 					std::cout << "Connection could not be opened." << std::endl;
 				}
 				sessionIt++;
@@ -169,7 +162,7 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 				{
 					startSignal.write(true);
 					sessionIt = 0;
-					iperfFsmState = INIT_RUN;
+					iperfFsmState = CONSTRUCT_HEADER;
 				}
 			}
 		}
@@ -180,11 +173,52 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 			iperfFsmState = INIT_RUN;
 		}
 		break;
+	case CONSTRUCT_HEADER:
+		header.clear();
+		header.setDualMode(dualModeEn);
+		header.setListenPort(5001);
+		header.setSeconds(timeInSeconds);
+		iperfFsmState = INIT_RUN;
+		break;
 	case INIT_RUN:
 		//if (useConn[sessionIt])
 		if (sessionIt < useConn)
 		{
-			switch (initWordCount)
+			net_axis<WIDTH> headerWord;
+			headerWord.last = 0;
+			if (!metaWritten)
+			{
+				txMetaData.write(appTxMeta(experimentID[sessionIt], 3*8));
+				metaWritten = true;
+			}
+			if (header.consumeWord(headerWord.data) < (WIDTH/8))
+			{
+				headerWord.last = 1;
+				metaWritten = false;
+				sessionIt++;
+				//TODO reset reading index
+				iperfFsmState = CONSTRUCT_HEADER;
+				if (sessionIt == useConn)
+				{
+					sessionIt = 0;
+					iperfFsmState = START_PKG;
+				}
+			}
+			headerWord.keep = ~0;
+			if (headerWord.last)
+			{
+				if (WIDTH == 128)
+				{
+					headerWord.keep(15, 8) = 0;
+				}
+				if (WIDTH > 128)
+				{
+					headerWord.keep((WIDTH/8)-1, 24) = 0;
+				}
+			}
+			txData.write(headerWord);
+
+			/*switch (initWordCount)
 			{
 			case 0:
 				txMetaData.write(appTxMeta(experimentID[sessionIt], 3*8));
@@ -225,8 +259,9 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 					iperfFsmState = START_PKG;
 				}
 				break;
-			}
+			}*/
 		}
+		//TODO this state should not be necessary
 		else //switch
 		{
 			sessionIt = 0;
@@ -237,12 +272,17 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 		//if (useConn[sessionIt])
 		if (sessionIt < useConn)
 		{
-			txMetaData.write(appTxMeta(experimentID[sessionIt], pkgWordCount*8));
-			currWord.data = 0x3736353433323130;
-			currWord.keep = 0xff;
+			txMetaData.write(appTxMeta(experimentID[sessionIt], pkgWordCount*(WIDTH/8)));
+			net_axis<WIDTH> currWord;
+			for (int i = 0; i < (WIDTH/64); i++)
+			{
+				#pragma HLS UNROLL
+				currWord.data(i*64+63, i*64) = 0x3736353433323130;
+				currWord.keep(i*8+7, i*8) = 0xff;
+			}
 			currWord.last = 0;
 			txData.write(currWord); //FIXME first ever word needs to be different.
-			wordCount = 0;
+			wordCount = 1;
 			sessionIt++;
 			iperfFsmState = WRITE_PKG;
 		}
@@ -252,18 +292,23 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 		}
 		break;
 	case WRITE_PKG:
+	{
 		wordCount++;
-		if (wordCount < pkgWordCount)
+		net_axis<WIDTH> currWord;
+		for (int i = 0; i < (WIDTH/64); i++) 
 		{
-			currWord.data = 0x3736353433323130;
-			currWord.keep = 0xff;
-			currWord.last = (wordCount == (pkgWordCount-1));
-			txData.write(currWord);
+			#pragma HLS UNROLL
+			currWord.data(i*64+63, i*64) = 0x3736353433323130;
+			currWord.keep(i*8+7, i*8) = 0xff;
 		}
-		else
+		currWord.last = (wordCount == pkgWordCount);
+		txData.write(currWord);
+		if (currWord.last)
 		{
-			iperfFsmState = CHECK_TIME; // Go to wait state instead
+			wordCount = 0;
+			iperfFsmState = CHECK_TIME;
 		}
+	}
 		break;
 	case CHECK_TIME:
 		//if (time == END_TIME)
@@ -288,16 +333,6 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 			iperfFsmState = START_PKG;
 		}
 		break;
-	case IDLE:
-		//done do nothing
-		sessionIt = 0;
-		closeIt = 0;
-		timeOver = false;
-		if (runExperiment)
-		{
-			iperfFsmState = INIT_CON;
-		}
-		break;
 	}
 
 	//clock
@@ -305,18 +340,7 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 	{
 		stopSignal.read(timeOver);
 	}
-	/*if (startClock)
-	{
-		if (time < END_TIME)
-		{
-			time++;
-		}
-	}
-	else
-	{
-		time = 0;
-	}*/
-
+	
 	//dummy code
 	if (!txStatus.empty())
 	{
@@ -324,9 +348,13 @@ void client(	stream<ipTuple>&		openConnection, stream<openStatus>& openConStatus
 	}
 }
 
-void server(	hls::stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-				hls::stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-				hls::stream<ap_uint<16> >& rxMetaData, stream<net_axis<64> >& rxData)
+template <int WIDTH>
+void server(	hls::stream<ap_uint<16> >&		listenPort,
+				hls::stream<bool>&				listenPortStatus,
+				hls::stream<appNotification>&	notifications,
+				hls::stream<appReadRequest>&	readRequest,
+				hls::stream<ap_uint<16> >&		rxMetaData,
+				hls::stream<net_axis<WIDTH> >&	rxData)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -335,26 +363,26 @@ void server(	hls::stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStat
    static listenFsmStateType listenState = OPEN_PORT;
 	enum consumeFsmStateType {WAIT_PKG, CONSUME};
 	static consumeFsmStateType  serverFsmState = WAIT_PKG;
-   #pragma HLS RESET variable=listenState
+	#pragma HLS RESET variable=listenState
 
-   switch (listenState)
-   {
-   case OPEN_PORT:
-	   // Open Port 5001
-      listenPort.write(5001);
-      listenState = WAIT_PORT_STATUS;
-      break;
-   case WAIT_PORT_STATUS:
-      if (!listenPortStatus.empty())
-      {
-         bool open = listenPortStatus.read();
-         if (!open)
-         {
-            listenState = OPEN_PORT;
-         }
-      }
-      break;
-   }
+	switch (listenState)
+	{
+	case OPEN_PORT:
+		// Open Port 5001
+		listenPort.write(5001);
+		listenState = WAIT_PORT_STATUS;
+		break;
+	case WAIT_PORT_STATUS:
+		if (!listenPortStatus.empty())
+		{
+			bool open = listenPortStatus.read();
+			if (!open)
+			{
+				listenState = OPEN_PORT;
+			}
+		}
+		break;
+	}
 	
 	if (!notifications.empty())
 	{
@@ -372,36 +400,36 @@ void server(	hls::stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStat
 		if (!rxMetaData.empty() && !rxData.empty())
 		{
 			rxMetaData.read();
-			axiWord receiveWord = rxData.read();
-         if (!receiveWord.last)
-         {
-			   serverFsmState = CONSUME;
-         }
+			net_axis<WIDTH> receiveWord = rxData.read();
+			if (!receiveWord.last)
+			{
+				serverFsmState = CONSUME;
+			}
 		}
 		break;
 	case CONSUME:
 		if (!rxData.empty())
 		{
-			axiWord receiveWord = rxData.read();
-         if (receiveWord.last)
-         {
-            serverFsmState = WAIT_PKG;
-         }
+			net_axis<WIDTH> receiveWord = rxData.read();
+			if (receiveWord.last)
+			{
+				serverFsmState = WAIT_PKG;
+			}
 		}
 		break;
 	}
 }
 
-void clock (stream<bool>&	startSignal,
-			stream<bool>&	stopSignal,
-         ap_uint<64> timeInCycles)
+void clock( hls::stream<bool>&	startSignal,
+            hls::stream<bool>&	stopSignal,
+            ap_uint<64>          timeInCycles)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
    enum swStateType {WAIT_START, RUN};
    static swStateType sw_state = WAIT_START;
-	static ap_uint<48> time = 0;
+   static ap_uint<48> time = 0;
 
    switch (sw_state)
    {
@@ -425,12 +453,17 @@ void clock (stream<bool>&	startSignal,
 }
 
 
-void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
-					stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-					stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData,
-					stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
+void iperf_client(	stream<ap_uint<16> >& listenPort,
+					stream<bool>& listenPortStatus,
+					stream<appNotification>& notifications,
+					stream<appReadRequest>& readRequest,
+					stream<ap_uint<16> >& rxMetaData,
+					stream<net_axis<DATA_WIDTH> >& rxData,
+					stream<ipTuple>& openConnection,
+					stream<openStatus>& openConStatus,
 					stream<ap_uint<16> >& closeConnection,
-					stream<appTxMeta>& txMetaData, stream<axiWord>& txData,
+					stream<appTxMeta>& txMetaData,
+					stream<net_axis<DATA_WIDTH> >& txData,
 					stream<ap_int<17> >& txStatus,
 					ap_uint<1>		runExperiment,
 					ap_uint<1>		dualModeEn,
@@ -481,10 +514,10 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 
 	#pragma HLS INTERFACE ap_none register port=runExperiment
 	#pragma HLS INTERFACE ap_none register port=dualModeEn
-   #pragma HLS INTERFACE ap_none register port=useConn
-   #pragma HLS INTERFACE ap_none register port=pkgWordCount
-   #pragma HLS INTERFACE ap_none register port=timeInSeconds
-   #pragma HLS INTERFACE ap_none register port=timeInCycles
+	#pragma HLS INTERFACE ap_none register port=useConn
+	#pragma HLS INTERFACE ap_none register port=pkgWordCount
+	#pragma HLS INTERFACE ap_none register port=timeInSeconds
+	#pragma HLS INTERFACE ap_none register port=timeInCycles
 	#pragma HLS INTERFACE ap_none register port=regIpAddress0
 	#pragma HLS INTERFACE ap_none register port=regIpAddress1
 	#pragma HLS INTERFACE ap_none register port=regIpAddress2
@@ -504,7 +537,7 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 	/*
 	 * Client
 	 */
-	client(	openConnection,
+	client<DATA_WIDTH>(	openConnection,
 			openConStatus,
 			closeConnection,
 			txMetaData,
@@ -516,22 +549,22 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 			dualModeEn,
 			useConn,
 			pkgWordCount,
-         timeInSeconds,
+			timeInSeconds,
 			regIpAddress0,
 			regIpAddress1,
 			regIpAddress2,
 			regIpAddress3,
-         regIpAddress4,
-         regIpAddress5,
-         regIpAddress6,
-         regIpAddress7,
-         regIpAddress8,
-         regIpAddress9);
+			regIpAddress4,
+			regIpAddress5,
+			regIpAddress6,
+			regIpAddress7,
+			regIpAddress8,
+			regIpAddress9);
 
 	/*
 	 * Server
 	 */
-	server(	listenPort,
+	server<DATA_WIDTH>(	listenPort,
 			listenPortStatus,
 			notifications,
 			readRequest,
@@ -543,5 +576,5 @@ void iperf_client(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortSta
 	 */
 	clock( startSignalFifo,
 			stopSignalFifo,
-         timeInCycles);
+			timeInCycles);
 }

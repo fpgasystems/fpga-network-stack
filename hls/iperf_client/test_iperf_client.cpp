@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ************************************************/
+#include "iperf_client_config.hpp"
 #include "iperf_client.hpp"
 #include <iostream>
 
@@ -39,12 +40,12 @@ int main()
 	hls::stream<appNotification> notifications("notifications");
 	hls::stream<appReadRequest> readRequest("readRequest");
 	hls::stream<ap_uint<16> > rxMetaData("rxMetaData");
-	hls::stream<net_axis<64> > rxData("rxData");
+	hls::stream<net_axis<DATA_WIDTH> > rxData("rxData");
 	hls::stream<ipTuple> openConnection("openConnection");
 	hls::stream<openStatus> openConStatus("openConStatus");
 	hls::stream<ap_uint<16> > closeConnection("closeConnection");
 	hls::stream<appTxMeta> txMetaData("txMetaData");
-	hls::stream<net_axis<64> > txData("txData");
+	hls::stream<net_axis<DATA_WIDTH> > txData("txData");
 	hls::stream<ap_int<17> > txStatus("txStatus");
 	ap_uint<1> runExperiment;
 	ap_uint<1> dualModeEn;
@@ -64,14 +65,12 @@ int main()
 	ap_uint<32> ipAddress8 = 0x01010109;
 	ap_uint<32> ipAddress9 = 0x0101010A;
 
-	ap_uint<16> sessionID;
-	net_axis<64> currWord;
-	int count = 0;
 	dualModeEn = 0;
 	pkgWordCount = 8;
-	timeInSeconds = 10;
-	timeInCycles = 100;
+	timeInSeconds = 100;
+	timeInCycles = 1000;
 
+	int count = 0;
 	while (count < 10000)
 	{
 		useConn = 2;
@@ -129,17 +128,14 @@ int main()
 		}
 		while (!txData.empty())
 		{
-			txData.read(currWord);
-			std::cout << std::hex << std::noshowbase;
-			std::cout << std::setfill('0');
-			std::cout << std::setw(8) << ((uint32_t) currWord.data(63, 32));
-			std::cout << std::setw(8) << ((uint32_t) currWord.data(31, 0));
-			std::cout << " " << std::setw(2) << ((uint32_t) currWord.keep) << " ";
-			std::cout << std::setw(1) << ((uint32_t) currWord.last) << std::endl;
+			net_axis<DATA_WIDTH> currWord = txData.read();
+			printLE(std::cout, currWord);
+			std::cout << std::endl;
+
 		}
 		if (!closeConnection.empty())
 		{
-			closeConnection.read(sessionID);
+			ap_uint<16> sessionID = closeConnection.read();
 			std::cout << "Closing connection: " << std::dec << sessionID << std::endl;
 		}
 		count++;

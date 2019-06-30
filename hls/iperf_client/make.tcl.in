@@ -10,7 +10,7 @@ set_top ${PROJECT_NAME}
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/iperf_client.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
 
-add_files -tb test_iperf_client.cpp
+add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_iperf_client.cpp
 
 
 config_rtl -disable_start_propagation

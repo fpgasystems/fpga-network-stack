@@ -1,0 +1,3 @@
+#pragma once
+
+const unsigned DATA_WIDTH = ${DATA_WIDTH} * 8;
