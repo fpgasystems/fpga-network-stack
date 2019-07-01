@@ -61,8 +61,7 @@ void client(	stream<ipTuple>&		openConnection,
 	enum iperfFsmStateType {IDLE, INIT_CON, WAIT_CON, CONSTRUCT_HEADER, INIT_RUN, START_PKG, WRITE_PKG, CHECK_TIME};
 	static iperfFsmStateType iperfFsmState = IDLE;
 	static ap_uint<16> experimentID[10000];
-	#pragma HLS RESOURCE variable=experimentID core=RAM_2P_LUTRAM
-	#pragma HLS DEPENDENCE variable=experimentID inter false
+	#pragma HLS RESOURCE variable=experimentID core=RAM_1P_BRAM
 
 	static ap_uint<14> sessionIt = 0;
 	static ap_uint<14> closeIt = 0;
