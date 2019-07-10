@@ -92,8 +92,8 @@ create_ip -name udp -vendor ethz.systems.fpga -library hls -version 0.4 -module_
 generate_target {instantiation_template} [get_files $device_ip_dir/udp_ip/udp_ip.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name iperf_udp_client -vendor ethz.systems.fpga -library hls -version 0.8 -module_name iperf_udp_client_ip -dir $device_ip_dir
-generate_target {instantiation_template} [get_files $device_ip_dir/iperf_udp_client_ip/iperf_udp_client_ip.xci]
+create_ip -name iperf_udp -vendor ethz.systems.fpga -library hls -version 0.9 -module_name iperf_udp_ip -dir $device_ip_dir
+generate_target {instantiation_template} [get_files $device_ip_dir/iperf_udp_ip/iperf_udp_ip.xci]
 update_compile_order -fileset sources_1
 
 #create_ip -name udpAppMux -vendor xilinx.labs -library hls -version 1.05 -module_name udpAppMux_0 -dir $device_ip_dir
