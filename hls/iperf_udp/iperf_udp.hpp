@@ -24,13 +24,13 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef IPERF_UDP_CLIENT_HPP
-#define IPERF_UDP_CLIENT_HPP
+#ifndef IPERF_UDP_HPP
+#define IPERF_UDP_HPP
 
+#include "iperf_udp_config.hpp"
+#include "../axi_utils.hpp"
 #include "../packet.hpp"
 #include "../udp/udp.hpp"
-
-const unsigned int DATA_WIDTH = 512;
 
 #ifndef __SYNTHESIS__
 static const ap_uint<40> END_TIME_100ms	= 5;
@@ -47,9 +47,6 @@ static const ap_uint<40> END_TIME_30s	= 4687500000;
 static const ap_uint<40> END_TIME_120s	= 18750000000;
 #endif
 
-
-static const ap_uint<16> PKG_SIZE = 1400;
-static const ap_uint<16> PKG_WORDS = 2;//PKG_SIZE / (DATA_WIDTH/8);
 
 static const ap_uint<16> MY_PORT = 32768;
 
@@ -87,11 +84,12 @@ public:
 };
 
 
-void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
-						hls::stream<net_axis<DATA_WIDTH> >&	rxData,
-						hls::stream<ipUdpMeta>&	txMetaData,
-						hls::stream<net_axis<DATA_WIDTH> >&	txData,
-						ap_uint<1>		runExperiment,
-						ap_uint<128>	regTargetIpAddress,
-						ap_uint<8>		regPacketGap);
+void iperf_udp(	hls::stream<ipUdpMeta>&	rxMetaData,
+				hls::stream<net_axis<DATA_WIDTH> >&	rxData,
+				hls::stream<ipUdpMeta>&	txMetaData,
+				hls::stream<net_axis<DATA_WIDTH> >&	txData,
+				ap_uint<1>		runExperiment,
+				ap_uint<8>		pkgWordCount,
+				ap_uint<8>		packetGap,
+				ap_uint<32>		targetIpAddress);
 #endif
