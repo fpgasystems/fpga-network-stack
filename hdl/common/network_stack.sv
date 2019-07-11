@@ -36,7 +36,10 @@ module network_stack #(
     parameter IP_SUBNET_MASK = 32'h00FFFFFF,
     parameter IP_DEFAULT_GATEWAY = 32'h00000000,
     parameter DHCP_EN   = 0,
-    parameter RX_DDR_BYPASS_EN = 0
+    parameter TCP_EN = 0,
+    parameter RX_DDR_BYPASS_EN = 0,
+    parameter UDP_EN = 0,
+    parameter ROCE_EN = 0
 )(
     input wire          net_clk,
     input wire          net_aresetn,
@@ -268,7 +271,7 @@ logic       session_count_valid;
 logic[15:0] session_count_data;
  
 tcp_stack #(
-     .TCP_EN(0),
+     .TCP_EN(TCP_EN),
      .WIDTH(WIDTH),
      .RX_DDR_BYPASS_EN(RX_DDR_BYPASS_EN)
  ) tcp_stack_inst(
@@ -564,7 +567,7 @@ assign m_axis_read_cmd[ddrPortNetworkTx].length = axis_read_cmd_data[ddrPortNetw
  * UDP/IP
  */
 udp_stack #(
-      .UDP_EN(0),
+      .UDP_EN(UDP_EN),
       .WIDTH(WIDTH)
   ) udp_stack_inst(
       .net_clk(net_clk), // input aclk
@@ -731,7 +734,7 @@ assign axis_ipv6_to_intercon.last = 1'b0;
 
 
 roce_stack #(
-    .ROCE_EN(0)
+    .ROCE_EN(ROCE_EN)
 ) rocev2_stack_inst(
     .net_clk(net_clk), // input aclk
     .net_aresetn(aresetn_reg), // input aresetn
