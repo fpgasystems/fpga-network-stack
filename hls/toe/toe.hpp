@@ -535,11 +535,11 @@ struct appTxMeta
 
 struct appTxRsp
 {
-	ap_uint<12> length;
-	ap_uint<16> remaining_space;
-	ap_uint<4>	error;
+	ap_uint<16> length;
+	ap_uint<30> remaining_space;
+	ap_uint<2>	error;
 	appTxRsp() {}
-	appTxRsp(ap_uint<12> len, ap_uint<16> rem_space, ap_uint<4> err)
+	appTxRsp(ap_uint<16> len, ap_uint<30> rem_space, ap_uint<2> err)
 		:length(len), remaining_space(rem_space), error(err) {}
 };
 
