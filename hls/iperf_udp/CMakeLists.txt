@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.0)
 
-set (PROJECT_NAME iperf_udp_client)
+set (PROJECT_NAME iperf_udp)
 project(${PROJECT_NAME})
 
 # Include custom Find<Module>.cmake scripts to enable searching for Vivado HLS
@@ -22,7 +22,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cma
 
 
 set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
-#set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
+set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
 
 
@@ -35,15 +35,15 @@ endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-#configure_file(${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp_client_config.hpp.in iperf_udp_client_config.hpp)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp_config.hpp.in iperf_udp_config.hpp)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
 
 
 set(EXAMPLE_HLS_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp_client.cpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp_client.hpp
-#    ${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp_client_config.hpp.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_iperf_udp_client.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp.cpp 
+    ${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp_config.hpp.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_iperf_udp.cpp)
 
 
 #Setup HLS custom targets

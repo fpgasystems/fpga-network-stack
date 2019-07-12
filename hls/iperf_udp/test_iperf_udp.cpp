@@ -24,27 +24,23 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "iperf_udp_client.hpp"
+#include "iperf_udp_config.hpp"
+#include "iperf_udp.hpp"
 #include <iostream>
 
 int main()
 {
-	hls::stream<ipUdpMeta>	rxMetaData("rxMetaData");
-	hls::stream<net_axis<DATA_WIDTH> >		rxData("rxData");
-	hls::stream<ipUdpMeta>	txMetaData("txMetaData");
-	hls::stream<net_axis<DATA_WIDTH> >		txData("txData");
-	ap_uint<1> runExperiment;
-	//ap_uint<32> myIpAddress = 0x01010101;
-	ap_uint<128> targetIpAddress = 0x0A010101;
-	targetIpAddress(63, 32) = 0x0A010101;
-	targetIpAddress(95, 64) = 0x0A010101;
-	targetIpAddress(127, 96) = 0x0A010101;
+	hls::stream<ipUdpMeta>				rxMetaData("rxMetaData");
+	hls::stream<net_axis<DATA_WIDTH> >	rxData("rxData");
+	hls::stream<ipUdpMeta>				txMetaData("txMetaData");
+	hls::stream<net_axis<DATA_WIDTH> >	txData("txData");
 
-	ap_uint<16> sessionID;
-	net_axis<DATA_WIDTH> currWord;
+	ap_uint<1>	runExperiment;
+	ap_uint<32>	targetIpAddress = 0x0A010101;
+	ap_uint<8>	pkgWordCount = 10;
+	ap_uint<8>	packetGap = 0;
+
 	int count = 0;
-	ap_uint<8>		packetGap = 0;
-
 	while (count < 100000)
 	{
 		runExperiment = 0;
@@ -52,18 +48,18 @@ int main()
 		{
 			runExperiment = 1;
 		}
-		iperf_udp_client(	rxMetaData,
-							rxData,
-							txMetaData,
-							txData,
-							runExperiment,
-							targetIpAddress,
-							packetGap);
+		iperf_udp(	rxMetaData,
+					rxData,
+					txMetaData,
+					txData,
+					runExperiment,
+					pkgWordCount,
+					packetGap,
+					targetIpAddress);
 
-		ipUdpMeta meta;
 		if (!txMetaData.empty())
 		{
-			txMetaData.read(meta);
+			ipUdpMeta meta = txMetaData.read();
 
 			std::cout << "Destination IP" << std::hex << meta.their_address << std::dec << ", port: " << meta.their_port << std::endl;
 			std::cout << "Length: " << std::dec << meta.length << std::endl;
@@ -71,15 +67,9 @@ int main()
 
 		while (!txData.empty())
 		{
-			txData.read(currWord);
+			net_axis<DATA_WIDTH> currWord = txData.read();
 			printLE(std::cout, currWord);
 			std::cout << std::endl;
-			/*std::cout << std::hex << std::noshowbase;
-			std::cout << std::setfill('0');
-			std::cout << std::setw(8) << ((uint32_t) currWord.data(63, 32));
-			std::cout << std::setw(8) << ((uint32_t) currWord.data(31, 0));
-			std::cout << " " << std::setw(2) << ((uint32_t) currWord.keep) << " ";
-			std::cout << std::setw(1) << ((uint32_t) currWord.last) << std::endl;*/
 			//Check for last message
 			if (currWord.data(7,0) == 0xFF)
 			{

@@ -46,11 +46,12 @@ int main()
 	hls::stream<ap_uint<16> > closeConnection("closeConnection");
 	hls::stream<appTxMeta> txMetaData("txMetaData");
 	hls::stream<net_axis<DATA_WIDTH> > txData("txData");
-	hls::stream<ap_int<17> > txStatus("txStatus");
+	hls::stream<appTxRsp> txStatus("txStatus");
 	ap_uint<1> runExperiment;
 	ap_uint<1> dualModeEn;
 	ap_uint<13> useConn;
 	ap_uint<8> pkgWordCount;
+	ap_uint<8> pkgGap;
 	ap_uint<32>    timeInSeconds;
 	ap_uint<64>    timeInCycles;
 
@@ -67,6 +68,7 @@ int main()
 
 	dualModeEn = 0;
 	pkgWordCount = 8;
+	pkgGap = 10;
 	timeInSeconds = 100;
 	timeInCycles = 1000;
 
@@ -95,6 +97,7 @@ int main()
 						dualModeEn,
 						useConn,
 						pkgWordCount,
+						pkgGap,
 						timeInSeconds,
 						timeInCycles,
 						ipAddress0,
@@ -125,6 +128,10 @@ int main()
 		{
 			appTxMeta meta = txMetaData.read();
 			std::cout << "New Pkg: " << std::dec << meta.sessionID << ", length[B]: " << meta.length << std::endl;
+			int toss = rand() % 2;
+			toss = (toss == 0 || meta.length == IPERF_TCP_HEADER_SIZE/8) ? 0 : -1;
+			std::cout << "toss: " << toss << std::endl;
+			txStatus.write(appTxRsp(meta.length, 0xFFFF, toss));
 		}
 		while (!txData.empty())
 		{

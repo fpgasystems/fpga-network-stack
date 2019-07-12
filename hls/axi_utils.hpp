@@ -342,7 +342,7 @@ void increaseStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<
 	{
 		net_axis<W> currWord = input.read();
 		temp.data((W*count)+W-1, (W*count)) = currWord.data;
-		temp.keep(((W/8)*count+(W/8)+1), ((W/8)*count)) = currWord.keep;
+		temp.keep(((W/8)*count+(W/8)-1), ((W/8)*count)) = currWord.keep;
 		temp.last = currWord.last;
 
 		count++;
@@ -350,6 +350,10 @@ void increaseStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<
 		{
 			output.write(temp);
 			count = 0;
+#ifndef __SYNTHESIS__
+			temp.data = 0;
+#endif
+			temp.keep = 0;
 		}
 	}
 

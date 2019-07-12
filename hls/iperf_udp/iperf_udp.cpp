@@ -24,7 +24,8 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "iperf_udp_client.hpp"
+#include "iperf_udp_config.hpp"
+#include "iperf_udp.hpp"
 #include <iostream>
 
 template <int WIDTH>
@@ -34,12 +35,13 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 			hls::stream<bool>&			stopSignal,
 			hls::stream<bool>&			doneSignalFifo,
 			ap_uint<1>		runExperiment,
-			ap_uint<128>	regTargetIpAddress,
-			ap_uint<8>		regPacketGap)
+			ap_uint<8>		pkgWordCount,
+			ap_uint<8>		packetGap,
+			ap_uint<32>		targetIpAddress)
 {
 #pragma HLS PIPELINE II=1
 
-	enum iperfFsmStateType {IDLE, START, CONSTRUCT_HEADER, HEADER, WRITE_PKG, /*CHECK_TIME,*/ WAIT_RESPONSE, PKG_GAP};
+	enum iperfFsmStateType {IDLE, START, CONSTRUCT_HEADER, HEADER, WRITE_PKG, WAIT_RESPONSE, PKG_GAP};
 	static iperfFsmStateType iperfFsmState = IDLE;
 	static bool timeOver = false;
 	static bool lastPkg = false;
@@ -51,7 +53,7 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 	static ap_uint<32> cycleCounter = 0;
 	static ap_uint<32> waitCounter = 0;
 	static ap_uint<8> packetGapCounter = 0;
-	static iperfHeader<WIDTH> header;
+	static iperfHeader<WIDTH> header; //size 192bit
 	static bool metaWritten = false;
 
 	const ap_uint<16> theirPort = 0x1389;
@@ -97,92 +99,56 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 		header.setSeqNumber(seqNumber, lastPkg);
 		header.setSeconds(secondCounter);
 		header.setMicroSeconds(microsecondCounter);
+		seqNumber++;
 		iperfFsmState = HEADER;
 		break;
 	case HEADER:
 		if (!metaWritten)
 		{
-			txMetaData.write(ipUdpMeta(regTargetIpAddress, theirPort, MY_PORT, PKG_SIZE));
+			txMetaData.write(ipUdpMeta(targetIpAddress, theirPort, MY_PORT, pkgWordCount*(WIDTH/8)));
 			metaWritten = true;
 		}
 
-		if (header.consumeWord(currWord.data) < WIDTH)
+		if (header.consumeWord(currWord.data) < (WIDTH/8))
 		{
 			metaWritten = false;
-			wordCount++;//(IPERF_HEADER_SIZE / AXI_WIDTH);
 			iperfFsmState = WRITE_PKG;
 		}
+		wordCount++;
 		currWord.keep = ~0;
 		//TODO handle 128 properly
+      if (WIDTH == 128)
+      {
+			for (int i = 1; i < (WIDTH/64); i++)
+         {
+				#pragma HLS UNROLL
+				currWord.data(i*64+63, i*64) = 0x3736353433323130;
+				currWord.keep(i*8+7, i*8) = 0xff;
+			}
+      }
 		if (WIDTH > 128)
 		{
-			for (int i = 3; i < (WIDTH/64); i++) {
+			for (int i = 3; i < (WIDTH/64); i++)
+         {
 				#pragma HLS UNROLL
 				currWord.data(i*64+63, i*64) = 0x3736353433323130;
 				currWord.keep(i*8+7, i*8) = 0xff;
 			}
 		}
-		currWord.last = 0;
+		currWord.last = 0; //TODO handle what no more words??
 		txData.write(currWord);
 		break;
-
-		/*if (!lastPkg)
-		{
-			currWord.data(7,0) = seqNumber(31, 24);
-			currWord.data(15,8) = seqNumber(23, 16);
-			currWord.data(23,16) = seqNumber(15, 8);
-			currWord.data(31,24) = seqNumber(7, 0);
-			seqNumber++;
-		}
-		else
-		{
-			currWord.data[7] = 1;
-			currWord.data(6,0) = seqNumber(30, 24);
-			currWord.data(15,8) = seqNumber(23, 16);
-			currWord.data(23,16) = seqNumber(15, 8);
-			currWord.data(31,24) = seqNumber(7, 0);
-		}
-		currWord.data(39,32) = secondCounter(31, 24);
-		currWord.data(47,40) = secondCounter(23, 16);
-		currWord.data(55,48) = secondCounter(15, 8);
-		currWord.data(63,56) = secondCounter(7, 0);
-		currWord.keep = 0xff;
-		currWord.last = 0;
-		txData.write(currWord);
-		wordCount = 1;
-		iperfFsmState = START_PKG2;
-		break;
-	case START_PKG2:
-		currWord.data(7,0) = microsecondCounter(31, 24);
-		currWord.data(15,8) = microsecondCounter(23, 16);
-		currWord.data(23,16) = microsecondCounter(15, 8);
-		currWord.data(31,24) = microsecondCounter(7, 0);
-		currWord.data(63, 32) = 0x35343332;
-		currWord.keep = 0xff;
-		currWord.last = 0;
-		txData.write(currWord);
-		wordCount++;
-		iperfFsmState = START_PKG3;
-		break;
-	case START_PKG3:
-		currWord.data(31,0) = 0;
-		currWord.data(63, 32) = 0x33323130;
-		currWord.keep = 0xff;
-		currWord.last = 0;
-		txData.write(currWord);
-		wordCount++;
-		iperfFsmState = WRITE_PKG;
-		break;*/
 	case WRITE_PKG:
-		if (wordCount < PKG_WORDS)
+		if (wordCount < pkgWordCount)
 		{
 			wordCount++;
-			for (int i = 0; i < (WIDTH/64); i++) {
+			for (int i = 0; i < (WIDTH/64); i++)
+         {
 				#pragma HLS UNROLL
 				currWord.data(i*64+63, i*64) = 0x3736353433323130;
 				currWord.keep(i*8+7, i*8) = 0xff;
 			}
-			currWord.last = (wordCount == (PKG_WORDS));
+			currWord.last = (wordCount == (pkgWordCount));
 			txData.write(currWord);
 			if (currWord.last)
 			{
@@ -206,7 +172,7 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 					{
 						lastPkg = true;
 					}
-					if (regPacketGap != 0)
+					if (packetGap != 0)
 					{
 						iperfFsmState = PKG_GAP;
 					}
@@ -218,24 +184,6 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 			}
 		}
 		break;
-	/*case CHECK_TIME:
-		if (timeOver)
-		{
-			lastPkg = true;
-		}
-		//else
-		{
-			wordCount = 0;
-			if (regPacketGap != 0)
-			{
-				iperfFsmState = PKG_GAP;
-			}
-			else
-			{
-				iperfFsmState = CONSTRUCT_HEADER;
-			}
-		}
-		break;*/
 	case WAIT_RESPONSE:
 		waitCounter++;
 		if (waitCounter == END_TIME_100ms)
@@ -245,17 +193,11 @@ void client(hls::stream<ipUdpMeta>&	txMetaData,
 		}
 		break;
 	case PKG_GAP:
-		wordCount++;
-		if(wordCount == PKG_WORDS)
+		packetGapCounter++;
+		if (packetGapCounter == packetGap)
 		{
-			wordCount = 0;
-			packetGapCounter++;
-			if (packetGapCounter == regPacketGap)
-			{
-				packetGapCounter = 0;
-				iperfFsmState = CONSTRUCT_HEADER;
-			}
-
+			packetGapCounter = 0;
+			iperfFsmState = CONSTRUCT_HEADER;
 		}
 		break;
 	}
@@ -324,13 +266,14 @@ void check_for_response(hls::stream<ipUdpMeta>&	rxMetaData,
 }
 
 
-void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
-						hls::stream<net_axis<DATA_WIDTH> >&	rxData,
-						hls::stream<ipUdpMeta>&	txMetaData,
-						hls::stream<net_axis<DATA_WIDTH> >&	txData,
-						ap_uint<1>		runExperiment,
-						ap_uint<128>	regTargetIpAddress,
-						ap_uint<8>		regPacketGap)
+void iperf_udp(	hls::stream<ipUdpMeta>&	rxMetaData,
+				hls::stream<net_axis<DATA_WIDTH> >&	rxData,
+				hls::stream<ipUdpMeta>&	txMetaData,
+				hls::stream<net_axis<DATA_WIDTH> >&	txData,
+				ap_uint<1>		runExperiment,
+				ap_uint<8>		pkgWordCount,
+				ap_uint<8>		packetGap,
+				ap_uint<32>		targetIpAddress)
 {
 	#pragma HLS DATAFLOW
 	#pragma HLS INTERFACE ap_ctrl_none port=return
@@ -343,9 +286,9 @@ void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
 	#pragma HLS DATA_PACK variable=txMetaData
 
 	#pragma HLS INTERFACE ap_stable register port=runExperiment
-	//#pragma HLS INTERFACE ap_none register port=regMyIpAddress
-	#pragma HLS INTERFACE ap_stable register port=regTargetIpAddress
-	#pragma HLS INTERFACE ap_stable register port=regPacketGap
+	#pragma HLS INTERFACE ap_stable register port=pkgWordCount
+	#pragma HLS INTERFACE ap_stable register port=packetGap
+	#pragma HLS INTERFACE ap_stable register port=targetIpAddress
 
 
 	static hls::stream<bool>		startSignalFifo("startSignalFifo");
@@ -364,9 +307,10 @@ void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
 			stopSignalFifo,
 			doneSignalFifo,
 			runExperiment,
+			pkgWordCount,
+			packetGap,
 			//regMyIpAddress,
-			regTargetIpAddress,
-			regPacketGap);
+			targetIpAddress);
 
 	/*
 	 * Check Response
@@ -379,3 +323,37 @@ void iperf_udp_client(	hls::stream<ipUdpMeta>&	rxMetaData,
 	clock( startSignalFifo,
 			stopSignalFifo);
 }
+
+/*void iperf_udp_top(	hls::stream<ipUdpMeta>&	rxMetaData,
+					hls::stream<net_axis<DATA_WIDTH> >&	rxData,
+					hls::stream<ipUdpMeta>&	txMetaData,
+					hls::stream<net_axis<DATA_WIDTH> >&	txData,
+					ap_uint<1>		runExperiment,
+					ap_uint<8>		pkgWordCount,
+					ap_uint<8>		packetGap,
+					ap_uint<32>		targetIpAddress)
+{
+	#pragma HLS DATAFLOW
+	#pragma HLS INTERFACE ap_ctrl_none port=return
+
+	#pragma HLS resource core=AXI4Stream variable=rxMetaData metadata="-bus_bundle s_axis_rx_metadata"
+	#pragma HLS resource core=AXI4Stream variable=rxData metadata="-bus_bundle s_axis_rx_data"
+	#pragma HLS resource core=AXI4Stream variable=txMetaData metadata="-bus_bundle m_axis_tx_metadata"
+	#pragma HLS resource core=AXI4Stream variable=txData metadata="-bus_bundle m_axis_tx_data"
+	#pragma HLS DATA_PACK variable=rxMetaData
+	#pragma HLS DATA_PACK variable=txMetaData
+
+	#pragma HLS INTERFACE ap_stable register port=runExperiment
+	#pragma HLS INTERFACE ap_stable register port=pkgWordCount
+	#pragma HLS INTERFACE ap_stable register port=packetGap
+	#pragma HLS INTERFACE ap_stable register port=targetIpAddress
+
+	iperf_udp<DATA_WIDTH>(rxMetaData,
+							rxData,
+							txMetaData,
+							txData,
+							runExperiment,
+							pkgWordCount,
+							packetGap,
+							targetIpAddress);
+}*/
