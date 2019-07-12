@@ -3,6 +3,8 @@
 
 `include "os_types.svh"
 
+`define POINTER_CHASING
+
 module roce_stack #(
     parameter ROCE_EN = 1
 )(
@@ -25,6 +27,9 @@ module roce_stack #(
     axis_meta.slave         s_axis_tx_meta,
     //axi_stream.master       m_axis_roce_role_rx_data,
     axi_stream.slave        s_axis_tx_data,
+    
+    axis_meta.master    m_axis_rx_pcmeta,
+    axis_meta.slave     s_axis_tx_pcmeta,
 
 
    //Config
@@ -94,12 +99,12 @@ rocev2_ip rocev2_inst(
     .m_axis_mem_read_cmd_TREADY(m_axis_mem_read_cmd.ready),
     .m_axis_mem_read_cmd_TDATA({m_axis_mem_read_cmd.dest, m_axis_mem_read_cmd.data}),
     // Memory Write
-    .m_axis_mem_write_data_TVALID(s_axis_mem_write_data.valid),
-    .m_axis_mem_write_data_TREADY(s_axis_mem_write_data.ready),
-    .m_axis_mem_write_data_TDATA(s_axis_mem_write_data.data),
-    .m_axis_mem_write_data_TKEEP(s_axis_mem_write_data.keep),
-    .m_axis_mem_write_data_TLAST(s_axis_mem_write_data.last),
-    .m_axis_mem_write_data_TDEST(s_axis_mem_write_data.dest),
+    .m_axis_mem_write_data_TVALID(m_axis_mem_write_data.valid),
+    .m_axis_mem_write_data_TREADY(m_axis_mem_write_data.ready),
+    .m_axis_mem_write_data_TDATA(m_axis_mem_write_data.data),
+    .m_axis_mem_write_data_TKEEP(m_axis_mem_write_data.keep),
+    .m_axis_mem_write_data_TLAST(m_axis_mem_write_data.last),
+    .m_axis_mem_write_data_TDEST(m_axis_mem_write_data.dest),
     // Memory Read
     .s_axis_mem_read_data_TVALID(s_axis_mem_read_data.valid),
     .s_axis_mem_read_data_TREADY(s_axis_mem_read_data.ready),
@@ -112,14 +117,14 @@ rocev2_ip rocev2_inst(
     //.s_axis_mem_write_status_TDATA(s_axis_rxwrite_sts_TDATA),
     
     //Pointer chaising
-/*`ifdef POINTER_CHASING
+`ifdef POINTER_CHASING
     .m_axis_rx_pcmeta_TVALID(m_axis_rx_pcmeta.valid),
     .m_axis_rx_pcmeta_TREADY(m_axis_rx_pcmeta.ready),
     .m_axis_rx_pcmeta_TDATA(m_axis_rx_pcmeta.data),
     .s_axis_tx_pcmeta_TVALID(s_axis_tx_pcmeta.valid),
     .s_axis_tx_pcmeta_TREADY(s_axis_tx_pcmeta.ready),
     .s_axis_tx_pcmeta_TDATA(s_axis_tx_pcmeta.data),
-`endif*/
+`endif
     //CONTROL
     .s_axis_qp_interface_TVALID(s_axis_qp_interface.valid),
     .s_axis_qp_interface_TREADY(s_axis_qp_interface.ready),
@@ -137,7 +142,7 @@ rocev2_ip rocev2_inst(
 );
 end
 else begin
-assign s_axis_rx_data.ready = 1'b0;
+assign s_axis_rx_data.ready = 1'b1;
 assign m_axis_tx_data.valid = 1'b0;
 
 assign s_axis_tx_meta.ready = 1'b0;

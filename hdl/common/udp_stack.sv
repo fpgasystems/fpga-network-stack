@@ -120,7 +120,7 @@ ipv4_ip ipv4_inst (
 end
 else begin
 
-assign s_axis_rx_data.ready = 1'b0;
+assign s_axis_rx_data.ready = 1'b1;
 assign m_axis_tx_data.valid = 1'b0;
 
 
