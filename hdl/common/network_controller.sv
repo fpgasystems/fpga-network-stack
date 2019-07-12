@@ -75,6 +75,9 @@ module network_controller
     input wire[31:0]    arp_tx_pkg_counter,
     input wire[15:0]    arp_request_pkg_counter,
     input wire[15:0]    arp_reply_pkg_counter,
+    //icmp
+    input wire[31:0]    icmp_rx_pkg_counter,
+    input wire[31:0]    icmp_tx_pkg_counter,
     //tcp
     input wire[31:0]    tcp_rx_pkg_counter,
     input wire[31:0]    tcp_tx_pkg_counter,
@@ -329,30 +332,81 @@ axim_clock_converter axi_mm_clock_converter_inst(
   
 //Fifo for tx metadata
 
-reg         axis_tx_metadata_valid;
-wire        axis_tx_metadata_ready;
-reg[159:0]  axis_tx_metadata_data;
-wire[31:0]  cmd_fifo_count;
+reg         axis_by_tx_metadata_valid;
+wire        axis_by_tx_metadata_ready;
+reg[159:0]  axis_by_tx_metadata_data;
+wire[31:0]  by_cmd_fifo_count;
+wire        axis_by_merge_metadata_valid;
+wire        axis_by_merge_metadata_ready;
+wire[159:0] axis_by_merge_metadata_data;
+reg         axis_legacy_tx_metadata_valid;
+wire        axis_legacy_tx_metadata_ready;
+reg[159:0]  axis_legacy_tx_metadata_data;
+wire[31:0]  legacy_cmd_fifo_count;
+wire        axis_legacy_merge_metadata_valid;
+wire        axis_legacy_merge_metadata_ready;
+wire[159:0] axis_legacy_merge_metadata_data;
 
 // Two-clock cmd_fifo: 2 stage synchronization 
 axis_data_fifo_160_cc cmd_fifo (
   .s_axis_aclk       (pcie_clk),                      // input wire s_axis_aresetn
   .s_axis_aresetn    (pcie_aresetn),                  // input wire s_axis_aclk
-  .s_axis_tready     (axis_tx_metadata_ready),        // output wire s_axis_tready    
-  .s_axis_tvalid     (axis_tx_metadata_valid),        // input wire s_axis_tvalid
-  .s_axis_tdata      (axis_tx_metadata_data),         // input wire [159 : 0] s_axis_tdata
+  .s_axis_tvalid     (axis_by_tx_metadata_valid),        // input wire s_axis_tvalid
+  .s_axis_tready     (axis_by_tx_metadata_ready),        // output wire s_axis_tready
+  .s_axis_tdata      (axis_by_tx_metadata_data),         // input wire [159 : 0] s_axis_tdata
 
   .m_axis_aclk       (net_clk),                       // input m_axis_clk
   .m_axis_aresetn    (net_aresetn),                   // input m_axis_aresetn
-  .m_axis_tready     (m_axis_tx_meta_ready),          // input wire m_axis_tready
-  .m_axis_tvalid     (m_axis_tx_meta_valid),          // output wire m_axis_tvalid
-  .m_axis_tdata      (m_axis_tx_meta_data),           // output wire [159 : 0] m_axis_tdata
+  .m_axis_tvalid     (axis_by_merge_metadata_valid),          // output wire m_axis_tvalid
+  .m_axis_tready     (axis_by_merge_metadata_ready),          // input wire m_axis_tready
+  .m_axis_tdata      (axis_by_merge_metadata_data),           // output wire [159 : 0] m_axis_tdata
 
-  .axis_data_count   (cmd_fifo_count),                // output wire [31 : 0] axis_data_count        
-  .axis_wr_data_count(),                              // output wire [31 : 0] axis_wr_data_count                 
-  .axis_rd_data_count()                               // output wire [31 : 0] axis_rd_data_count       
+  .axis_data_count   (),                // output wire [31 : 0] axis_data_count
+  .axis_wr_data_count(by_cmd_fifo_count),                              // output wire [31 : 0] axis_wr_data_count
+  .axis_rd_data_count()                               // output wire [31 : 0] axis_rd_data_count
 );
 
+
+// Cmd fifo for the legacy interface (e.g. ARM CPUs which don't support AVX2)
+axis_data_fifo_160 legacy_cmd_fifo (
+  .s_axis_aclk       (net_clk),                      // input wire s_axis_aresetn
+  .s_axis_aresetn    (net_aresetn),                  // input wire s_axis_aclk
+  .s_axis_tvalid     (axis_legacy_tx_metadata_valid),        // input wire s_axis_tvalid
+  .s_axis_tready     (axis_legacy_tx_metadata_ready),        // output wire s_axis_tready
+  .s_axis_tdata      (axis_legacy_tx_metadata_data),         // input wire [159 : 0] s_axis_tdata
+  .m_axis_tvalid     (axis_legacy_merge_metadata_valid),          // output wire m_axis_tvalid
+  .m_axis_tready     (axis_legacy_merge_metadata_ready),          // input wire m_axis_tready
+  .m_axis_tdata      (axis_legacy_merge_metadata_data),           // output wire [159 : 0] m_axis_tdata
+  .axis_data_count   (legacy_cmd_fifo_count),                // output wire [31 : 0] axis_data_count
+  .axis_wr_data_count(),                              // output wire [31 : 0] axis_wr_data_count
+  .axis_rd_data_count()                               // output wire [31 : 0] axis_rd_data_count
+);
+
+// Merge the two FIFOs
+axis_interconnect_2to1_160 cmd_fifo_merge_inst (
+  .ACLK(net_clk),                                  // input wire ACLK
+  .ARESETN(net_aresetn),                            // input wire ARESETN
+  .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
+  .S00_AXIS_ARESETN(net_aresetn),          // input wire S00_AXIS_ARESETN
+  .S00_AXIS_TVALID(axis_by_merge_metadata_valid),            // input wire S00_AXIS_TVALID
+  .S00_AXIS_TREADY(axis_by_merge_metadata_ready),            // output wire S00_AXIS_TREADY
+  .S00_AXIS_TDATA(axis_by_merge_metadata_data),              // input wire [159 : 0] S00_AXIS_TDATA.
+
+  .S01_AXIS_ACLK(net_clk),                // input wire S01_AXIS_ACLK
+  .S01_AXIS_ARESETN(net_aresetn),          // input wire S01_AXIS_ARESETN
+  .S01_AXIS_TVALID(axis_legacy_merge_metadata_valid),            // input wire S01_AXIS_TVALID
+  .S01_AXIS_TREADY(axis_legacy_merge_metadata_ready),            // output wire S01_AXIS_TREADY
+  .S01_AXIS_TDATA(axis_legacy_merge_metadata_data),              // input wire [159 : 0] S01_AXIS_TDATA
+
+  .M00_AXIS_ACLK(net_clk),                // input wire M00_AXIS_ACLK
+  .M00_AXIS_ARESETN(net_aresetn),          // input wire M00_AXIS_ARESETN
+  .M00_AXIS_TVALID(m_axis_tx_meta_valid),            // output wire M00_AXIS_TVALID
+  .M00_AXIS_TREADY(m_axis_tx_meta_ready),            // input wire M00_AXIS_TREADY
+  .M00_AXIS_TDATA(m_axis_tx_meta_data),              // output wire [159 : 0] M00_AXIS_TDATA
+
+  .S00_ARB_REQ_SUPPRESS(0),  // input wire S00_ARB_REQ_SUPPRESS
+  .S01_ARB_REQ_SUPPRESS(0)  // input wire S01_ARB_REQ_SUPPRESS
+);
 
 // ACTUAL LOGIC
 
@@ -377,6 +431,7 @@ begin
         axil_bvalid <= 1'b0;
         m_axis_qp_interface_valid <= 1'b0;
         m_axis_qp_conn_interface_valid <= 1'b0;
+        axis_legacy_tx_metadata_valid <= 1'b0;
         
         m_axis_pc_meta_valid <= 1'b0;
         
@@ -394,12 +449,13 @@ begin
                 axil_bvalid <= 1'b0;
                 m_axis_qp_interface_valid <= 1'b0;
                 m_axis_qp_conn_interface_valid <= 1'b0;
+                axis_legacy_tx_metadata_valid <= 1'b0;
                 m_axis_pc_meta_valid <= 1'b0;
                 
                 m_axis_host_arp_lookup_request_TVALID <= 1'b0;
                 s_axis_host_arp_lookup_reply_TREADY <= 1'b1;
                 
-                writeAddr = (axil_awaddr[11:0] >> 5);
+                writeAddr <= (axil_awaddr[11:0] >> 5);
                 if (axil_awvalid && axil_awready) begin
                     axil_awready <= 1'b0;
                     axil_wready <= 1'b1;
@@ -474,6 +530,44 @@ begin
                                 end
                             endcase
                         end
+                        GPIO_REG_POST: begin
+                            word_counter <= word_counter + 1;
+                            case(word_counter)
+                                0: begin
+                                    //lower part of qpn
+                                    axis_legacy_tx_metadata_data[4:3] <= axil_wdata[1:0];
+                                    //originAddr
+                                    axis_legacy_tx_metadata_data[28:27] <= 0;
+                                    axis_legacy_tx_metadata_data[58:29] <= axil_wdata[31:2];
+                                end
+                                1: begin
+                                    //originAddr
+                                    axis_legacy_tx_metadata_data[74:59] <= axil_wdata[15:0];
+                                    //upper part of qpn
+                                    axis_legacy_tx_metadata_data[6:5] <= axil_wdata[17:16];
+                                    //targetAddr
+                                    axis_legacy_tx_metadata_data[76:75] <= 0;
+                                    axis_legacy_tx_metadata_data[90:77] <= axil_wdata[31:18];
+                                end
+                                2: begin
+                                    //targetAddr
+                                    axis_legacy_tx_metadata_data[122:91] <= axil_wdata[31:0];
+                                end
+                                3: begin
+                                    //opCode 3bits
+                                    axis_legacy_tx_metadata_data[2:0] <= axil_wdata[2:0];
+                                    //length
+                                    axis_legacy_tx_metadata_data[125:123] <= 0;
+                                    axis_legacy_tx_metadata_data[154:126] <= axil_wdata[31:3];
+                                    //set unused part of qpn to 0
+                                    axis_legacy_tx_metadata_data[26:7] <= 0;
+                                    axil_bvalid <= 1'b0;
+                                    axis_legacy_tx_metadata_valid <= 1'b1;
+                                    word_counter <= 0;
+                                    writeState <= WRITE_POST;
+                                end
+                            endcase
+                         end
                         GPIO_REG_PC_META: begin
                             word_counter <= word_counter + 1;
                             case (word_counter)
@@ -544,6 +638,15 @@ begin
                     writeState <= WRITE_RESPONSE;
                 end
             end//WRITE_CONN
+            WRITE_POST: begin
+                axis_legacy_tx_metadata_valid <= 1'b1;
+                if (axis_legacy_tx_metadata_valid && axis_legacy_tx_metadata_ready) begin
+                    axil_bvalid <= 1'b1;
+                    axil_bresp <= AXI_RESP_OK;
+                    axis_legacy_tx_metadata_valid <= 1'b0;
+                    writeState <= WRITE_RESPONSE;
+                end
+             end
             WRITE_PC_META: begin
                 m_axis_pc_meta_valid <= 1'b1;
                 if (m_axis_pc_meta_valid && m_axis_pc_meta_ready) begin
@@ -577,8 +680,8 @@ begin
         s_axim.bresp           <= '0;
         s_axim.bvalid          <= 1'b0;
 
-        axis_tx_metadata_data  <= '0;
-        axis_tx_metadata_valid <= 1'b0;
+        axis_by_tx_metadata_data  <= '0;
+        axis_by_tx_metadata_valid <= 1'b0;
 
         mmwriteState           <= WRITE_IDLE;
     end
@@ -591,7 +694,7 @@ begin
                 s_axim.awready         <= 1'b1;
                 s_axim.wready          <= 1'b0;
                 s_axim.bvalid          <= 1'b0;
-                axis_tx_metadata_valid <= 1'b0;
+                axis_by_tx_metadata_valid <= 1'b0;
                         
                 mmwriteAddr = (s_axim.awaddr[11:0] >> 5);
 
@@ -626,28 +729,28 @@ begin
                             */
                             
                             // op - use only the 3 LSb that come from sw - [31:0]
-                            axis_tx_metadata_data[2:0]     <= s_axim.wdata[2:0];
+                            axis_by_tx_metadata_data[2:0]     <= s_axim.wdata[2:0];
 
                             // qpn - use only the 4 LSb that come from sw  [63:32]
-                            axis_tx_metadata_data[6:3]     <= s_axim.wdata[35:32];
-                            axis_tx_metadata_data[26:7]    <= 0;                                        // 20 bits
+                            axis_by_tx_metadata_data[6:3]     <= s_axim.wdata[35:32];
+                            axis_by_tx_metadata_data[26:7]    <= 0;                                        // 20 bits
 
                             // originAddr - use only 48 b from the sw, that last 2 bits are set to zero
                             // [127:64] 
-                            axis_tx_metadata_data[28:27]   <= 0;                                        // 2 bits 
-                            axis_tx_metadata_data[74:29]   <= s_axim.wdata[113:66];
+                            axis_by_tx_metadata_data[28:27]   <= 0;                                        // 2 bits
+                            axis_by_tx_metadata_data[74:29]   <= s_axim.wdata[113:66];
 
                             // targetAddr - use only 48 b from the sw, that last 2 bits are set to zero
                             // [191:128]
-                            axis_tx_metadata_data[76:75]   <= 0;                                        // 2 bits
-                            axis_tx_metadata_data[122:77]  <= s_axim.wdata[177:130];
+                            axis_by_tx_metadata_data[76:75]   <= 0;                                        // 2 bits
+                            axis_by_tx_metadata_data[122:77]  <= s_axim.wdata[177:130];
 
                             // size
                             // [255:192]
-                            axis_tx_metadata_data[125:123] <= 0;                                        // 3 bits
-                            axis_tx_metadata_data[154:126] <= s_axim.wdata[223:195];
+                            axis_by_tx_metadata_data[125:123] <= 0;                                        // 3 bits
+                            axis_by_tx_metadata_data[154:126] <= s_axim.wdata[223:195];
 
-                            axis_tx_metadata_valid         <= 1'b1;
+                            axis_by_tx_metadata_valid         <= 1'b1;
                             s_axim.bvalid                  <= 1'b0;
                             
                             mmwriteState <= WRITE_POST;
@@ -658,10 +761,10 @@ begin
             end //WRITE_DATA
 
             WRITE_POST: begin
-                if (axis_tx_metadata_valid && axis_tx_metadata_ready) begin
+                if (axis_by_tx_metadata_valid && axis_by_tx_metadata_ready) begin
                     s_axim.bvalid          <= 1'b1;
                     s_axim.bresp           <= AXI_RESP_OK;
-                    axis_tx_metadata_valid <= 1'b0;
+                    axis_by_tx_metadata_valid <= 1'b0;
 
                     s_axim.bvalid <= 1'b1;
                     mmwriteState  <= WRITE_RESPONSE;
@@ -709,7 +812,7 @@ begin
                 axil_rresp <= AXI_RESP_OK;
                 case (readAddr)
                     GPIO_REG_CMDS: begin
-                        axil_rdata <= cmd_fifo_count;
+                        axil_rdata <= (by_cmd_fifo_count | legacy_cmd_fifo_count);
                     end
                     GPIO_REG_PART_TUPLES: begin
                         axil_rdata <= '0; //part_tuples_counter;
@@ -761,6 +864,18 @@ begin
                             end
                             DEBUG_ARP_RSP_PKG: begin
                                 axil_rdata <= arp_reply_pkg_counter;
+                            end
+                            DEBUG_ICMP_RX_PKG: begin
+                                axil_rdata <= icmp_rx_pkg_counter;
+                            end
+                            DEBUG_ICMP_TX_PKG: begin
+                                axil_rdata <= icmp_tx_pkg_counter;
+                            end
+                            DEBUG_TCP_RX_PKG: begin
+                                axil_rdata <= tcp_rx_pkg_counter;
+                            end
+                            DEBUG_TCP_TX_PKG: begin
+                                axil_rdata <= tcp_tx_pkg_counter;
                             end
                             DEBUG_ROCE_RX_PKG: begin
                                 axil_rdata <= roce_rx_pkg_counter;
