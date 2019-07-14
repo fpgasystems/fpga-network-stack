@@ -27,6 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 
+#include "../toe_config.hpp"
 #include "tx_app_stream_if.hpp"
 
 using namespace hls;
@@ -41,15 +42,14 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 						stream<appTxRsp>&			appTxDataRsp,
 						stream<ap_uint<16> >&			txApp2stateTable_req,
 						stream<txAppTxSarQuery>&		txApp2txSar_upd_req,
-						stream<pkgPushMeta>&			tasi_writeToBufFifo,
+						stream<mmCmd>&					tasi_meta2pkgPushCmd,
 						stream<event>&					txAppStream2eventEng_setEvent)
 {
 #pragma HLS pipeline II=1
 
-	enum tai_states {READ_REQUEST, READ_META, RETRY_SPACE};
+	enum tai_states {READ_REQUEST, READ_META};
 	static tai_states tai_state = READ_REQUEST;
 	static appTxMeta tasi_writeMeta;
-	static ap_uint<8> waitCounter;
 
 	txAppTxSarReply writeSar;
 	sessionState state;
@@ -74,11 +74,11 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 		{
 			stateTable2txApp_rsp.read(state);
 			txSar2txApp_upd_rsp.read(writeSar);
-			ap_uint<16> maxWriteLength = (writeSar.ackd - writeSar.mempt) - 1;
+			ap_uint<WINDOW_BITS> maxWriteLength = (writeSar.ackd - writeSar.mempt) - 1;
 #if (TCP_NODELAY)
 			//tasi_writeSar.mempt and txSar.not_ackd are supposed to be equal (with a few cycles delay)
-			ap_uint<16> usedLength = ((ap_uint<16>) writeSar.mempt - writeSar.ackd);
-			ap_uint<16> usableWindow = 0;
+			ap_uint<WINDOW_BITS> usedLength = ((ap_uint<WINDOW_BITS>) writeSar.mempt - writeSar.ackd);
+			ap_uint<WINDOW_BITS> usableWindow = 0;
 			if (writeSar.min_window > usedLength)
 			{
 				usableWindow = writeSar.min_window - usedLength;
@@ -86,44 +86,37 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 #endif
 			if (state != ESTABLISHED)
 			{
-				tasi_writeToBufFifo.write(pkgPushMeta(true));
 				// Notify app about fail
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
-				tai_state = READ_REQUEST;
 			}
 #if !(TCP_NODELAY)
 			else if(tasi_writeMeta.length > maxWriteLength)
-#else
-			else if(tasi_writeMeta.length > maxWriteLength || usableWindow < tasi_writeMeta.length)
-#endif
 			{
-				//tasi_writeToBufFifo.write(pkgPushMeta(true));
-				// Notify app about fail
-				//appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
-				waitCounter = 0;
-				tai_state = RETRY_SPACE;
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
+
 			}
+#else
+			//else if(tasi_writeMeta.length > maxWriteLength || usableWindow < tasi_writeMeta.length)
+			else if (usableWindow < tasi_writeMeta.length)
+			{
+				// Notify app about fail
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, usableWindow, ERROR_NOSPACE));
+			}
+#endif
 			else //if (state == ESTABLISHED && pkgLen <= tasi_maxWriteLength)
 			{
 				// TODO there seems some redundancy
-				tasi_writeToBufFifo.write(pkgPushMeta(tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
+				ap_uint<32> pkgAddr;
+				pkgAddr(31, 30) = 0x01;
+				pkgAddr(29, WINDOW_BITS) = tasi_writeMeta.sessionID(13, 0);
+				pkgAddr(WINDOW_BITS-1, 0) = writeSar.mempt;
+
+				tasi_meta2pkgPushCmd.write(mmCmd(pkgAddr, tasi_writeMeta.length));
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, NO_ERROR));
-				//tasi_eventCacheFifo.write(eventMeta(tasi_writeSessionID, tasi_writeSar.mempt, pkgLen));
 				txAppStream2eventEng_setEvent.write(event(TX, tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
 				txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID, writeSar.mempt+tasi_writeMeta.length));
-				tai_state = READ_REQUEST;
 			}
-		}
-		break;
-	case RETRY_SPACE:
-		waitCounter++;
-		if (waitCounter == 100)
-		{
-			// Get session state
-			txApp2stateTable_req.write(tasi_writeMeta.sessionID);
-			// Get Ack pointer
-			txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID));
-			tai_state = READ_META;
+			tai_state = READ_REQUEST;
 		}
 		break;
 	} //switch
@@ -134,173 +127,143 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
  *  it writes the memory command and pushes the data to the DataMover,
  *  otherwise the packet is dropped.
  */
-void tasi_pkg_pusher(	stream<axiWord>& 				tasi_pkgBuffer,
-						stream<pkgPushMeta>&			tasi_writeToBufFifo,
-						stream<mmCmd>&					txBufferWriteCmd,
-#if !(TCP_NODELAY)
-						stream<axiWord>&				txBufferWriteData)
+template <int WIDTH>
+void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
+							hls::stream<net_axis<WIDTH> >& 	appTxDataIn,
+							hls::stream<mmCmd>&					txBufferWriteCmd,
+							hls::stream<net_axis<WIDTH> >&	txBufferWriteData)
 
-#else
-						stream<axiWord>&				txBufferWriteData,
-						stream<axiWord>&				txApp2txEng_data_stream)
-#endif
 {
-#pragma HLS pipeline II=1 enable_flush
-#pragma HLS INLINE off
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
 
-	static ap_uint<3> tasiPkgPushState = 0;
-	static pkgPushMeta tasi_pushMeta;
-	static mmCmd txAppTempCmd = mmCmd(0, 0);
-	static ap_uint<16> txAppBreakTemp = 0;
-	static uint8_t lengthBuffer = 0;
-	static ap_uint<3> accessResidue = 0;
-	static bool txAppBreakdown = false;
-	static axiWord pushWord = axiWord(0, 0xFF, 0);
+	enum fsmStateType {IDLE, CUT_FIRST, ALIGN_SECOND, FWD_ALIGNED, RESIDUE};
+	static fsmStateType tasiPkgPushState = IDLE;
+	static mmCmd cmd;
+	static ap_uint<WINDOW_BITS> remainingLength = 0;
+	static ap_uint<WINDOW_BITS> lengthFirstPkg;
+	static ap_uint<8> offset = 0;
+	static net_axis<WIDTH> prevWord;
 
-	static uint16_t txAppPktCounter = 0;
-	static uint32_t txAppWordCounter = 0;
+	switch (tasiPkgPushState)
+	{
+	case IDLE:
+		if (!tasi_meta2pkgPushCmd.empty())
+		{
+			tasi_meta2pkgPushCmd.read(cmd);
 
-
-	switch (tasiPkgPushState) {
-	case 0:
-		if (!tasi_writeToBufFifo.empty() && !txBufferWriteCmd.full()) {
-			tasi_writeToBufFifo.read(tasi_pushMeta);
-			if (!tasi_pushMeta.drop) {
-				ap_uint<32> pkgAddr;
-				pkgAddr(31, 30) = 0x01;
-				pkgAddr(29, 16) = tasi_pushMeta.sessionID(13, 0);
-				pkgAddr(15, 0) = tasi_pushMeta.address;
-				txAppTempCmd = mmCmd(pkgAddr, tasi_pushMeta.length);
-				mmCmd tempCmd = txAppTempCmd;
-				if ((txAppTempCmd.saddr.range(15, 0) + txAppTempCmd.bbt) > 65536) {
-					txAppBreakTemp = 65536 - txAppTempCmd.saddr;
-					txAppTempCmd.bbt -= txAppBreakTemp;
-					tempCmd = mmCmd(txAppTempCmd.saddr, txAppBreakTemp);
-					txAppBreakdown = true;
-				}
-				else
-				{
-					txAppBreakTemp = txAppTempCmd.bbt;
-				}
-				txBufferWriteCmd.write(tempCmd);
-			}
-			tasiPkgPushState = 1;
-		}
-		break;
-	case 1:
-		if (!tasi_pkgBuffer.empty()) {
-			tasi_pkgBuffer.read(pushWord);
-#if (TCP_NODELAY)
-			txApp2txEng_data_stream.write(pushWord);
-#endif
-			axiWord outputWord = pushWord;
-			ap_uint<4> byteCount = keepToLen(pushWord.keep);
-			if (!tasi_pushMeta.drop)
+			if ((cmd.saddr(WINDOW_BITS-1, 0) + cmd.bbt) > BUFFER_SIZE)
 			{
-				if (txAppBreakTemp > 8)
-				{
-					txAppBreakTemp -= 8;
-				}
-				else
-				{
-					if (txAppBreakdown == true) {				/// Changes are to go in here
-						if (txAppTempCmd.saddr.range(15, 0) % 8 != 0) // If the word is not perfectly aligned then there is some magic to be worked.
-						{
-							outputWord.keep = lenToKeep(txAppBreakTemp);
-						}
-						outputWord.last = 1;
-						tasiPkgPushState = 2;
-						accessResidue = byteCount - txAppBreakTemp;
-						lengthBuffer = txAppBreakTemp;	// Buffer the number of bits consumed.
-					}
-					else
-						tasiPkgPushState = 0;
-				}
-				txAppWordCounter++;
-				txBufferWriteData.write(outputWord);
-			} // if drop
-			else {
-				if (pushWord.last == 1)
-				{
-					tasiPkgPushState = 0;
-				}
+				lengthFirstPkg = BUFFER_SIZE - cmd.saddr;
+				remainingLength = lengthFirstPkg;
+				offset = lengthFirstPkg(5, 0); //TODO use lengthFirstPkg(log2(WIDTH/8), 0)
+
+				txBufferWriteCmd.write(mmCmd(cmd.saddr, lengthFirstPkg));
+				tasiPkgPushState = CUT_FIRST;
+
 			}
-		}
-		break;
-	case 2:
-		if (!txBufferWriteCmd.full()) {
-			if (txAppTempCmd.saddr.range(15, 0) % 8 == 0)
-				tasiPkgPushState = 3;
-			//else if (txAppTempCmd.bbt +  accessResidue > 8 || accessResidue > 0)
-			else if (txAppTempCmd.bbt - accessResidue > 0)
-				tasiPkgPushState = 4;
 			else
-				tasiPkgPushState = 5;
-			txAppTempCmd.saddr.range(15, 0) = 0;
-			txAppBreakTemp = txAppTempCmd.bbt;
-			txBufferWriteCmd.write(mmCmd(txAppTempCmd.saddr, txAppBreakTemp));
-			txAppBreakdown = false;
-
-		}
-		break;
-	case 3:	// This is the non-realignment state
-		if (!tasi_pkgBuffer.empty() & !txBufferWriteData.full()) {
-			tasi_pkgBuffer.read(pushWord);
-#if (TCP_NODELAY)
-			txApp2txEng_data_stream.write(pushWord);
-#endif
-			if (!tasi_pushMeta.drop) {
-				txAppWordCounter++;
-				txBufferWriteData.write(pushWord);
+			{
+				txBufferWriteCmd.write(cmd);
+				tasiPkgPushState = FWD_ALIGNED;
 			}
-			if (pushWord.last == 1)
-				tasiPkgPushState = 0;
 		}
 		break;
-	case 4: // We go into this state when we need to realign things
-		if (!tasi_pkgBuffer.empty() && !txBufferWriteData.full()) {
-			axiWord outputWord = axiWord(0, 0xFF, 0);
-			outputWord.data.range(((8-lengthBuffer)*8) - 1, 0) = pushWord.data.range(63, lengthBuffer*8);
-			pushWord = tasi_pkgBuffer.read();
-#if (TCP_NODELAY)
-			txApp2txEng_data_stream.write(pushWord);
-#endif
-			outputWord.data.range(63, (8-lengthBuffer)*8) = pushWord.data.range((lengthBuffer * 8), 0 );
+		case CUT_FIRST:
+		if (!appTxDataIn.empty())
+		{
+			appTxDataIn.read(prevWord);
+			net_axis<WIDTH> sendWord = prevWord;
 
-			if (!tasi_pushMeta.drop) {
-				if (pushWord.last == 1) {
-					if (txAppBreakTemp - accessResidue > lengthBuffer)	{ // In this case there's residue to be handled
-						txAppBreakTemp -=8;
-						tasiPkgPushState = 5;
-					}
-					else {
-						tasiPkgPushState = 0;
-						outputWord.keep = lenToKeep(txAppBreakTemp);
-						outputWord.last = 1;
-					}
+			if (remainingLength > (WIDTH/8))
+			{
+				remainingLength -= (WIDTH/8);
+			}
+			//This means that the second packet is aligned
+			else if (remainingLength == (WIDTH/8))
+			{
+				sendWord.last = 1;
+
+				cmd.saddr(WINDOW_BITS-1, 0) = 0;
+				cmd.bbt -= lengthFirstPkg;
+				txBufferWriteCmd.write(cmd);
+				tasiPkgPushState = FWD_ALIGNED;
+			}
+			else
+			{
+				sendWord.keep = lenToKeep(remainingLength);
+				sendWord.last = 1;
+
+				cmd.saddr(WINDOW_BITS-1, 0) = 0;
+				cmd.bbt -= lengthFirstPkg;
+				txBufferWriteCmd.write(cmd);
+				tasiPkgPushState = ALIGN_SECOND;
+				//If only part of a word is left
+				if (prevWord.last)
+				{
+					tasiPkgPushState = RESIDUE;
 				}
-				else
-					txAppBreakTemp -= 8;
-				txBufferWriteData.write(outputWord);
 			}
-			else {
-				if (pushWord.last == 1)
-					tasiPkgPushState = 0;
+
+			txBufferWriteData.write(sendWord);
+		}
+		break;
+	case FWD_ALIGNED:	// This is the non-realignment state
+		if (!appTxDataIn.empty())
+		{
+			net_axis<WIDTH> currWord = appTxDataIn.read();
+         std::cout << "HELP: ";
+         printLE(std::cout, currWord);
+         std::cout << std::endl;
+			txBufferWriteData.write(currWord);
+			if (currWord.last)
+			{
+				tasiPkgPushState = IDLE;
 			}
 		}
 		break;
-	case 5:
-		if (!txBufferWriteData.full()) {
-			if (!tasi_pushMeta.drop) {
-				axiWord outputWord = axiWord(0, lenToKeep(txAppBreakTemp), 1);
-				outputWord.data.range(((8-lengthBuffer)*8) - 1, 0) = pushWord.data.range(63, lengthBuffer*8);
-				txBufferWriteData.write(outputWord);
-				tasiPkgPushState = 0;
+	case ALIGN_SECOND: // We go into this state when we need to realign things
+		if (!appTxDataIn.empty())
+		{
+			net_axis<WIDTH> currWord = appTxDataIn.read();
+			net_axis<WIDTH> sendWord;
+			sendWord = alignWords<WIDTH>(offset, prevWord, currWord);
+			/*sendWord.data(WIDTH-1, WIDTH - (offset*8)) = currWord.data(offset*8-1, 0);
+			sendWord.data(WIDTH - (offset*8) -1, 0) = prevWord.data(WIDTH-1, offset*8);
+			sendWord.keep(WIDTH/8-1, WIDTH/8 - (offset)) = currWord.keep(offset-1, 0);
+			sendWord.keep(WIDTH/8 - (offset) -1, 0) = prevWord.keep(WIDTH/8-1, offset);*/
+			sendWord.last = (currWord.keep[offset] == 0);
+
+			txBufferWriteData.write(sendWord);
+			prevWord = currWord;
+			if (currWord.last)
+			{
+				tasiPkgPushState = IDLE;
+				if (!sendWord.last)
+				{
+					tasiPkgPushState = RESIDUE;
+				}
 			}
+
 		}
+		break;
+	case RESIDUE: //last word
+		net_axis<WIDTH> sendWord;
+#ifndef __SYNTHESIS__
+		sendWord.data(WIDTH-1, WIDTH - (offset*8)) = 0;
+#endif
+		net_axis<WIDTH> emptyWord;
+		sendWord = alignWords<WIDTH>(offset, prevWord, emptyWord);
+		/*sendWord.data(WIDTH - (offset*8) -1, 0) = prevWord.data(WIDTH-1, offset*8);
+		sendWord.keep(WIDTH/8-1, WIDTH/8 - (offset)) = 0;
+		sendWord.keep(WIDTH/8 - (offset) -1, 0) = prevWord.keep(WIDTH/8-1, offset);*/
+		sendWord.last = 1;
+		txBufferWriteData.write(sendWord);
+		tasiPkgPushState = IDLE;
 		break;
 	} //switch
 }
+
 /** @ingroup tx_app_stream_if
  *  This application interface is used to transmit data streams of established connections.
  *  The application sends the Session-ID on through @p writeMetaDataIn and the data stream
@@ -319,25 +282,26 @@ void tasi_pkg_pusher(	stream<axiWord>& 				tasi_pkgBuffer,
  *  @param[out]		txBufferWriteData
  *  @param[out]		txAppStream2eventEng_setEvent
  */
+template <int WIDTH>
 void tx_app_stream_if(	stream<appTxMeta>&				appTxDataReqMetaData,
-						stream<axiWord>&				appTxDataReq,
+						stream<net_axis<WIDTH> >&				appTxDataReq,
 						stream<sessionState>&			stateTable2txApp_rsp,
 						stream<txAppTxSarReply>&		txSar2txApp_upd_rsp, //TODO rename
 						stream<appTxRsp>&			appTxDataRsp,
 						stream<ap_uint<16> >&			txApp2stateTable_req,
 						stream<txAppTxSarQuery>&		txApp2txSar_upd_req, //TODO rename
 						stream<mmCmd>&					txBufferWriteCmd,
-						stream<axiWord>&				txBufferWriteData,
+						stream<net_axis<WIDTH> >&				txBufferWriteData,
 #if (TCP_NODELAY)
-						stream<axiWord>&				txApp2txEng_data_stream,
+						stream<net_axis<WIDTH> >&				txApp2txEng_data_stream,
 #endif
 						stream<event>&					txAppStream2eventEng_setEvent)
 {
 #pragma HLS INLINE
 
-	static stream<pkgPushMeta> tasi_writeToBufFifo("tasi_writeToBufFifo");
-	#pragma HLS stream variable=tasi_writeToBufFifo depth=32
-	#pragma HLS DATA_PACK variable=tasi_writeToBufFifo
+	static stream<mmCmd> tasi_meta2pkgPushCmd("tasi_meta2pkgPushCmd");
+	#pragma HLS stream variable=tasi_meta2pkgPushCmd depth=32
+	#pragma HLS DATA_PACK variable=tasi_meta2pkgPushCmd
 
 	tasi_metaLoader(	appTxDataReqMetaData,
 						stateTable2txApp_rsp,
@@ -345,17 +309,38 @@ void tx_app_stream_if(	stream<appTxMeta>&				appTxDataReqMetaData,
 						appTxDataRsp,
 						txApp2stateTable_req,
 						txApp2txSar_upd_req,
-						tasi_writeToBufFifo,
+						tasi_meta2pkgPushCmd,
 						txAppStream2eventEng_setEvent);
 
-	tasi_pkg_pusher(	appTxDataReq,
-						tasi_writeToBufFifo,
-						txBufferWriteCmd,
-#if !(TCP_NODELAY)
-						txBufferWriteData);
-#else
-						txBufferWriteData,
-						txApp2txEng_data_stream);
+#if (TCP_NODELAY)
+	static hls::stream<net_axis<WIDTH> > tasi_dataFifo("tasi_dataFifo");
+	#pragma HLS stream variable=tasi_dataFifo depth=2
+	#pragma HLS DATA_PACK variable=tasi_dataFifo
+
+	duplicate_stream(appTxDataReq, tasi_dataFifo, txApp2txEng_data_stream);
 #endif
 
+	tasi_pkg_pusher<WIDTH>(tasi_meta2pkgPushCmd,
+#if (TCP_NODELAY)
+									tasi_dataFifo,
+#else
+									appTxDataReq,
+#endif
+						txBufferWriteCmd,
+						txBufferWriteData);
+
 }
+
+template void tx_app_stream_if<DATA_WIDTH>(	stream<appTxMeta>&				appTxDataReqMetaData,
+						stream<net_axis<DATA_WIDTH> >&				appTxDataReq,
+						stream<sessionState>&			stateTable2txApp_rsp,
+						stream<txAppTxSarReply>&		txSar2txApp_upd_rsp, //TODO rename
+						stream<appTxRsp>&			appTxDataRsp,
+						stream<ap_uint<16> >&			txApp2stateTable_req,
+						stream<txAppTxSarQuery>&		txApp2txSar_upd_req, //TODO rename
+						stream<mmCmd>&					txBufferWriteCmd,
+						stream<net_axis<DATA_WIDTH> >&				txBufferWriteData,
+#if (TCP_NODELAY)
+						stream<net_axis<DATA_WIDTH> >&				txApp2txEng_data_stream,
+#endif
+						stream<event>&					txAppStream2eventEng_setEvent);

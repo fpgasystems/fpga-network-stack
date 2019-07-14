@@ -29,7 +29,24 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "../toe.hpp"
 
-using namespace hls;
+struct optionalFieldsMeta
+{
+	ap_uint<4>	dataOffset;
+	ap_uint<1>	syn;
+	optionalFieldsMeta() {}
+	optionalFieldsMeta(ap_uint<4> offset, ap_uint<1> syn)
+		:dataOffset(offset), syn(syn) {}
+};
+
+struct pseudoMeta
+{
+	ap_uint<32> their_address;
+	ap_uint<32> our_address;
+	ap_uint<16> length;
+	pseudoMeta() {}
+	pseudoMeta(ap_uint<32> src_addr, ap_uint<32> dst_addr, ap_uint<16> len)
+		:their_address(src_addr), our_address(dst_addr), length(len) {}
+};
 
 /** @ingroup rx_engine
  *  @TODO check if same as in Tx engine
@@ -40,11 +57,15 @@ struct rxEngineMetaData
 	ap_uint<32> seqNumb;
 	ap_uint<32> ackNumb;
 	ap_uint<16> winSize;
+//#if (WINDOW_SCALE)
+	ap_uint<4>	winScale;
+//#endif
 	ap_uint<16> length;
 	ap_uint<1>	ack;
 	ap_uint<1>	rst;
 	ap_uint<1>	syn;
 	ap_uint<1>	fin;
+	ap_uint<4>	dataOffset;
 	//ap_uint<16> dstPort;
 };
 
@@ -66,7 +87,8 @@ struct rxFsmMetaData
  *  @ingroup tcp_module
  *  RX Engine
  */
-void rx_engine(	stream<axiWord>&					ipRxData,
+template <int WIDTH>
+void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 				stream<sessionLookupReply>&			sLookup2rxEng_rsp,
 				stream<sessionState>&				stateTable2rxEng_upd_rsp,
 				stream<bool>&						portTable2rxEng_rsp,
@@ -75,7 +97,7 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 #if !(RX_DDR_BYPASS)
 				stream<mmStatus>&					rxBufferWriteStatus,
 #endif
-				stream<axiWord>&					rxBufferWriteData,
+				stream<net_axis<WIDTH> >&					rxBufferWriteData,
 				stream<sessionLookupQuery>&			rxEng2sLookup_req,
 				stream<stateQuery>&					rxEng2stateTable_upd_req,
 				stream<ap_uint<16> >&				rxEng2portTable_req,

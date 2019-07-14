@@ -30,25 +30,21 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 #ifndef TOE_HPP_INCLUDED
 #define TOE_HPP_INCLUDED
 
-#include <stdio.h>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <math.h>
-#include <hls_stream.h>
-#include "ap_int.h"
-#include <stdint.h>
-#include <vector>
+#include "toe_config.hpp"
+#include "../axi_utils.hpp"
+#include "../packet.hpp"
 
-static const ap_uint<16> MSS=1460; //536
+static const ap_uint<16> MSS=4096; //1460; //536
 
-static const uint16_t MAX_SESSIONS = 10000;
+static const uint16_t MAX_SESSIONS = 1000;
+
+//#define WINDOW_SCALE 1
 
 // TCP_NODELAY flag, to disable Nagle's Algorithm
 #define TCP_NODELAY 1
 
 // RX_DDR_BYPASS flag, to enable DDR bypass on RX path
-#define RX_DDR_BYPASS 0
+#define RX_DDR_BYPASS 1
 
 #define FAST_RETRANSMIT 1
 
@@ -115,18 +111,6 @@ enum eventType {TX, RT, ACK, SYN, SYN_ACK, FIN, RST, ACK_NODELAY};
 enum sessionState {CLOSED, SYN_SENT, SYN_RECEIVED, ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2, CLOSING, TIME_WAIT, LAST_ACK};
 
 
-enum { WORD_0, WORD_1, WORD_2, WORD_3, WORD_4 };
-
-struct axiWord
-{
-	ap_uint<64>		data;
-	ap_uint<8>		keep;
-	ap_uint<1>		last;
-	axiWord() {}
-	axiWord(ap_uint<64>	 data, ap_uint<8> keep, ap_uint<1> last)
-				: data(data), keep(keep), last(last) {}
-};
-
 struct fourTuple
 {
 	ap_uint<32> srcIp;
@@ -187,33 +171,37 @@ struct stateQuery
 struct rxSarEntry
 {
 	ap_uint<32> recvd;
-	ap_uint<16> appd;
+	ap_uint<WINDOW_BITS> appd;
+#if (WINDOW_SCALE)
+	ap_uint<4>	win_shift;
+#endif
 };
 
 struct rxSarRecvd
 {
 	ap_uint<16> sessionID;
 	ap_uint<32> recvd;
+	ap_uint<4>	win_shift; //TODO name
 	ap_uint<1> write;
 	ap_uint<1> init;
 	rxSarRecvd() {}
 	rxSarRecvd(ap_uint<16> id)
 				:sessionID(id), recvd(0), write(0), init(0) {}
-	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<1> write)
-				:sessionID(id), recvd(recvd), write(write), init(0) {}
-	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<1> write, ap_uint<1> init)
-					:sessionID(id), recvd(recvd), write(write), init(init) {}
+	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd)
+				:sessionID(id), recvd(recvd), write(1), init(0) {}
+	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<4> win_shift)
+					:sessionID(id), recvd(recvd), win_shift(win_shift), write(1), init(1) {}
 };
 
 struct rxSarAppd
 {
 	ap_uint<16> sessionID;
-	ap_uint<16> appd;
+	ap_uint<WINDOW_BITS> appd;
 	ap_uint<1>	write;
 	rxSarAppd() {}
 	rxSarAppd(ap_uint<16> id)
 				:sessionID(id), appd(0), write(0) {}
-	rxSarAppd(ap_uint<16> id, ap_uint<16> appd)
+	rxSarAppd(ap_uint<16> id, ap_uint<WINDOW_BITS> appd)
 				:sessionID(id), appd(appd), write(1) {}
 };
 
@@ -222,9 +210,12 @@ struct txSarEntry
 	ap_uint<32> ackd;
 	ap_uint<32> not_ackd;
 	ap_uint<16> recv_window;
-	ap_uint<16> cong_window;
-	ap_uint<16> slowstart_threshold;
-	ap_uint<16> app;
+#if (WINDOW_SCALE)
+	ap_uint<4>	win_shift;
+#endif
+	ap_uint<WINDOW_BITS> cong_window;
+	ap_uint<WINDOW_BITS> slowstart_threshold;
+	ap_uint<WINDOW_BITS> app;
 	ap_uint<2>	count;
 	bool		fastRetransmitted;
 	bool		finReady;
@@ -236,15 +227,23 @@ struct rxTxSarQuery
 	ap_uint<16> sessionID;
 	ap_uint<32> ackd;
 	ap_uint<16> recv_window;
-	ap_uint<16>	cong_window;
+	ap_uint<WINDOW_BITS>	cong_window;
 	ap_uint<2>  count;
 	bool		fastRetransmitted;
+#if (WINDOW_SCALE)
+	ap_uint<4>	win_shift;
+#endif
 	ap_uint<1> write;
+	ap_uint<1>	init;
 	rxTxSarQuery () {}
 	rxTxSarQuery(ap_uint<16> id)
-				:sessionID(id), ackd(0), recv_window(0), count(0), fastRetransmitted(false), write(0) {}
-	rxTxSarQuery(ap_uint<16> id, ap_uint<32> ackd, ap_uint<16> recv_win, ap_uint<16> cong_win, ap_uint<2> count, bool fastRetransmitted)
-				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), write(1) {}
+				:sessionID(id), ackd(0), recv_window(0), cong_window(0), count(0), fastRetransmitted(false), write(0), init(0) {}
+	rxTxSarQuery(ap_uint<16> id, ap_uint<32> ackd, ap_uint<16> recv_win, ap_uint<WINDOW_BITS> cong_win, ap_uint<2> count, bool fastRetransmitted)
+				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), write(1), init(0) {}
+#if (WINDOW_SCALE)
+	rxTxSarQuery(ap_uint<16> id, ap_uint<32> ackd, ap_uint<16> recv_win, ap_uint<WINDOW_BITS> cong_win, ap_uint<2> count, bool fastRetransmitted, ap_uint<4> win_shift)
+				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), win_shift(win_shift), write(1), init(1) {}
+#endif
 };
 
 struct txTxSarQuery
@@ -274,11 +273,11 @@ struct txTxSarRtQuery : public txTxSarQuery
 	txTxSarRtQuery() {}
 	txTxSarRtQuery(const txTxSarQuery& q)
 			:txTxSarQuery(q.sessionID, q.not_ackd, q.write, q.init, q.finReady, q.finSent, q.isRtQuery) {}
-	txTxSarRtQuery(ap_uint<16> id, ap_uint<16> ssthresh)
+	txTxSarRtQuery(ap_uint<16> id, ap_uint<WINDOW_BITS> ssthresh)
 			:txTxSarQuery(id, ssthresh, 1, 0, false, false, true) {}
-	ap_uint<16> getThreshold()
+	ap_uint<WINDOW_BITS> getThreshold()
 	{
-	return not_ackd(15, 0);
+	return not_ackd(WINDOW_BITS-1, 0);
 	}
 };
 
@@ -286,12 +285,12 @@ struct txAppTxSarQuery
 {
 	ap_uint<16> sessionID;
 	//ap_uint<16> ackd;
-	ap_uint<16> mempt;
+	ap_uint<WINDOW_BITS> mempt;
 	bool		write;
 	txAppTxSarQuery() {}
 	txAppTxSarQuery(ap_uint<16> id)
 				:sessionID(id), mempt(0), write(false) {}
-	txAppTxSarQuery(ap_uint<16> id, ap_uint<16> pt)
+	txAppTxSarQuery(ap_uint<16> id, ap_uint<WINDOW_BITS> pt)
 			:sessionID(id), mempt(pt), write(true) {}
 };
 
@@ -299,29 +298,29 @@ struct rxTxSarReply
 {
 	ap_uint<32>	prevAck;
 	ap_uint<32> nextByte;
-	ap_uint<16>	cong_window;
-	ap_uint<16> slowstart_threshold;
+	ap_uint<WINDOW_BITS>	cong_window;
+	ap_uint<WINDOW_BITS> slowstart_threshold;
 	ap_uint<2>	count;
 	bool		fastRetransmitted;
 	rxTxSarReply() {}
-	rxTxSarReply(ap_uint<32> ack, ap_uint<32> next, ap_uint<16> cong_win, ap_uint<16> sstresh, ap_uint<2> count, bool fastRetransmitted)
+	rxTxSarReply(ap_uint<32> ack, ap_uint<32> next, ap_uint<WINDOW_BITS> cong_win, ap_uint<WINDOW_BITS> sstresh, ap_uint<2> count, bool fastRetransmitted)
 			:prevAck(ack), nextByte(next), cong_window(cong_win), slowstart_threshold(sstresh), count(count), fastRetransmitted(fastRetransmitted) {}
 };
 
 struct txAppTxSarReply
 {
 	ap_uint<16> sessionID;
-	ap_uint<16> ackd;
-	ap_uint<16> mempt;
+	ap_uint<WINDOW_BITS> ackd;
+	ap_uint<WINDOW_BITS> mempt;
 #if (TCP_NODELAY)
-	ap_uint<16> min_window;
+	ap_uint<WINDOW_BITS> min_window;
 #endif
 	txAppTxSarReply() {}
 #if !(TCP_NODELAY)
 	txAppTxSarReply(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> pt)
 		:sessionID(id), ackd(ackd), mempt(pt) {}
 #else
-	txAppTxSarReply(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> pt, ap_uint<16> min_window)
+	txAppTxSarReply(ap_uint<16> id, ap_uint<WINDOW_BITS> ackd, ap_uint<WINDOW_BITS> pt, ap_uint<WINDOW_BITS> min_window)
 		:sessionID(id), ackd(ackd), mempt(pt), min_window(min_window) {}
 #endif
 };
@@ -329,30 +328,30 @@ struct txAppTxSarReply
 struct txAppTxSarPush
 {
 	ap_uint<16> sessionID;
-	ap_uint<16> app;
+	ap_uint<WINDOW_BITS> app;
 	txAppTxSarPush() {}
-	txAppTxSarPush(ap_uint<16> id, ap_uint<16> app)
+	txAppTxSarPush(ap_uint<16> id, ap_uint<WINDOW_BITS> app)
 			:sessionID(id), app(app) {}
 };
 
 struct txSarAckPush
 {
 	ap_uint<16> sessionID;
-	ap_uint<16> ackd;
+	ap_uint<WINDOW_BITS> ackd;
 #if (TCP_NODELAY)
-	ap_uint<16> min_window;
+	ap_uint<WINDOW_BITS> min_window;
 #endif
 	ap_uint<1>	init;
 	txSarAckPush() {}
 #if !(TCP_NODELAY)
-	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd)
+	txSarAckPush(ap_uint<16> id, ap_uint<WINDOW_BITS> ackd)
 		:sessionID(id), ackd(ackd), init(0) {}
-	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd, ap_uint<1> init)
+	txSarAckPush(ap_uint<16> id, ap_uint<WINDOW_BITS> ackd, ap_uint<1> init)
 		:sessionID(id), ackd(ackd), init(init) {}
 #else
-	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> min_window)
+	txSarAckPush(ap_uint<16> id, ap_uint<WINDOW_BITS> ackd, ap_uint<WINDOW_BITS> min_window)
 		:sessionID(id), ackd(ackd), min_window(min_window), init(0) {}
-	txSarAckPush(ap_uint<16> id, ap_uint<16> ackd, ap_uint<16> min_window, ap_uint<1> init)
+	txSarAckPush(ap_uint<16> id, ap_uint<WINDOW_BITS> ackd, ap_uint<WINDOW_BITS> min_window, ap_uint<1> init)
 		:sessionID(id), ackd(ackd), min_window(min_window), init(init) {}
 #endif
 };
@@ -361,12 +360,15 @@ struct txTxSarReply
 {
 	ap_uint<32> ackd;
 	ap_uint<32> not_ackd;
-	ap_uint<16> min_window;
-	ap_uint<16> app;
+	ap_uint<WINDOW_BITS> min_window;
+	ap_uint<WINDOW_BITS> app;
 	bool		finReady;
 	bool		finSent;
+//#if (WINDOW_SCALE)
+	ap_uint<4>	win_shift;
+//#endif
 	txTxSarReply() {}
-	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<16> min_window, ap_uint<16> app, bool finReady, bool finSent)
+	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<WINDOW_BITS> min_window, ap_uint<WINDOW_BITS> app, bool finReady, bool finSent)
 		:ackd(ack), not_ackd(nack), min_window(min_window), app(app), finReady(finReady), finSent(finSent) {}
 };
 
@@ -394,7 +396,7 @@ struct event
 {
 	eventType	type;
 	ap_uint<16>	sessionID;
-	ap_uint<16> address;
+	ap_uint<WINDOW_BITS> address;
 	ap_uint<16> length;
 	ap_uint<3>	rt_count;
 	event() {}
@@ -403,9 +405,9 @@ struct event
 			:type(type), sessionID(id), address(0), length(0), rt_count(0) {}
 	event(eventType type, ap_uint<16> id, ap_uint<3> rt_count)
 			:type(type), sessionID(id), address(0), length(0), rt_count(rt_count) {}
-	event(eventType type, ap_uint<16> id, ap_uint<16> addr, ap_uint<16> len)
+	event(eventType type, ap_uint<16> id, ap_uint<WINDOW_BITS> addr, ap_uint<16> len)
 			:type(type), sessionID(id), address(addr), length(len), rt_count(0) {}
-	event(eventType type, ap_uint<16> id, ap_uint<16> addr, ap_uint<16> len, ap_uint<3> rt_count)
+	event(eventType type, ap_uint<16> id, ap_uint<WINDOW_BITS> addr, ap_uint<16> len, ap_uint<3> rt_count)
 			:type(type), sessionID(id), address(addr), length(len), rt_count(rt_count) {}
 };
 
@@ -535,32 +537,372 @@ struct appTxMeta
 
 struct appTxRsp
 {
-	ap_uint<12> length;
-	ap_uint<16> remaining_space;
-	ap_uint<4>	error;
+	ap_uint<16> length;
+	ap_uint<30> remaining_space;
+	ap_uint<2>	error;
 	appTxRsp() {}
-	appTxRsp(ap_uint<12> len, ap_uint<16> rem_space, ap_uint<4> err)
+	appTxRsp(ap_uint<16> len, ap_uint<30> rem_space, ap_uint<2> err)
 		:length(len), remaining_space(rem_space), error(err) {}
 };
 
-ap_uint<16> byteSwap16(ap_uint<16> inputVector);
-ap_uint<32> byteSwap32(ap_uint<32> inputVector);
-ap_uint<8> lenToKeep(ap_uint<4> length);
-ap_uint<4> keepToLen(ap_uint<8> keepValue);		// This function counts the number of 1s in an 8-bit value
 
+
+
+const uint32_t TCP_PSEUDO_HEADER_SIZE = 96;
+const uint32_t TCP_FULL_PSEUDO_HEADER_SIZE = 256;
+const uint32_t TCP_HEADER_SIZE = 160;
+
+
+/**
+ * [31:4] = source address;
+ * [63:32] = destination address;
+ * [71:64] = zeros;
+ * [79:72] = protocol;
+ * [95:80] = length;
+ */
+template <int W>
+class tcpPseudoHeader : public packetHeader<W, TCP_PSEUDO_HEADER_SIZE> {
+	using packetHeader<W, TCP_PSEUDO_HEADER_SIZE>::header;
+
+public:
+	tcpPseudoHeader()
+	{
+		header(71, 64) = 0x00; // zeros
+		header(79, 72) = 0x06; // protocol
+	}
+
+	void setSrcAddr(const ap_uint<32>& addr)
+	{
+		header(31,0) = addr;
+	}
+	ap_uint<32> getSrcAddr()
+	{
+		return header(31,0);
+	}
+	void setDstAddr(const ap_uint<32>& addr)
+	{
+		header(63,32) = addr;
+	}
+	ap_uint<32> getDstAddr()
+	{
+		return header(63,32);
+	}
+	void setLength(const ap_uint<16> len)
+	{
+		header(95,80) = reverse(len);
+	}
+	ap_uint<16> getLength()
+	{
+		return reverse((ap_uint<16>)header(95,80));
+	}
+	void setProtocol(const ap_uint<8>& protocol)
+	{
+		header(79, 72) = protocol;
+	}
+	ap_uint<8> getProtocol()
+	{
+		return header(79, 72);
+	}
+};
+
+/**
+ * [31:0] = source address
+ * [63:32] = destination address
+ * [71:64] = zeros
+ * [79:72] = protocol
+ * [95:80] = length
+ * [111:96] = source port
+ * [127:112] = destination port
+ * [159:128] = sequence number
+ * [191:160] = acknowledgement number
+ * [192] = NS flag
+ * [195:193] = reserved
+ * [199:196] = data offset
+ * [200] = FIN flag
+ * [201] = SYN flag
+ * [202] = RST flag
+ * [203] = PSH flag
+ * [204] = ACK flag
+ * [205] = URG flag
+ * [206] = ECE flag
+ * [207] = CWR flag
+ * [223:208] = window
+ * [239:224] = checksum
+ * [255:240] = urgent pointer
+ * [263:256] = option kind
+ * [271:264] = option length
+ * [287:272] = MSS
+ */
+template <int W>
+class tcpFullPseudoHeader : public packetHeader<W, TCP_FULL_PSEUDO_HEADER_SIZE> {
+	using packetHeader<W, TCP_FULL_PSEUDO_HEADER_SIZE>::header;
+
+public:
+	tcpFullPseudoHeader()
+	{
+		header(71, 64) = 0x00; // zeros
+		header(79, 72) = 0x06; // protocol
+		header[192] = 0; //NS bit
+		header(195,193) = 0; // reserved
+		header[203] = 0;//flag
+		header(207,205) = 0; //flags
+		header(255,240) = 0; //urgent pointer
+	}
+
+	void setSrcAddr(const ap_uint<32>& addr)
+	{
+		header(31,0) = addr;
+	}
+	ap_uint<32> getSrcAddr()
+	{
+		return header(31,0);
+	}
+	void setDstAddr(const ap_uint<32>& addr)
+	{
+		header(63,32) = addr;
+	}
+	ap_uint<32> getDstAddr()
+	{
+		return header(63,32);
+	}
+	void setProtocol(const ap_uint<8>& protocol)
+	{
+		header(79, 72) = protocol;
+	}
+	ap_uint<8> getProtocol()
+	{
+		return header(79, 72);
+	}
+	void setLength(const ap_uint<16> len)
+	{
+		header(95,80) = reverse(len);
+	}
+	ap_uint<16> getLength()
+	{
+		return reverse((ap_uint<16>)header(95,80));
+	}
+	void setSrcPort(const ap_uint<16>& port)
+	{
+		header(111,96) = port;
+	}
+	ap_uint<16> getSrcPort()
+	{
+		return header(111,96);
+	}
+	void setDstPort(const ap_uint<16>& port)
+	{
+		header(127,112) = port;
+	}
+	ap_uint<16> getDstPort()
+	{
+		return header(127,112);
+	}
+	void setSeqNumb(const ap_uint<32>& seq)
+	{
+		header(159,128) = reverse(seq);
+	}
+	ap_uint<32> getSeqNumb()
+	{
+		return reverse((ap_uint<32>)header(159,128));
+	}
+	void setAckNumb(const ap_uint<32>& ack)
+	{
+		header(191,160) = reverse(ack);
+	}
+	ap_uint<32> getAckNumb()
+	{
+		return reverse((ap_uint<32>)header(191,160));
+	}
+	void setDataOffset(ap_uint<4> offset)
+	{
+		header(199,196) = offset;
+	}
+	ap_uint<4> getDataOffset()
+	{
+		return header(199,196);
+	}
+	ap_uint<1> getAckFlag()
+	{
+		return header[204];
+	}
+	void setAckFlag(ap_uint<1> flag)
+	{
+		header[204] = flag;
+	}
+	ap_uint<1> getRstFlag()
+	{
+		return header[202];
+	}
+	void setRstFlag(ap_uint<1> flag)
+	{
+		header[202] = flag;
+	}
+	ap_uint<1> getSynFlag()
+	{
+		return header[201];
+	}
+	void setSynFlag(ap_uint<1> flag)
+	{
+		header[201] = flag;
+	}
+	ap_uint<1> getFinFlag()
+	{
+		return header[200];
+	}
+	void setFinFlag(ap_uint<1> flag)
+	{
+		header[200] = flag;
+	}
+	void setWindowSize(const ap_uint<16>& size)
+	{
+		header(223, 208) = reverse(size);
+	}
+	ap_uint<16> getWindowSize()
+	{
+		return reverse((ap_uint<16>)header(223,208));
+	}
+	void setChecksum(const ap_uint<16>& checksum)
+	{
+		header(239, 224) = checksum;
+	}
+	ap_uint<16> getChecksum()
+	{
+		return header(239,224);
+	}
+	//TODO how to use this
+	/*void setMssOption(ap_uint<16> MSS)
+	{
+		header(263,256) = 0x02;
+		header(271,264) = 0x04;
+		header(287,272) = reverse(MSS);
+	}*/
+};
+
+
+/**
+ * [15:0] source port
+ * [31:16] = destination port
+ * [63:32] = sequence number
+ * [95:64] = acknowledgement number
+ * [96] = NS flag
+ * [99:97] = reserved
+ * [103:100] = data offset
+ * [104] = FIN flag
+ * [105] = SYN flag
+ * [106] = RST flag
+ * [107] = PSH flag
+ * [108] = ACK flag
+ * [109] = URG flag
+ * [110] = ECE flag
+ * [111] = CWR flag
+ * [127:112] = window size
+ * [143:128] = checksum
+ * [159:144] = urgent pointer
+ */
+template <int W>
+class tcpHeader : public packetHeader<W, TCP_HEADER_SIZE> {
+	using packetHeader<W, TCP_HEADER_SIZE>::header;
+
+public:
+	tcpHeader()
+	{
+		//header(71, 64) = 0x00; // zeros
+		//header(79, 72) = 0x06; // protocol
+		header(99,97) = 0; //reserved
+	}
+
+	void setSrcPort(const ap_uint<16>& port)
+	{
+		header(15,0) = port;
+	}
+	ap_uint<16> getSrcPort()
+	{
+		return header(15,0);
+	}
+	void setDstPort(const ap_uint<16>& port)
+	{
+		header(31,16) = port;
+	}
+	ap_uint<16> getDstPort()
+	{
+		return header(31,16);
+	}
+	void setSeqNumb(const ap_uint<32>& seq)
+	{
+		header(63,32) = reverse(seq);
+	}
+	ap_uint<32> getSeqNumb()
+	{
+		return reverse((ap_uint<32>)header(63,32));
+	}
+	void setAckNumb(const ap_uint<32>& ack)
+	{
+		header(95,64) = reverse(ack);
+	}
+	ap_uint<32> getAckNumb()
+	{
+		return reverse((ap_uint<32>)header(95,64));
+	}
+	ap_uint<4> getDataOffset()
+	{
+		return header(103,100);
+	}
+	ap_uint<1> getAckFlag()
+	{
+		return header[108];
+	}
+	ap_uint<1> getRstFlag()
+	{
+		return header[106];
+	}
+	ap_uint<1> getSynFlag()
+	{
+		return header[105];
+	}
+	ap_uint<1> getFinFlag()
+	{
+		return header[104];
+	}
+	void setWindowSize(const ap_uint<16>& size)
+	{
+		header(127, 112) = reverse(size);
+	}
+	ap_uint<16> getWindowSize()
+	{
+		return reverse((ap_uint<16>)header(127,112));
+	}
+	void setChecksum(const ap_uint<16>& checksum)
+	{
+		header(143, 128) = checksum;
+	}
+	ap_uint<16> getChecksum()
+	{
+		return header(143,128);
+	}
+
+};
+
+
+//TODO remove use from axi_utils
+/*ap_uint<16> byteSwap16(ap_uint<16> inputVector);
+ap_uint<32> byteSwap32(ap_uint<32> inputVector);
+/*ap_uint<8> lenToKeep(ap_uint<4> length);
+ap_uint<4> keepToLen(ap_uint<8> keepValue);		// This function counts the number of 1s in an 8-bit value*/
+
+template <int WIDTH>
 void toe(	// Data & Memory Interface
-			stream<axiWord>&						ipRxData,
+			stream<net_axis<WIDTH> >&						ipRxData,
 			stream<mmStatus>&						rxBufferWriteStatus,
 			stream<mmStatus>&						txBufferWriteStatus,
-			stream<axiWord>&						rxBufferReadData,
-			stream<axiWord>&						txBufferReadData,
-			stream<axiWord>&						ipTxData,
+			stream<net_axis<WIDTH> >&						rxBufferReadData,
+			stream<net_axis<WIDTH> >&						txBufferReadData,
+			stream<net_axis<WIDTH> >&						ipTxData,
 			stream<mmCmd>&							rxBufferWriteCmd,
 			stream<mmCmd>&							rxBufferReadCmd,
 			stream<mmCmd>&							txBufferWriteCmd,
 			stream<mmCmd>&							txBufferReadCmd,
-			stream<axiWord>&						rxBufferWriteData,
-			stream<axiWord>&						txBufferWriteData,
+			stream<net_axis<WIDTH> >&						rxBufferWriteData,
+			stream<net_axis<WIDTH> >&						txBufferWriteData,
 			// SmartCam Interface
 			stream<rtlSessionLookupReply>&			sessionLookup_rsp,
 			stream<rtlSessionUpdateReply>&			sessionUpdate_rsp,
@@ -577,15 +919,15 @@ void toe(	// Data & Memory Interface
 			stream<appReadRequest>&					rxDataReq,
 			stream<ipTuple>&						openConnReq,
 			stream<ap_uint<16> >&					closeConnReq,
-			stream<ap_uint<16> >&					txDataReqMeta,
-			stream<axiWord>&						txDataReq,
+			stream<appTxMeta>&						txDataReqMeta,
+			stream<net_axis<WIDTH> >&						txDataReq,
 
 			stream<bool>&							listenPortRsp,
 			stream<appNotification>&				notification,
 			stream<ap_uint<16> >&					rxDataRspMeta,
-			stream<axiWord>&						rxDataRsp,
+			stream<net_axis<WIDTH> >&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
-			stream<ap_int<17> >&					txDataRsp,
+			stream<appTxRsp>&						txDataRsp,
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
 			//statistic

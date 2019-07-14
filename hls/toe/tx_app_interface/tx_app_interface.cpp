@@ -27,6 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 
+#include "../toe_config.hpp"
 #include "tx_app_interface.hpp"
 
 using namespace hls;
@@ -66,34 +67,39 @@ void txAppStatusHandler(stream<mmStatus>&				txBufferWriteStatus,
 #endif
 						stream<txAppTxSarPush>&			txApp2txSar_app_push)
 {
-#pragma HLS pipeline II=1
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
 
-	static ap_uint<1> tash_state = 0;
+   enum fsmStatus {READ_EV, READ_STATUS_1, READ_STATUS_2};
+	static fsmStatus tash_state = READ_EV;
 	static event ev;
 
-	mmStatus status;
-	//static ap_uint<1> wrStatusCounter = 0;
-
 	switch (tash_state) {
-	case 0:
-		if (!txBufferWriteStatus.empty() && !tasi_eventCacheFifo.empty()) {
-			//wrStatusCounter = 0;
-			txBufferWriteStatus.read(status);
+	case READ_EV:
+		if (!tasi_eventCacheFifo.empty()) {
 			tasi_eventCacheFifo.read(ev);
+			if (ev.type == TX)
+			{
+				tash_state = READ_STATUS_1;
+ 			}
 #if !(TCP_NODELAY)
-			if (ev.type != TX)
+			else
 			{
 				txAppStream2eventEng_setEvent.write(ev);
 			}
-			else
 #endif
+		}
+		break;
+	case READ_STATUS_1:
+		if(!txBufferWriteStatus.empty())
+		{
+			mmStatus status = txBufferWriteStatus.read();
 			if (status.okay)
 			{
-				ap_uint<17> tempLength = ev.address + ev.length;
-				//if (tempLength >= 0x0FFFF && wrStatusCounter == 0)
-				if (tempLength > 65536)// && wrStatusCounter == 0)
+				ap_uint<WINDOW_BITS+1> tempLength = ev.address + ev.length;
+				if (tempLength[WINDOW_BITS] == 1)// tempLength > BUFFER_SIZE
 				{
-					tash_state = 1;
+					tash_state = READ_STATUS_2;
 				}
 				else
 				{
@@ -101,43 +107,28 @@ void txAppStatusHandler(stream<mmStatus>&				txBufferWriteStatus,
 #if !(TCP_NODELAY)
 					txAppStream2eventEng_setEvent.write(ev);
 #endif
-					tash_state = 0;
+					tash_state = READ_EV;
 				}
 			}
 
-			/*if (ev.type == TX)
-			{
-				tash_state = 1;
-			}
-			//else
-			{
-				txAppStream2eventEng_setEvent.write(ev);
-			}*/
 		}
 		break;
-	case 1:
+	case READ_STATUS_2:
 		if (!txBufferWriteStatus.empty()) {
-			txBufferWriteStatus.read(status);
+			mmStatus status = txBufferWriteStatus.read();
 			if (status.okay)
 			{
-				//ap_uint<17> tempLength = ev.address + ev.length;
-				//if (tempLength >= 0x0FFFF && wrStatusCounter == 0)
-				/*if (tempLength > 65536 && wrStatusCounter == 0)
-				{
-					wrStatusCounter = 1;
-				}
-				else*/
-				{
-					txApp2txSar_app_push.write(txAppTxSarPush(ev.sessionID, ev.address+ev.length)); // App pointer update, pointer is released
+				txApp2txSar_app_push.write(txAppTxSarPush(ev.sessionID, ev.address+ev.length)); // App pointer update, pointer is released
 #if !(TCP_NODELAY)
-					txAppStream2eventEng_setEvent.write(ev);
+				txAppStream2eventEng_setEvent.write(ev);
 #endif
-					tash_state = 0;
-				}
+				tash_state = READ_EV;
 			}
 		}
 		break;
 	} //switch
+
+
 }
 
 
@@ -193,8 +184,9 @@ void tx_app_table(	stream<txSarAckPush>&		txSar2txApp_ack_push,
 
 }
 
+template <int WIDTH>
 void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
-					stream<axiWord>&				appTxDataReq,
+					stream<net_axis<WIDTH> >&				appTxDataReq,
 					stream<sessionState>&			stateTable2txApp_rsp,
 					stream<txSarAckPush>&			txSar2txApp_ack_push,
 					stream<mmStatus>&				txBufferWriteStatus,
@@ -209,9 +201,9 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 					stream<appTxRsp>&			appTxDataRsp,
 					stream<ap_uint<16> >&			txApp2stateTable_req,
 					stream<mmCmd>&					txBufferWriteCmd,
-					stream<axiWord>&				txBufferWriteData,
+					stream<net_axis<WIDTH> >&				txBufferWriteData,
 #if (TCP_NODELAY)
-					stream<axiWord>&				txApp2txEng_data_stream,
+					stream<net_axis<WIDTH> >&				txApp2txEng_data_stream,
 #endif
 					stream<txAppTxSarPush>&			txApp2txSar_push,
 
@@ -271,7 +263,7 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 						txApp2txSar_push);
 
 	// TX application Stream Interface
-	tx_app_stream_if(	appTxDataReqMetadata,
+	tx_app_stream_if<WIDTH>(	appTxDataReqMetadata,
 						appTxDataReq,
 						stateTable2txApp_rsp,
 						txSar2txApp_upd_rsp,
@@ -305,3 +297,33 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 					txApp2txSar_upd_req,
 					txSar2txApp_upd_rsp);
 }
+
+template void tx_app_interface<DATA_WIDTH>(	stream<appTxMeta>&			appTxDataReqMetadata,
+					stream<net_axis<DATA_WIDTH> >&				appTxDataReq,
+					stream<sessionState>&			stateTable2txApp_rsp,
+					stream<txSarAckPush>&			txSar2txApp_ack_push,
+					stream<mmStatus>&				txBufferWriteStatus,
+
+					stream<ipTuple>&				appOpenConnReq,
+					stream<ap_uint<16> >&			appCloseConnReq,
+					stream<sessionLookupReply>&		sLookup2txApp_rsp,
+					stream<ap_uint<16> >&			portTable2txApp_port_rsp,
+					stream<sessionState>&			stateTable2txApp_upd_rsp,
+					stream<openStatus>&				conEstablishedFifo,
+
+					stream<appTxRsp>&			appTxDataRsp,
+					stream<ap_uint<16> >&			txApp2stateTable_req,
+					stream<mmCmd>&					txBufferWriteCmd,
+					stream<net_axis<DATA_WIDTH> >&				txBufferWriteData,
+#if (TCP_NODELAY)
+					stream<net_axis<DATA_WIDTH> >&				txApp2txEng_data_stream,
+#endif
+					stream<txAppTxSarPush>&			txApp2txSar_push,
+
+					stream<openStatus>&				appOpenConnRsp,
+					stream<fourTuple>&				txApp2sLookup_req,
+					//stream<ap_uint<1> >&			txApp2portTable_port_req,
+					stream<stateQuery>&				txApp2stateTable_upd_req,
+					stream<event>&					txApp2eventEng_setEvent,
+					stream<openStatus>&				rtTimer2txApp_notification,
+					ap_uint<32>						myIpAddress);

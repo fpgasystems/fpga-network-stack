@@ -34,7 +34,7 @@ void assignDest<routedAxiWord>(routedAxiWord& d, routedAxiWord& s)
 	d.dest = s.dest;
 }
 
-ap_uint<64> lenToKeep(ap_uint<32> length)
+ap_uint<64> lenToKeep(ap_uint<6> length)
 {
 	switch (length)
 	{

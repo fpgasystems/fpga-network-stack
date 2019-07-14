@@ -29,8 +29,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "rx_app_stream_if.hpp"
 
-using namespace hls;
-
 /** @ingroup rx_app_stream_if
  *  This application interface is used to receive data streams of established connections.
  *  The Application polls data from the buffer by sending a readRequest. The module checks
@@ -42,12 +40,12 @@ using namespace hls;
  *  @param[out]		rxApp2rxSar_upd_req
  *  @param[out]		rxBufferReadCmd
  */
-void rx_app_stream_if(stream<appReadRequest>&		appRxDataReq,
-					  stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
-					  stream<ap_uint<16> >&			appRxDataRspMetadata,
-					  stream<rxSarAppd>&			rxApp2rxSar_upd_req,
+void rx_app_stream_if(hls::stream<appReadRequest>&		appRxDataReq,
+					  hls::stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
+					  hls::stream<ap_uint<16> >&		appRxDataRspMetadata,
+					  hls::stream<rxSarAppd>&			rxApp2rxSar_upd_req,
 #if !(RX_DDR_BYPASS)
-					  stream<mmCmd>&				rxBufferReadCmd)
+					  hls::stream<mmCmd>&				rxBufferReadCmd)
 #else
 					  stream<ap_uint<1> >&			rxBufferReadCmd)
 #endif
@@ -78,8 +76,8 @@ void rx_app_stream_if(stream<appReadRequest>&		appRxDataReq,
 				appRxDataRspMetadata.write(rxSar.sessionID);
 #if !(RX_DDR_BYPASS)
 				ap_uint<32> pkgAddr = 0;
-				pkgAddr(29, 16) = rxSar.sessionID(13, 0);
-				pkgAddr(15, 0) = rxSar.appd;
+				pkgAddr(29, WINDOW_BITS) = rxSar.sessionID(13, 0);
+				pkgAddr(WINDOW_BITS-1, 0) = rxSar.appd;
 				rxBufferReadCmd.write(mmCmd(pkgAddr, rasi_readLength));
 #else
 				rxBufferReadCmd.write(1);

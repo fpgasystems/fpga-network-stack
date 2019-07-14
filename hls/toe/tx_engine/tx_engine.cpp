@@ -27,9 +27,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 
+#include "../toe_config.hpp"
 #include "tx_engine.hpp"
+#include "../../ipv4/ipv4.hpp"
 
-using namespace hls;
 
 /** @ingroup tx_engine
  *  @name metaLoader
@@ -54,23 +55,23 @@ using namespace hls;
  *  @param[out]		txEng_isLookUpFifoOut
  *  @param[out]		txEng_tupleShortCutFifoOut
  */
-void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
-				stream<rxSarEntry>&					rxSar2txEng_rsp,
-				stream<txTxSarReply>&				txSar2txEng_upd_rsp,
-				stream<ap_uint<16> >&				txEng2rxSar_req,
-				stream<txTxSarQuery>&				txEng2txSar_upd_req,
-				stream<txRetransmitTimerSet>&		txEng2timer_setRetransmitTimer,
-				stream<ap_uint<16> >&				txEng2timer_setProbeTimer,
-				stream<ap_uint<16> >&				txEng_ipMetaFifoOut,
-				stream<tx_engine_meta>&				txEng_tcpMetaFifoOut,
-				stream<mmCmd>&						txBufferReadCmd,
-				stream<ap_uint<16> >&				txEng2sLookup_rev_req,
-				stream<bool>&						txEng_isLookUpFifoOut,
+void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
+				hls::stream<rxSarEntry>&				rxSar2txEng_rsp,
+				hls::stream<txTxSarReply>&				txSar2txEng_upd_rsp,
+				hls::stream<ap_uint<16> >&				txEng2rxSar_req,
+				hls::stream<txTxSarQuery>&				txEng2txSar_upd_req,
+				hls::stream<txRetransmitTimerSet>&		txEng2timer_setRetransmitTimer,
+				hls::stream<ap_uint<16> >&				txEng2timer_setProbeTimer,
+				hls::stream<ap_uint<16> >&				txEng_ipMetaFifoOut,
+				hls::stream<tx_engine_meta>&			txEng_tcpMetaFifoOut,
+				hls::stream<mmCmd>&						txBufferReadCmd,
+				hls::stream<ap_uint<16> >&				txEng2sLookup_rev_req,
+				hls::stream<bool>&						txEng_isLookUpFifoOut,
 #if (TCP_NODELAY)
-				stream<bool>&						txEng_isDDRbypass,
+				hls::stream<bool>&						txEng_isDDRbypass,
 #endif
-				stream<fourTuple>&					txEng_tupleShortCutFifoOut,
-				stream<ap_uint<1> >&				readCountFifo)
+				hls::stream<fourTuple>&					txEng_tupleShortCutFifoOut,
+				hls::stream<ap_uint<1> >&				readCountFifo)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
@@ -84,9 +85,9 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 	static rxSarEntry	rxSar;
 	static txTxSarReply	txSar;
 	ap_uint<16> windowSize;
-	ap_uint<16> currLength;
-	ap_uint<16> usableWindow;
-	ap_uint<16> slowstart_threshold;
+	ap_uint<WINDOW_BITS> currLength;//TODO needed??
+	ap_uint<WINDOW_BITS> usableWindow; //TODO necessary??
+	ap_uint<WINDOW_BITS> slowstart_threshold;
 	static tx_engine_meta meta;
 	rstEvent resetEvent;
 
@@ -161,7 +162,12 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 
 				//Compute our space, Advertise at least a quarter/half, otherwise 0
 
+#if (WINDOW_SCALE)
+				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
+				windowSize = actualWindowSize >> rxSar.win_shift;
+#else
 				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
+#endif
 				meta.ackNumb = rxSar.recvd;
 				meta.seqNumb = txSar.not_ackd;
 				meta.window_size = windowSize;
@@ -171,8 +177,8 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				meta.fin = 0;
 				//meta.length = 0;
 
-				/*currLength = ml_curEvent.length;
-				ap_uint<16> usedLength = ((ap_uint<16>) txSar.not_ackd - txSar.ackd);
+				//currLength = ml_curEvent.length;
+				ap_uint<WINDOW_BITS> usedLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd);
 				// min_window, is the min(txSar.recv_window, txSar.cong_window)
 				if (txSar.min_window > usedLength)
 				{
@@ -181,9 +187,10 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				else
 				{
 					usableWindow = 0;
-				}*/
+				}
 				//TODO this is hack, makes sure that probeTimer is never set.
-				if (0x7FFF < ml_curEvent.length)
+				//if (0x7FFF < ml_curEvent.length)
+				if (usableWindow < ml_curEvent.length)
 				{
 					txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
 				}
@@ -225,7 +232,12 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				}
 
 				//Compute our space, Advertise at least a quarter/half, otherwise 0
+#if (WINDOW_SCALE)
+				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
+				windowSize = actualWindowSize >> rxSar.win_shift;
+#else
 				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
+#endif
 				meta.ackNumb = rxSar.recvd;
 				meta.seqNumb = txSar.not_ackd;
 				meta.window_size = windowSize;
@@ -235,8 +247,8 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				meta.fin = 0;
 				meta.length = 0;
 
-				currLength = (txSar.app - ((ap_uint<16>)txSar.not_ackd));
-				ap_uint<16> usedLength = ((ap_uint<16>) txSar.not_ackd - txSar.ackd);
+				currLength = (txSar.app - ((ap_uint<WINDOW_BITS>)txSar.not_ackd));
+				ap_uint<WINDOW_BITS> usedLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd);
 				// min_window, is the min(txSar.recv_window, txSar.cong_window)
 				if (txSar.min_window > usedLength)
 				{
@@ -249,8 +261,8 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				// Construct address before modifying txSar.not_ackd
 				ap_uint<32> pkgAddr;
 				pkgAddr(31, 30) = 0x01;
-				pkgAddr(29, 16) = ml_curEvent.sessionID(13, 0);
-				pkgAddr(15, 0) = txSar.not_ackd(15, 0); //ml_curEvent.address;
+				pkgAddr(29, WINDOW_BITS) = ml_curEvent.sessionID(13, 0);
+				pkgAddr(WINDOW_BITS-1, 0) = txSar.not_ackd(WINDOW_BITS-1, 0); //ml_curEvent.address;
 
 
 				// Check length, if bigger than Usable Window or MMS
@@ -346,14 +358,19 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				}
 
 				// Compute our window size
+#if (WINDOW_SCALE)
+				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
+				windowSize = actualWindowSize >> rxSar.win_shift;
+#else
 				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
+#endif
 				if (!txSar.finSent) //no FIN sent
 				{
-					currLength = ((ap_uint<16>) txSar.not_ackd - txSar.ackd);
+					currLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd);
 				}
 				else //FIN already sent
 				{
-					currLength = ((ap_uint<16>) txSar.not_ackd - txSar.ackd)-1;
+					currLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd)-1;
 				}
 
 				meta.ackNumb = rxSar.recvd;
@@ -367,8 +384,8 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				// Construct address before modifying txSar.ackd
 				ap_uint<32> pkgAddr;
 				pkgAddr(31, 30) = 0x01;
-				pkgAddr(29, 16) = ml_curEvent.sessionID(13, 0);
-				pkgAddr(15, 0) = txSar.ackd(15, 0); //ml_curEvent.address;
+				pkgAddr(29, WINDOW_BITS) = ml_curEvent.sessionID(13, 0);
+				pkgAddr(WINDOW_BITS-1, 0) = txSar.ackd(WINDOW_BITS-1, 0); //ml_curEvent.address;
 
 				// Decrease Slow Start Threshold, only on first RT from retransmitTimer
 				if (!ml_sarLoaded && (ml_curEvent.rt_count == 1))
@@ -440,7 +457,12 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 			{
 				rxSar2txEng_rsp.read(rxSar);
 				txSar2txEng_upd_rsp.read(txSar);
-				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1;
+#if (WINDOW_SCALE)
+				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
+				windowSize = actualWindowSize >> rxSar.win_shift;
+#else
+				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
+#endif
 				meta.ackNumb = rxSar.recvd;
 				meta.seqNumb = txSar.not_ackd; //Always send SEQ
 				meta.window_size = windowSize;
@@ -479,8 +501,12 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				meta.rst = 0;
 				meta.syn = 1;
 				meta.fin = 0;
+#if (WINDOW_SCALE)
+				meta.length = 8;
+				meta.win_shift = WINDOW_SCALE_BITS;
+#endif
 
-				txEng_ipMetaFifoOut.write(4); //length
+				txEng_ipMetaFifoOut.write(meta.length); //length
 				txEng_tcpMetaFifoOut.write(meta);
 				txEng_isLookUpFifoOut.write(true);
 				txEng2sLookup_rev_req.write(ml_curEvent.sessionID);
@@ -515,7 +541,16 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 					txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd+1, 1, 1));
 				}
 
-				txEng_ipMetaFifoOut.write(4); // length
+#if (WINDOW_SCALE)
+				// An additional 4 bytes for WScale option -> total: 8 bytes
+				if (rxSar.win_shift != 0)
+				{
+					meta.length = 8;
+				}
+				meta.win_shift = rxSar.win_shift;
+#endif
+
+				txEng_ipMetaFifoOut.write(meta.length); // length
 				txEng_tcpMetaFifoOut.write(meta);
 				txEng_isLookUpFifoOut.write(true);
 				txEng2sLookup_rev_req.write(ml_curEvent.sessionID);
@@ -535,7 +570,12 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 				}
 
 				//construct FIN message
-				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1;
+#if (WINDOW_SCALE)
+				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
+				windowSize = actualWindowSize >> rxSar.win_shift;
+#else
+				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
+#endif
 				meta.ackNumb = rxSar.recvd;
 				//meta.seqNumb = txSar.not_ackd;
 				meta.window_size = windowSize;
@@ -555,18 +595,24 @@ void metaLoader(stream<extendedEvent>&				eventEng2txEng_event,
 					meta.seqNumb = txSar.not_ackd;
 					// Check if all data is sent, otherwise we have to delay FIN message
 					// Set fin flag, such that probeTimer is informed
-					if (txSar.app == txSar.not_ackd(15, 0))
+#if !(TCP_NODELAY)
+					if (txSar.app == txSar.not_ackd(WINDOW_BITS-1, 0))
+#endif
 					{
 						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd+1, 1, 0, true, true));
 					}
+#if !(TCP_NODELAY)
 					else
 					{
 						txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1, 0, true, false));
 					}
+#endif
 				}
 
 				// Check if there is a FIN to be sent //TODO maybe restruce this
-				if (meta.seqNumb(15, 0) == txSar.app)
+#if !(TCP_NODELAY)
+				if (meta.seqNumb(WINDOW_BITS-1, 0) == txSar.app)
+#endif
 				{
 					txEng_ipMetaFifoOut.write(meta.length);
 					txEng_tcpMetaFifoOut.write(meta);
@@ -667,13 +713,14 @@ void tupleSplitter(	stream<fourTuple>&		sLookup2txEng_rev_rsp,
  *  @param[in]		txEng_ipTupleFifoIn
  *  @param[out]		txEng_ipHeaderBufferOut
  */
-void ipHeaderConstruction(stream<ap_uint<16> >&				txEng_ipMetaDataFifoIn,
+/*void ipHeaderConstruction(stream<ap_uint<16> >&				txEng_ipMetaDataFifoIn,
 							stream<twoTuple>&				txEng_ipTupleFifoIn,
 							stream<axiWord>&				txEng_ipHeaderBufferOut)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
+	enum { WORD_0, WORD_1, WORD_2, WORD_3, WORD_4 };
 	static ap_uint<2> ihc_currWord = 0;
 	static twoTuple ihc_tuple;
 
@@ -722,7 +769,112 @@ void ipHeaderConstruction(stream<ap_uint<16> >&				txEng_ipMetaDataFifoIn,
 		ihc_currWord = 0;
 		break;
 	} //switch
+}*/
+
+//IMPORT INSTEAD of COPY //TODO or move to IP Output Handler
+template <int WIDTH>
+void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
+			stream<ap_uint<16> >&				txEng_ipMetaDataFifoIn,
+			stream<twoTuple>&				txEng_ipTupleFifoIn,
+          stream<net_axis<WIDTH> >&  tx_shift2ipv4Fifo,
+          stream<net_axis<WIDTH> >&  m_axis_tx_data)
+          //ap_uint<32>      local_ipv4_address)
+{
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+  enum fsmStateType {META, HEADER, PARTIAL_HEADER, BODY};
+  static fsmStateType gi_state=META;
+  static ipv4Header<WIDTH> header;
+
+  ap_uint<16>  length;
+
+  switch (gi_state)
+  {
+  case META:
+    //if (!txEng_ipMetaDataFifoIn.empty())
+	if (!txEng_ipMetaDataFifoIn.empty() && !txEng_ipTupleFifoIn.empty())
+    {
+      //txEng_ipMetaDataFifoIn.read();
+	  ap_uint<16> metaLength = txEng_ipMetaDataFifoIn.read();
+	  twoTuple tuples = txEng_ipTupleFifoIn.read();
+      header.clear();
+
+      //length = meta.length + 20; //was adding +40
+	  length = metaLength + 40;
+	  std::cout << "length: " << length << std::endl;
+      header.setLength(length);
+      header.setDstAddr(tuples.dstIp);
+      header.setSrcAddr(tuples.srcIp);
+      header.setProtocol(TCP_PROTOCOL);
+      if (IPV4_HEADER_SIZE >= WIDTH)
+      {
+		std::cout << "switched to IP HEADER" << std::endl;
+        gi_state = HEADER;
+      }
+      else
+      {
+		std::cout << "switched to IP PARTIAL HEADER" << std::endl;
+        gi_state = PARTIAL_HEADER;
+      }
+    }
+    break;
+  case HEADER:
+  {
+	net_axis<WIDTH> sendWord;
+    if (header.consumeWord(sendWord.data) < WIDTH)
+    {
+      /*currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
+      currWord.last = 0;
+      m_axis_tx_data.write(currWord);*/
+		std::cout << "switched to IP PARTIAL HEADER" << std::endl;
+      gi_state = PARTIAL_HEADER;
+    }
+    //else
+    {
+      sendWord.keep = 0xFFFFFFFF; //TODO, set as much as required
+      sendWord.last = 0;
+      m_axis_tx_data.write(sendWord);
+      //gi_state = PARTIAL_HEADER;
+    }
+    break;
+  }
+  case PARTIAL_HEADER:
+    if (!tx_shift2ipv4Fifo.empty())
+    {
+      net_axis<WIDTH> currWord = tx_shift2ipv4Fifo.read();
+      header.consumeWord(currWord.data);
+      m_axis_tx_data.write(currWord);
+      gi_state = BODY;
+	  std::cout << "IP PARTIAL: ";
+	  printLE(std::cout, currWord);
+	  std::cout << std::endl;
+
+      if (currWord.last)
+      {
+        gi_state = META;
+      }
+    }
+    break;
+  case BODY:
+    if (!tx_shift2ipv4Fifo.empty())
+    {
+    	net_axis<WIDTH> currWord = tx_shift2ipv4Fifo.read();
+		
+		std::cout << "IP BODY: ";// << std::endl;
+		printLE(std::cout, currWord);
+	  std::cout << std::endl;
+
+      m_axis_tx_data.write(currWord);
+      if (currWord.last)
+      {
+        gi_state = META;
+      }
+    }
+    break;
+  }
 }
+
 
 /** @ingroup tx_engine
  * 	Reads the TCP header metadata and the IP tuples. From this data it generates the TCP pseudo header and streams it out.
@@ -739,6 +891,7 @@ void pseudoHeaderConstruction(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
+	enum { WORD_0, WORD_1, WORD_2, WORD_3, WORD_4 };
 	static ap_uint<3> phc_currWord = 0;
 	axiWord sendWord;
 	static tx_engine_meta phc_meta;
@@ -851,13 +1004,215 @@ void pseudoHeaderConstruction(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 	//} //else
 }
 
+template <int WIDTH>
+void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
+								stream<fourTuple>&			tcpTupleFifoIn,
+								stream<net_axis<WIDTH> >&		dataIn,
+								stream<net_axis<WIDTH> >&		dataOut)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
+	enum fsmState {META, HEADER, PARTIAL_HEADER, BODY, HEADER_MSS_OPTION};
+	static fsmState state = META;
+	static tcpFullPseudoHeader<WIDTH> header; //size 256Bit
+	static bool hasBody = false;
+	static bool isSYN = false;
+	static ap_uint<4> win_shift = 0;
+
+	switch (state)
+	{
+	case META:
+		if (!tcpMetaDataFifoIn.empty() && !tcpTupleFifoIn.empty())
+		{
+			tx_engine_meta meta = tcpMetaDataFifoIn.read();
+			fourTuple tuple = tcpTupleFifoIn.read();
+
+			header.clear();
+			header.setSrcAddr(tuple.srcIp);
+			header.setDstAddr(tuple.dstIp);
+			//TODO this depends on SYN??
+			header.setLength(meta.length + 0x14); // +20 bytes for the header
+			header.setSrcPort(tuple.srcPort);
+			header.setDstPort(tuple.dstPort);
+			header.setSeqNumb(meta.seqNumb);
+			header.setAckNumb(meta.ackNumb);
+#if !(WINDOW_SCALE)
+			header.setDataOffset(0x5 + meta.syn);
+#else
+			win_shift = meta.win_shift;
+			if (meta.syn)
+			{
+				if (meta.win_shift != 0)
+				{
+					header.setDataOffset(0x7);
+				}
+				else
+				{
+					header.setDataOffset(0x6);
+				}
+			}
+			else
+			{
+				header.setDataOffset(0x5);
+			}
+#endif
+			//flags
+			header.setFinFlag(meta.fin);
+			header.setSynFlag(meta.syn);
+			header.setRstFlag(meta.rst);
+			header.setAckFlag(meta.ack);
+
+			hasBody = meta.length != 0 && !meta.syn;
+			isSYN = meta.syn;
+
+
+			header.setWindowSize(meta.window_size);
+			header.setChecksum(0);
+
+			/*if (meta.syn)
+			{
+				header.setMssOption(MSS);
+			}*/
+
+			if (WIDTH > 256 && hasBody)
+			{
+				state = PARTIAL_HEADER;
+			}
+			else
+			{
+				std::cout << "switch to TCP HEADER" << std::endl;
+				//TODO handle 512
+				state = HEADER;
+			}
+		}
+		break;
+	case HEADER:
+	{
+		net_axis<WIDTH> sendWord;
+		sendWord.last = 0;
+		ap_uint<8> remainingLength = header.consumeWord(sendWord.data);
+		std::cout << std::dec << "remainingLenght: " << remainingLength << std::endl;
+		if (remainingLength < WIDTH)
+		//if (header.consumeWord(sendWord.data) < WIDTH)
+		{
+			if (hasBody)
+			{
+				std::cout << "switch to TCP BODY" << std::endl;
+				state = BODY; //PARTIAL_HEADER;
+			}
+			else
+			{
+				if (isSYN && WIDTH <= 256)
+				{
+					std::cout << "switch to MSS" << std::endl;
+					state = HEADER_MSS_OPTION;
+				}
+				else
+				{
+					sendWord.last = 1;
+					state = META;
+				}
+			}
+		}
+		sendWord.keep = 0xffffffff; //Keep for 256bit (size of the header)
+		std::cout << "TCP HEADER: ";
+		printLE(std::cout, sendWord);
+		std::cout << std::endl;
+
+		//In case of WIDTH == 512, we can add the MSS option into the first word
+		if (isSYN && WIDTH == 512)
+		{
+			// MSS negotiation is only used in SYN packets
+			sendWord.data(263, 256) = 0x02; // Option Kind
+			sendWord.data(271, 264) = 0x04; // Option length
+			sendWord.data(287, 272) = reverse(MSS); //0xB405; // 0x05B4 = 1460
+#ifndef __SYNTHESIS__
+			sendWord.data(511, 288) = 0;
+#endif
+			sendWord.keep(35,32) = 0xF;
+#if (WINDOW_SCALE)
+			// WSopt negotiation, only send in SYN-ACK if received with SYN as in RFC 7323 1.3
+			std::cout << "PSEUDO NEW: " << win_shift << std::endl;
+			if (win_shift != 0)
+			{
+				sendWord.data(295, 288) = 0x03; // Option Kind
+				sendWord.data(303, 296) = 0x03; // Option length
+				sendWord.data(311, 304) = win_shift;
+				sendWord.data(319, 312) = 0x0; // End of option list
+				sendWord.keep(39, 36) = 0xF;
+			}
+#endif
+		}
+
+		dataOut.write(sendWord);
+		break;
+	}
+	//TODO PARTIAL HEADER only required for 512
+	case PARTIAL_HEADER:
+		if (!dataIn.empty())
+		{
+			net_axis<WIDTH> currWord = dataIn.read();
+			header.consumeWord(currWord.data);
+			dataOut.write(currWord);
+			state = BODY;
+			if (currWord.last)
+			{
+				state = META;
+			}
+		}
+		break;
+	case BODY:
+		if (!dataIn.empty())
+		{
+			net_axis<WIDTH> currWord = dataIn.read();
+			dataOut.write(currWord);
+			if (currWord.last)
+			{
+				state = META;
+			}
+		}
+		break;
+	case HEADER_MSS_OPTION: //TODO Rename
+	{
+		net_axis<WIDTH> sendWord;
+		// MSS negotiation is only used in SYN packets
+		sendWord.data(7, 0) = 0x02; // Option Kind
+		sendWord.data(15, 8) = 0x04; // Option length
+		sendWord.data(31, 16) = reverse(MSS); //0xB405; // 0x05B4 = 1460
+		sendWord.keep = 0x0F;
+#ifndef __SYNTHESIS__
+		sendWord.data(63, 32) = 0;
+#endif
+#if (WINDOW_SCALE)
+		// WSopt negotiation, only send in SYN-ACK if received with SYN as in RFC 7323 1.3
+		std::cout << "PSEUDO NEW: " << win_shift << std::endl;
+		if (win_shift != 0)
+		{
+			sendWord.data(39, 32) = 0x03; // Option Kind
+			sendWord.data(47, 40) = 0x03; // Option length
+			sendWord.data(55, 48) = win_shift;
+			sendWord.data(63, 56) = 0x0; // End of option list
+			sendWord.keep = 0xFF;
+		}
+#endif
+		sendWord.last = 1;
+
+		dataOut.write(sendWord);
+		state = META;
+		break;
+	}//HEADER_LAST
+	}//switch
+}
+
+
 /** @ingroup tx_engine
  *	Reads in the TCP pseudo header stream and appends the corresponding payload stream.
  *	@param[in]		txEng_tcpHeaderBufferIn, incoming TCP pseudo header stream
  *	@param[in]		txBufferReadData, incoming payload stream
  *	@param[out]		dataOut, outgoing data stream
  */
-void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
+/*void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
 					stream<axiWord>&		txBufferReadData,
 #if (TCP_NODELAY)
 					stream<bool>&			txEng_isDDRbypass,
@@ -955,7 +1310,7 @@ void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
 					txEng_tcpSegOut.write(currWord);
 				}
 				else if (txPkgStitcherAccBreakDown == 1) {		// If yes, several options present themselves:
-					shiftBuffer = keepToLen(currWord.keep);
+					shiftBuffer = keepToLen<WIDTH>(currWord.keep);
 					txPkgStitcherAccBreakDown = 0;
 					currWord.last = 0;
 					if (currWord.keep != 0xFF)				// If the last word is complete, this means that the data are aligned correctly & nothing else needs to be done. If not we need to align them.
@@ -973,7 +1328,7 @@ void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
 			axiWord outputWord = axiWord(currWord.data, 0xFF, 0);
 			currWord = txBufferReadData.read();
 			outputWord.data(63, (shiftBuffer * 8)) = currWord.data(((8 - shiftBuffer) * 8) - 1, 0);
-			ap_uint<4> keepCounter = keepToLen(currWord.keep);
+			ap_uint<4> keepCounter = keepToLen<WIDTH>(currWord.keep);
 			if (keepCounter < 8 - shiftBuffer) {	// If the entirety of the 2nd mem. access fits in this data word..
 				outputWord.keep = lenToKeep(keepCounter + shiftBuffer);
 				outputWord.last = 1;
@@ -993,7 +1348,7 @@ void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
 			outputWord.data((shiftBuffer * 8) - 1, 0) = currWord.data(63, (8 - shiftBuffer) * 8);
 			currWord = txBufferReadData.read();
 			outputWord.data(63, (8 * shiftBuffer)) = currWord.data(((8 - shiftBuffer) * 8) - 1, 0);
-			ap_uint<4> keepCounter = keepToLen(currWord.keep);
+			ap_uint<4> keepCounter = keepToLen<WIDTH>(currWord.keep);
 			if (keepCounter < 8 - shiftBuffer) {	// If the entirety of the 2nd mem. access fits in this data word..
 				outputWord.keep = lenToKeep(keepCounter + shiftBuffer);
 				outputWord.last = 1;
@@ -1007,7 +1362,7 @@ void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
 		break;
 	case 5:
 		if (!txEng_tcpSegOut.full()) {
-			ap_uint<4> keepCounter = keepToLen(currWord.keep) - (8 - shiftBuffer);							// This is how many bits are valid in this word
+			ap_uint<4> keepCounter = keepToLen<WIDTH>(currWord.keep) - (8 - shiftBuffer);							// This is how many bits are valid in this word
 			axiWord outputWord = axiWord(0, lenToKeep(keepCounter), 1);
 			outputWord.data((shiftBuffer * 8) - 1, 0) = currWord.data(63, (8 - shiftBuffer) * 8);
 			txEng_tcpSegOut.write(outputWord);
@@ -1029,7 +1384,281 @@ void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
 		break;
 #endif
 	} // switch
+}*/
+
+template <int WIDTH>
+void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitcher,
+							hls::stream<net_axis<WIDTH> >&		readDataIn,
+							hls::stream<net_axis<WIDTH> >&		readDataOut)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	static net_axis<WIDTH> prevWord;
+	static bool pkgNeedsMerge = false;
+	enum fsmStateType {IDLE, FIRST_PART, STITCH, ATTACH_ALIGNED, RESIDUE};
+	static fsmStateType state = IDLE;
+	static ap_uint<8> offset = 0;
+
+	switch(state)
+	{
+	case IDLE:
+		if (!memAccessBreakdown2readPkgStitcher.empty() && !readDataIn.empty())
+		{
+			pkgNeedsMerge = memAccessBreakdown2readPkgStitcher.read();
+			net_axis<WIDTH> currWord = readDataIn.read();
+
+			offset = keepToLen<WIDTH>(currWord.keep);
+
+			//Check if packet has only 1 word
+			if (currWord.last)
+			{
+				if (pkgNeedsMerge)
+				{
+					currWord.last = 0;
+					//Check if next packet has to be aligned or not
+					if (currWord.keep[WIDTH/8-1] == 0)
+					{
+						//currWord is stored in prevWord
+						state = STITCH;
+					}
+					else
+					{
+						readDataOut.write(currWord);
+						state = ATTACH_ALIGNED;
+					}
+					
+				}
+				else //packet does not have to be merged
+				{
+					readDataOut.write(currWord);
+					//We remain in this state
+				}
+				
+			}
+			else //packet contains more than 1 word
+			{
+				readDataOut.write(currWord);
+				state = FIRST_PART;
+			}
+			prevWord = currWord;
+		}
+		break;
+	case FIRST_PART:	// This state outputs the all the data words in the 1st memory access of a segment but the 1st one.
+		if (!readDataIn.empty())
+		{
+			net_axis<WIDTH> currWord = readDataIn.read();
+			offset = keepToLen<WIDTH>(currWord.keep);
+
+			//Check if end of packet
+			if (currWord.last)
+			{
+				if (pkgNeedsMerge)
+				{
+					currWord.last = 0;
+					//Check if next packet has to be aligned or not
+					if (currWord.keep[WIDTH/8-1] == 0)
+					{
+						//currWord is stored in prevWord
+						state = STITCH;
+					}
+					else
+					{
+						readDataOut.write(currWord);
+						state = ATTACH_ALIGNED;
+					}
+					
+				}
+				else //packet does not have to be merged
+				{
+					readDataOut.write(currWord);
+					state = IDLE;
+				}
+				
+			}
+			else 
+			{
+				readDataOut.write(currWord);
+				//Remain in this state until last
+			}
+			prevWord = currWord;
+		}
+		break;
+	case ATTACH_ALIGNED:													// This state handles 2nd mem.access data when no realignment is required
+		if (!readDataIn.empty())
+		{
+			net_axis<WIDTH> currWord = readDataIn.read();
+			readDataOut.write(currWord);
+			if (currWord.last)
+			{
+				state = IDLE;
+			}
+		}
+		break;
+	case STITCH:
+		if (!readDataIn.empty())
+		{
+			net_axis<WIDTH> sendWord;
+			sendWord.last = 0;
+			net_axis<WIDTH> currWord = readDataIn.read();
+
+			//Create new word consisting of current and previous word
+			sendWord.data((offset*8) -1, 0) = prevWord.data(WIDTH-1, WIDTH - (offset*8));
+			sendWord.keep(offset-1, 0) = prevWord.keep(WIDTH/8-1, WIDTH-offset);
+
+			sendWord.data(WIDTH-1, (offset*8)) = currWord.data(WIDTH - (offset*8)-1, 0);
+			sendWord.keep(WIDTH/8-1, offset) = currWord.keep(WIDTH/8 - offset-1, 0);
+			sendWord.last = (currWord.keep[WIDTH/8 - offset] == 0);
+
+			readDataOut.write(sendWord);
+			prevWord = currWord;
+			if (currWord.last)
+			{
+				state = IDLE;
+				if (!sendWord.last)
+				{
+					state = RESIDUE;
+				}
+			}
+		}
+		break;
+	case RESIDUE:
+		{
+			net_axis<WIDTH> sendWord;
+			sendWord.data((offset*8) -1, 0) = prevWord.data(WIDTH-1, WIDTH - (offset*8));
+			sendWord.keep(offset-1, 0) = prevWord.keep(WIDTH/8-1, WIDTH-offset);
+#ifndef __SYNTHESIS__
+			sendWord.data(WIDTH-1, (offset*8)) = 0;
+#endif
+			sendWord.keep(WIDTH/8-1, offset) = 0;
+			sendWord.last = 1;
+
+			readDataOut.write(sendWord);
+			state = IDLE;
+		}
+		break;
+	}
 }
+
+
+
+//TODO call function only when NODELAY
+template <int WIDTH>
+void read_data_arbiter(stream<net_axis<WIDTH> >&		txBufferReadData,
+#if (TCP_NODELAY)
+					stream<bool>&			txEng_isDDRbypass,
+					stream<net_axis<WIDTH> >&		txApp2txEng_data_stream,
+#endif
+					stream<net_axis<WIDTH> >&		txEng_tcpSegOut)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	static ap_uint<2>	tps_state = 0; //TODO rename
+
+	switch (tps_state)
+	{
+	case 0:
+#if (TCP_NODELAY)
+		if (!txEng_isDDRbypass.empty())
+		{
+			bool isBypass = txEng_isDDRbypass.read();
+			if (isBypass)
+			{
+				tps_state = 2;
+			}
+			else
+			{
+				tps_state = 1;
+			}
+			
+		}
+#else
+		tps_state = 1
+#endif
+		break;
+	case 1:
+		if (!txBufferReadData.empty())
+		{
+			net_axis<WIDTH> currWord = txBufferReadData.read();
+			txEng_tcpSegOut.write(currWord);
+			if (currWord.last)
+			{
+				tps_state = 0;
+			}
+		}
+		break;
+#if (TCP_NODELAY)
+	case 2:
+		if (!txApp2txEng_data_stream.empty())
+		{
+			net_axis<WIDTH> currWord = txApp2txEng_data_stream.read();
+			std::cout << "ARBITER: ";
+			printLE(std::cout, currWord);
+			std::cout << std::endl;
+			txEng_tcpSegOut.write(currWord);
+			if (currWord.last)
+			{
+				tps_state = 0;
+			}
+		}
+		break;
+#endif
+	} // switch
+}
+
+
+template <int WIDTH>
+void two_complement_subchecksums(	hls::stream<net_axis<WIDTH> >&			dataIn,
+									hls::stream<net_axis<WIDTH> >&			dataOut,
+									hls::stream<subSums<WIDTH/16> >&		txEng_subChecksumsFifoOut)
+{
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+	//static ap_uint<17> tcts_tcp_sums[4] = {0, 0, 0, 0};
+	static subSums<WIDTH/16> tcts_tcp_sums;
+	//static bool tcts_firstWord = true;
+
+
+	if (!dataIn.empty())// && !tctc_checkChecksum)
+	{
+		net_axis<WIDTH> currWord = dataIn.read();
+		dataOut.write(currWord);
+
+		for (int i = 0; i < WIDTH/16; i++)
+		{
+#pragma HLS unroll
+			ap_uint<16> temp;
+			if (currWord.keep.range(i*2+1, i*2) == 0x3)
+			{
+				temp(7, 0) = currWord.data.range(i*16+15, i*16+8);
+				temp(15, 8) = currWord.data.range(i*16+7, i*16);
+				tcts_tcp_sums.sum[i] += temp;
+				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
+			}
+			else if (currWord.keep[i*2] == 0x1)
+			{
+				temp(7, 0) = 0;
+				temp(15, 8) = currWord.data.range(i*16+7, i*16);
+				tcts_tcp_sums.sum[i] += temp;
+				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
+			}
+		}
+		//tcts_firstWord = false;
+		if(currWord.last == 1)
+		{
+			//tcts_firstWord = true;
+			txEng_subChecksumsFifoOut.write(tcts_tcp_sums);
+			for (int i = 0; i < WIDTH/16; i++)
+			{
+				#pragma HLS UNROLL
+				tcts_tcp_sums.sum[i] = 0;
+			}
+		}
+	}
+}
+
 
 /** @ingroup tx_engine
  *  Computes the TCP checksum and writes it into @param tcpChecksumFifoOut
@@ -1037,22 +1666,23 @@ void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
  *	@param[out]		dataOut, outgoing data stream
  *	@param[out]		txEng_subChecksumsFifoOut, the computed subchecksums are stored into this FIFO
  */
-void tx_compute_tcp_subchecksums(	stream<axiWord>&			dataIn,
+/*void tx_compute_tcp_subchecksums(	stream<axiWord>&			dataIn,
 									stream<axiWord>&			dataOut,
-									stream<subSums>&			txEng_subChecksumsFifoOut)
+									stream<subSums<4> >&		txEng_subChecksumsFifoOut)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-	static ap_uint<17> tcts_tcp_sums[4] = {0, 0, 0, 0};
-	static bool tcts_firstWord = true;
+	//static ap_uint<17> tcts_tcp_sums[4] = {0, 0, 0, 0};
+	static subSums<4> tcts_tcp_sums;
+	//static bool tcts_firstWord = true;
 
 	axiWord currWord;
 
 	if (!dataIn.empty())// && !tctc_checkChecksum)
 	{
 		dataIn.read(currWord);
-		if (!tcts_firstWord)
+		//if (!tcts_firstWord)
 		{
 			dataOut.write(currWord);
 		}
@@ -1064,55 +1694,56 @@ void tx_compute_tcp_subchecksums(	stream<axiWord>&			dataIn,
 			{
 				temp(7, 0) = currWord.data.range(i*16+15, i*16+8);
 				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums[i] += temp;
-				tcts_tcp_sums[i] = (tcts_tcp_sums[i] + (tcts_tcp_sums[i] >> 16)) & 0xFFFF;
+				tcts_tcp_sums.sum[i] += temp;
+				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
 			}
 			else if (currWord.keep[i*2] == 0x1)
 			{
 				temp(7, 0) = 0;
 				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums[i] += temp;
-				tcts_tcp_sums[i] = (tcts_tcp_sums[i] + (tcts_tcp_sums[i] >> 16)) & 0xFFFF;
+				tcts_tcp_sums.sum[i] += temp;
+				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
 			}
 		}
-		tcts_firstWord = false;
+		//tcts_firstWord = false;
 		if(currWord.last == 1)
 		{
-			tcts_firstWord = true;
+			//tcts_firstWord = true;
 			txEng_subChecksumsFifoOut.write(tcts_tcp_sums);
-			tcts_tcp_sums[0] = 0;
-			tcts_tcp_sums[1] = 0;
-			tcts_tcp_sums[2] = 0;
-			tcts_tcp_sums[3] = 0;
+			tcts_tcp_sums.sum[0] = 0;
+			tcts_tcp_sums.sum[1] = 0;
+			tcts_tcp_sums.sum[2] = 0;
+			tcts_tcp_sums.sum[3] = 0;
 		}
 	}
-}
+}*/
 
 /** @ingroup tx_engine
  *  Computes the TCP checksum from the 4 accumulated subsums and writes it into @param tcpChecksumFifoOut
  *	@param[in]		txEng_subChecksumsFifoIn, input FIFO with the 4 subsum
  *	@param[out]		tcpChecksumFifoOut, the computed checksum is stored into this FIFO
  */
-void tx_compute_tcp_checksum(	stream<subSums>&			txEng_subChecksumsFifoIn,
+void tx_compute_tcp_checksum(	stream<subSums<4> >&		txEng_subChecksumsFifoIn,
 								stream<ap_uint<16> >&		txEng_tcpChecksumFifoOut)
 {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
 	//static ap_uint<3> tctc_cc_state = 0;
-	static subSums tctc_tcp_sums;
+	static subSums<4> tctc_tcp_sums;
 
 	if (!txEng_subChecksumsFifoIn.empty())
 	{
-		txEng_subChecksumsFifoIn.read(tctc_tcp_sums );
-		tctc_tcp_sums.sum0 += tctc_tcp_sums.sum2;
-		tctc_tcp_sums.sum1 += tctc_tcp_sums.sum3;
-		tctc_tcp_sums.sum0 = (tctc_tcp_sums.sum0 + (tctc_tcp_sums.sum0 >> 16)) & 0xFFFF;
-		tctc_tcp_sums.sum1 = (tctc_tcp_sums.sum1 + (tctc_tcp_sums.sum1 >> 16)) & 0xFFFF;
-		tctc_tcp_sums.sum0 += tctc_tcp_sums.sum1;
-		tctc_tcp_sums.sum0 = (tctc_tcp_sums.sum0 + (tctc_tcp_sums.sum0 >> 16)) & 0xFFFF;
-		tctc_tcp_sums.sum0 = ~tctc_tcp_sums.sum0;
-		txEng_tcpChecksumFifoOut.write(tctc_tcp_sums.sum0);
+		txEng_subChecksumsFifoIn.read(tctc_tcp_sums);
+		tctc_tcp_sums.sum[0] += tctc_tcp_sums.sum[2];
+		tctc_tcp_sums.sum[1] += tctc_tcp_sums.sum[3];
+		tctc_tcp_sums.sum[0] = (tctc_tcp_sums.sum[0] + (tctc_tcp_sums.sum[0] >> 16)) & 0xFFFF;
+		tctc_tcp_sums.sum[1] = (tctc_tcp_sums.sum[1] + (tctc_tcp_sums.sum[1] >> 16)) & 0xFFFF;
+		tctc_tcp_sums.sum[0] += tctc_tcp_sums.sum[1];
+		tctc_tcp_sums.sum[0] = (tctc_tcp_sums.sum[0] + (tctc_tcp_sums.sum[0] >> 16)) & 0xFFFF;
+		tctc_tcp_sums.sum[0] = ~tctc_tcp_sums.sum[0];
+		std::cout << "TCP TX checksum: " << (uint16_t) tctc_tcp_sums.sum[0] << std::endl;
+		txEng_tcpChecksumFifoOut.write(tctc_tcp_sums.sum[0]);
 	}
 
 	// MAYBE this gives btter timing?
@@ -1157,14 +1788,15 @@ void tx_compute_tcp_checksum(	stream<subSums>&			txEng_subChecksumsFifoIn,
  *  @param[in]		tcpChecksumFifoIn
  *  @param[out]		dataOut
  */
-void pkgStitcher(	stream<axiWord>& 		txEng_ipHeaderBufferIn,
+/*void pkgStitcher(	stream<axiWord>& 		txEng_ipHeaderBufferIn,
 					stream<axiWord>& 		payloadIn,
 					stream<ap_uint<16> >& 	txEng_tcpChecksumFifoIn,
 					stream<axiWord>& 		ipTxDataOut)
 {
 //#pragma HLS INLINE off
 #pragma HLS pipeline II=1
-
+	
+	enum { WORD_0, WORD_1, WORD_2, WORD_3, WORD_4 };
 	static ap_uint<3> ps_wordCount = 0;
 	axiWord headWord, dataWord, sendWord;
 	ap_uint<16> checksum;
@@ -1236,38 +1868,149 @@ void pkgStitcher(	stream<axiWord>& 		txEng_ipHeaderBufferIn,
 	}
 
 
+}*/
+
+//TODO rename & reuse
+void txEngMemAccessBreakdown(	hls::stream<mmCmd>&	inputMemAccess,
+										hls::stream<mmCmd>&	outputMemAccess,
+										hls::stream<bool>&	memAccessBreakdown2txPkgStitcher)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	static ap_uint<1> txEngBreakdownState = 0;
+	static mmCmd cmd;
+	static ap_uint<WINDOW_BITS> lengthFirstAccess;
+
+	switch (txEngBreakdownState)
+	{
+	case 0:
+		if (!inputMemAccess.empty())
+		{
+			inputMemAccess.read(cmd);
+			std::cout << "TX read cmd: " << cmd.saddr << ", " << cmd.bbt << std::endl;
+			if ((cmd.saddr(WINDOW_BITS-1, 0) + cmd.bbt) > BUFFER_SIZE)
+			{
+				lengthFirstAccess = BUFFER_SIZE - cmd.saddr;
+				
+				memAccessBreakdown2txPkgStitcher.write(true);
+				outputMemAccess.write(mmCmd(cmd.saddr, lengthFirstAccess));
+				txEngBreakdownState = 1;
+			}
+			else
+			{
+				memAccessBreakdown2txPkgStitcher.write(false);
+				outputMemAccess.write(cmd);
+			}
+		}
+		break;
+	case 1:
+			outputMemAccess.write(mmCmd(0, cmd.bbt - lengthFirstAccess));
+			txEngBreakdownState = 0;
+		break;
+	}
 }
 
-void txEngMemAccessBreakdown(stream<mmCmd> &inputMemAccess, stream<mmCmd> &outputMemAccess, stream<ap_uint<1> > &memAccessBreakdown2txPkgStitcher) {
-#pragma HLS pipeline II=1
-#pragma HLS INLINE off
-	static bool txEngBreakdown = false;
-	static mmCmd txEngTempCmd;
-	static uint16_t txEngBreakTemp = 0;
-	static uint16_t txPktCounter = 0;
+// Removes the first word in case the WIDTH == 64
+template <int WIDTH>
+void remove_pseudo_header(hls::stream<net_axis<WIDTH> >&	dataIn,
+							hls::stream<net_axis<WIDTH> >&	dataOut)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
 
-	if (txEngBreakdown == false) {
-		if (!inputMemAccess.empty() && !outputMemAccess.full()) {
-			txEngTempCmd = inputMemAccess.read();
-			mmCmd tempCmd = txEngTempCmd;
-			if ((txEngTempCmd.saddr.range(15, 0) + txEngTempCmd.bbt) > 65536) {
-				txEngBreakTemp = 65536 - txEngTempCmd.saddr;
-				tempCmd = mmCmd(txEngTempCmd.saddr, txEngBreakTemp);
-				txEngBreakdown = true;
-			}
-			outputMemAccess.write(tempCmd);
-			memAccessBreakdown2txPkgStitcher.write(txEngBreakdown);
-			txPktCounter++;
-			//std::cerr << std::dec << "MemCmd: " << cycleCounter << " - " << txPktCounter << " - " << std::hex << " - " << tempCmd.saddr << " - " << tempCmd.bbt << std::endl;
+	static bool firstWord = true;
+
+	if (!dataIn.empty())
+	{
+		net_axis<WIDTH> word = dataIn.read();
+		std::cout << "REMOVE: ";
+		printLE(std::cout, word);
+		std::cout << std::endl;
+
+		if (!firstWord || WIDTH > 64)
+		{
+			dataOut.write(word);
+		}
+		firstWord = false;
+		if (word.last)
+		{
+			firstWord = true;
 		}
 	}
-	else if (txEngBreakdown == true) {
-		if (!outputMemAccess.full()) {
-			txEngTempCmd.saddr.range(15, 0) = 0;
-			//std::cerr << std::dec << "MemCmd: " << cycleCounter << " - " << std::hex << " - " << txEngTempCmd.saddr << " - " << txEngTempCmd.bbt - txEngBreakTemp << std::endl;
-			outputMemAccess.write(mmCmd(txEngTempCmd.saddr, txEngTempCmd.bbt - txEngBreakTemp));
-			txEngBreakdown = false;
-		}
+}
+
+template<int WIDTH>
+void insert_checksum(	hls::stream<ap_uint<16> >&			checksumIn,
+						hls::stream<net_axis<WIDTH> >&		dataIn,
+						hls::stream<net_axis<WIDTH> >&		dataOut)
+{
+	static ap_uint<2> state = (WIDTH > 128 ? 1 : 0);
+	static ap_uint<3> wordCount = 0;
+
+	/*if (!dataIn.empty())
+	{
+		net_axis<WIDTH> word = dataIn.read();
+		std::cout << "CHECK: ";
+		printLE(std::cout, word);
+		std::cout << std::endl;
+		dataOut.write(word);
+	}*/
+	switch(state)
+	{
+		case 0:
+			if (!dataIn.empty())
+			{
+				net_axis<WIDTH> word = dataIn.read();
+				dataOut.write(word);
+				wordCount++;
+				if (wordCount == 128/WIDTH)
+				{
+					wordCount = 0;
+					state = 1;
+				}
+			}
+			break;
+		case 1:
+			//Insert checksum
+			if (!checksumIn.empty() && !dataIn.empty())
+			{
+				ap_uint<16> checksum = checksumIn.read();
+				std::cout << "INSERTING checksum: " << checksum << std::endl;
+				net_axis<WIDTH> word = dataIn.read();
+				printLE(std::cout, word);
+				std::cout << std::endl;
+				if (WIDTH > 128)
+				{
+					word.data(143, 128) = reverse(checksum);
+				}
+				else
+				{
+					word.data(15, 0) = reverse(checksum);
+				}
+				dataOut.write(word);
+				std::cout << "after: ";
+				printLE(std::cout, word);
+				std::cout << std::endl;
+
+				state = 2;
+				if (word.last)
+				{
+					state = (WIDTH > 128 ? 1 : 0);
+				}
+			}
+			break;
+		case 2:
+			if (!dataIn.empty())
+			{
+				net_axis<WIDTH> word = dataIn.read();
+				dataOut.write(word);
+				if (word.last)
+				{
+					state = (WIDTH > 128 ? 1 : 0);
+				}
+			}
+			break;
 	}
 }
 
@@ -1285,12 +2028,13 @@ void txEngMemAccessBreakdown(stream<mmCmd> &inputMemAccess, stream<mmCmd> &outpu
  *  @param[out]		txEng2sLookup_rev_req
  *  @param[out]		ipTxData
  */
+template <int WIDTH>
 void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 				stream<rxSarEntry>&				rxSar2txEng_rsp,
 				stream<txTxSarReply>&			txSar2txEng_upd_rsp,
-				stream<axiWord>&				txBufferReadData,
+				stream<net_axis<WIDTH> >&			txBufferReadData,
 #if (TCP_NODELAY)
-				stream<axiWord>&				txApp2txEng_data_stream,
+				stream<net_axis<WIDTH> >&			txApp2txEng_data_stream,
 #endif
 				stream<fourTuple>&				sLookup2txEng_rev_rsp,
 				stream<ap_uint<16> >&			txEng2rxSar_req,
@@ -1299,7 +2043,7 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 				stream<ap_uint<16> >&			txEng2timer_setProbeTimer,
 				stream<mmCmd>&					txBufferReadCmd,
 				stream<ap_uint<16> >&			txEng2sLookup_rev_req,
-				stream<axiWord>&				ipTxData,
+				stream<net_axis<WIDTH> >&				ipTxData,
 				stream<ap_uint<1> >&			readCountFifo)
 {
 #pragma HLS DATAFLOW
@@ -1318,20 +2062,39 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	//#pragma HLS DATA_PACK variable=txEng_ipMetaFifo
 	#pragma HLS DATA_PACK variable=txEng_tcpMetaFifo
 
-	static stream<axiWord>		txEng_ipHeaderBuffer("txEng_ipHeaderBuffer");
-	static stream<axiWord>		txEng_tcpHeaderBuffer("txEng_tcpHeaderBuffer");
-	static stream<axiWord>		txEng_tcpPkgBuffer1("txEng_tcpPkgBuffer1");
-	static stream<axiWord>		txEng_tcpPkgBuffer2("txEng_tcpPkgBuffer2");
-	#pragma HLS stream variable=txEng_ipHeaderBuffer depth=32 // Ip header is 3 words, keep at least 8 headers
-	#pragma HLS stream variable=txEng_tcpHeaderBuffer depth=32 // TCP pseudo header is 4 words, keep at least 8 headers
+	static stream<net_axis<WIDTH> >		txBufferReadDataStitched("txBufferReadDAtaStitched");
+	//static stream<net_axis<WIDTH> >		txEng_ipHeaderBuffer("txEng_ipHeaderBuffer");
+	//static stream<net_axis<WIDTH> >		txEng_tcpHeaderBuffer("txEng_tcpHeaderBuffer");
+	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer0("txEng_tcpPkgBuffer0");
+	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer1("txEng_tcpPkgBuffer1");
+	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer2("txEng_tcpPkgBuffer2");
+	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer3("txEng_tcpPkgBuffer3");
+	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer4("txEng_tcpPkgBuffer4");
+	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer5("txEng_tcpPkgBuffer5");
+	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer6("txEng_tcpPkgBuffer6");
+
+	#pragma HLS stream variable=txBufferReadDataStitched  depth=2
+	//#pragma HLS stream variable=txEng_ipHeaderBuffer depth=32 // Ip header is 3 words, keep at least 8 headers
+	//#pragma HLS stream variable=txEng_tcpHeaderBuffer depth=32 // TCP pseudo header is 4 words, keep at least 8 headers
+	#pragma HLS stream variable=txEng_tcpPkgBuffer0 depth=2
 	#pragma HLS stream variable=txEng_tcpPkgBuffer1 depth=16   // is forwarded immediately, size is not critical
 	#pragma HLS stream variable=txEng_tcpPkgBuffer2 depth=256  // critical, has to keep complete packet for checksum computation
-	#pragma HLS DATA_PACK variable=txEng_ipHeaderBuffer
-	#pragma HLS DATA_PACK variable=txEng_tcpHeaderBuffer
+	#pragma HLS stream variable=txEng_tcpPkgBuffer3 depth=2
+	#pragma HLS stream variable=txEng_tcpPkgBuffer4 depth=2
+	#pragma HLS stream variable=txEng_tcpPkgBuffer5 depth=2
+	#pragma HLS stream variable=txEng_tcpPkgBuffer6 depth=2
+
+	//#pragma HLS DATA_PACK variable=txEng_ipHeaderBuffer
+	//#pragma HLS DATA_PACK variable=txEng_tcpHeaderBuffer
+	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer0
 	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer1
 	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer2
+	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer3
+	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer4
+	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer5
+	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer6
 
-	static stream<subSums>				txEng_subChecksumsFifo("txEng_subChecksumsFifo");
+	static stream<subSums<WIDTH/16> >			txEng_subChecksumsFifo("txEng_subChecksumsFifo");
 	static stream<ap_uint<16> >			txEng_tcpChecksumFifo("txEng_tcpChecksumFifo");
 	#pragma HLS stream variable=txEng_subChecksumsFifo depth=2
 	#pragma HLS stream variable=txEng_tcpChecksumFifo depth=4
@@ -1352,7 +2115,7 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	static stream<mmCmd> txMetaloader2memAccessBreakdown("txMetaloader2memAccessBreakdown");
 	#pragma HLS stream variable=txMetaloader2memAccessBreakdown depth=32
 	#pragma HLS DATA_PACK variable=txMetaloader2memAccessBreakdown
-	static stream<ap_uint<1> > memAccessBreakdown2txPkgStitcher("memAccessBreakdown2txPkgStitcher");
+	static stream<bool> memAccessBreakdown2txPkgStitcher("memAccessBreakdown2txPkgStitcher");
 	#pragma HLS stream variable=memAccessBreakdown2txPkgStitcher depth=32
 	
 	static stream<bool> txEng_isDDRbypass("txEng_isDDRbypass");
@@ -1376,6 +2139,7 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 #endif
 				txEng_tupleShortCutFifo,
 				readCountFifo);
+
 	txEngMemAccessBreakdown(txMetaloader2memAccessBreakdown, txBufferReadCmd, memAccessBreakdown2txPkgStitcher);
 
 	tupleSplitter(	sLookup2txEng_rev_rsp,
@@ -1384,21 +2148,71 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 					txEng_ipTupleFifo,
 					txEng_tcpTupleFifo);
 
-	ipHeaderConstruction(txEng_ipMetaFifo, txEng_ipTupleFifo, txEng_ipHeaderBuffer);
+	//ipHeaderConstruction<WIDTH>(txEng_ipMetaFifo, txEng_ipTupleFifo, txEng_ipHeaderBuffer);
 
-	pseudoHeaderConstruction(txEng_tcpMetaFifo, txEng_tcpTupleFifo, txEng_tcpHeaderBuffer);
+	static hls::stream<net_axis<WIDTH> >	txEng_shift2pseudoFifo("txEng_shift2pseudoFifo");
 
-	tcpPkgStitcher(	txEng_tcpHeaderBuffer,
+	//Stitches splitted reads back toghether
+	read_data_stitching<WIDTH>(memAccessBreakdown2txPkgStitcher, txBufferReadData, txBufferReadDataStitched);
+	//Arbitrates between DRAM and bypass data, concatenas DRAM data if necessary
+	read_data_arbiter<WIDTH>(txBufferReadDataStitched,
+#if (TCP_NODELAY)
+					txEng_isDDRbypass,
+					txApp2txEng_data_stream,
+#endif
+					txEng_tcpPkgBuffer0);
+
+	lshiftWordByOctet<WIDTH, 51>(((TCP_FULL_PSEUDO_HEADER_SIZE%WIDTH)/8), txEng_tcpPkgBuffer0, txEng_shift2pseudoFifo);
+
+	pseudoHeaderConstructionNew<WIDTH>(txEng_tcpMetaFifo, txEng_tcpTupleFifo, txEng_shift2pseudoFifo, txEng_tcpPkgBuffer1);
+	
+	
+	
+
+	/*tcpPkgStitcher<WIDTH>(	txEng_tcpHeaderBuffer,
 					txBufferReadData,
 #if (TCP_NODELAY)
 					txEng_isDDRbypass,
 					txApp2txEng_data_stream,
 #endif
 					txEng_tcpPkgBuffer1,
-					memAccessBreakdown2txPkgStitcher);
+					memAccessBreakdown2txPkgStitcher);*/
 
-	tx_compute_tcp_subchecksums(txEng_tcpPkgBuffer1, txEng_tcpPkgBuffer2, txEng_subChecksumsFifo);
-	tx_compute_tcp_checksum(txEng_subChecksumsFifo, txEng_tcpChecksumFifo);
+	//TODO use functions from ipv4?
+	//tx_compute_tcp_subchecksums(txEng_tcpPkgBuffer1, txEng_tcpPkgBuffer2, txEng_subChecksumsFifo);
+	//tx_compute_tcp_checksum(txEng_subChecksumsFifo, txEng_tcpChecksumFifo);
+	two_complement_subchecksums<WIDTH>(txEng_tcpPkgBuffer1, txEng_tcpPkgBuffer2, txEng_subChecksumsFifo);
+	finalize_ipv4_checksum<WIDTH/16>(txEng_subChecksumsFifo, txEng_tcpChecksumFifo);
 
-	pkgStitcher(txEng_ipHeaderBuffer, txEng_tcpPkgBuffer2, txEng_tcpChecksumFifo, ipTxData);
+
+	// Removes one word in case of WIDTH=64bit (IP part of pseudo header is 96bit)
+	remove_pseudo_header<WIDTH>(txEng_tcpPkgBuffer2, txEng_tcpPkgBuffer3);
+
+	//TODO merge these two shifts
+	rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 53>(((96%WIDTH)/8), txEng_tcpPkgBuffer3, txEng_tcpPkgBuffer4);
+
+	insert_checksum<WIDTH>(txEng_tcpChecksumFifo, txEng_tcpPkgBuffer4, txEng_tcpPkgBuffer5);
+	
+	lshiftWordByOctet<WIDTH, 52>(((IPV4_HEADER_SIZE%WIDTH)/8), txEng_tcpPkgBuffer5, txEng_tcpPkgBuffer6);
+	//TODO make template	
+	generate_ipv4<WIDTH>(txEng_ipMetaFifo, txEng_ipTupleFifo, txEng_tcpPkgBuffer6, ipTxData);
+
+	//pkgStitcher<WIDTH>(txEng_ipHeaderBuffer, txEng_tcpPkgBuffer2, txEng_tcpChecksumFifo, ipTxData);
 }
+
+template void tx_engine<DATA_WIDTH>(	stream<extendedEvent>&			eventEng2txEng_event,
+				stream<rxSarEntry>&				rxSar2txEng_rsp,
+				stream<txTxSarReply>&			txSar2txEng_upd_rsp,
+				stream<net_axis<DATA_WIDTH> >&			txBufferReadData,
+#if (TCP_NODELAY)
+				stream<net_axis<DATA_WIDTH> >&			txApp2txEng_data_stream,
+#endif
+				stream<fourTuple>&				sLookup2txEng_rev_rsp,
+				stream<ap_uint<16> >&			txEng2rxSar_req,
+				stream<txTxSarQuery>&			txEng2txSar_upd_req,
+				stream<txRetransmitTimerSet>&	txEng2timer_setRetransmitTimer,
+				stream<ap_uint<16> >&			txEng2timer_setProbeTimer,
+				stream<mmCmd>&					txBufferReadCmd,
+				stream<ap_uint<16> >&			txEng2sLookup_rev_req,
+				stream<net_axis<DATA_WIDTH> >&				ipTxData,
+				stream<ap_uint<1> >&			readCountFifo);
