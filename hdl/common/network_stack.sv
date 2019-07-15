@@ -584,7 +584,7 @@ udp_stack #(
       .s_axis_udp_tx_data(s_axis_udp_tx_data),
       
       .local_ip_address(local_ip_address[31:0]),
-      .listen_port(16'h8000)
+      .listen_port(16'h1389)
       
 );
 /*axis_meta #(.WIDTH(48))         axis_ip_to_udp_meta();
@@ -733,6 +733,7 @@ assign axis_ipv6_to_intercon.last = 1'b0;
 `endif
 
 
+
 roce_stack #(
     .ROCE_EN(ROCE_EN)
 ) rocev2_stack_inst(
@@ -777,12 +778,8 @@ roce_stack #(
     
     //Pointer chaising
 `ifdef POINTER_CHASING
-    /*.m_axis_rx_pcmeta_TVALID(m_axis_rx_pcmeta.valid),
-    .m_axis_rx_pcmeta_TREADY(m_axis_rx_pcmeta.ready),
-    .m_axis_rx_pcmeta_TDATA(m_axis_rx_pcmeta.data),
-    .s_axis_tx_pcmeta_TVALID(s_axis_tx_pcmeta.valid),
-    .s_axis_tx_pcmeta_TREADY(s_axis_tx_pcmeta.ready),
-    .s_axis_tx_pcmeta_TDATA(s_axis_tx_pcmeta.data),*/
+    .m_axis_rx_pcmeta(m_axis_rx_pcmeta),
+    .s_axis_tx_pcmeta(s_axis_tx_pcmeta),
 `endif
     //CONTROL
     .s_axis_qp_interface(axis_qp_interface),
@@ -1220,10 +1217,10 @@ arp_server_subnet_ip arp_server_inst(
 
 .myMacAddress_V(arp_mac_address),
 .myIpAddress_V(arp_ip_address),
-//.regRequestCount_V(arp_request_pkg_counter),
-//.regRequestCount_V_ap_vld(),
-//.regReplyCount_V(arp_reply_pkg_counter),
-//.regReplyCount_V_ap_vld(),
+.regRequestCount_V(arp_request_pkg_counter),
+.regRequestCount_V_ap_vld(),
+.regReplyCount_V(arp_reply_pkg_counter),
+.regReplyCount_V_ap_vld(),
 
 .aclk(net_clk), // input aclk
 .aresetn(aresetn_reg) // input aresetn
@@ -1641,6 +1638,9 @@ network_controller controller_inst(
     .arp_tx_pkg_counter                 (arp_tx_pkg_counter),
     .arp_request_pkg_counter            (arp_request_pkg_counter),
     .arp_reply_pkg_counter              (arp_reply_pkg_counter),
+    //icmp
+    .icmp_rx_pkg_counter                (icmp_rx_pkg_counter),
+    .icmp_tx_pkg_counter                (icmp_tx_pkg_counter),
     //tcp
     .tcp_rx_pkg_counter                 (tcp_rx_pkg_counter),
     .tcp_tx_pkg_counter                 (tcp_tx_pkg_counter),
@@ -1719,81 +1719,12 @@ axis_interconnect_merger_160 tx_metadata_merger (
 /*
  * Width alignment
  */
-axi_stream #(.WIDTH(WIDTH) )   axis_rxwrite_data();
-axi_stream #(.WIDTH(WIDTH) )   axis_rxread_data();
-axi_stream #(.WIDTH(WIDTH) )   axis_txwrite_data();
-axi_stream #(.WIDTH(WIDTH) )   axis_txread_data();
 axi_stream #(.WIDTH(WIDTH) )   axis_roce_read_data();
 axi_stream #(.WIDTH(WIDTH) )   axis_roce_write_data();
 axi_stream #(.WIDTH(WIDTH) )  axis_tx_data();
 generate
 if (WIDTH==64) begin
-//TCP Data Path
-`ifndef RX_DDR_BYPASS
-axis_512_to_64_converter tcp_rxread_data_converter (
-  .aclk(net_clk),                    // input wire aclk
-  .aresetn(net_aresetn),              // input wire aresetn
-  .s_axis_tvalid(s_axis_read_data[ddrPortNetworkRx].valid),  // input wire s_axis_tvalid
-  .s_axis_tready(s_axis_read_data[ddrPortNetworkRx].ready),  // output wire s_axis_tready
-  .s_axis_tdata(s_axis_read_data[ddrPortNetworkRx].data),    // input wire [63 : 0] s_axis_tdata
-  .s_axis_tkeep(s_axis_read_data[ddrPortNetworkRx].keep),    // input wire [7 : 0] s_axis_tkeep
-  .s_axis_tlast(s_axis_read_data[ddrPortNetworkRx].last),    // input wire s_axis_tlast
-  .m_axis_tvalid(axis_rxread_data.valid),  // output wire m_axis_tvalid
-  .m_axis_tready(axis_rxread_data.ready),  // input wire m_axis_tready
-  .m_axis_tdata(axis_rxread_data.data),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_rxread_data.keep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_rxread_data.last)    // output wire m_axis_tlast
-);
-
-axis_64_to_512_converter tcp_rxwrite_data_converter (
-  .aclk(net_clk),                    // input wire aclk
-  .aresetn(net_aresetn),              // input wire aresetn
-  .s_axis_tvalid(axis_rxwrite_data.valid),  // input wire s_axis_tvalid
-  .s_axis_tready(axis_rxwrite_data.ready),  // output wire s_axis_tready
-  .s_axis_tdata(axis_rxwrite_data.data),    // input wire [63 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_rxwrite_data.keep),    // input wire [7 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_rxwrite_data.last),    // input wire s_axis_tlast
-  .s_axis_tdest(1'b0),    // input wire s_axis_tlast
-  .m_axis_tvalid(m_axis_write_data[ddrPortNetworkRx].valid),  // output wire m_axis_tvalid
-  .m_axis_tready(m_axis_write_data[ddrPortNetworkRx].ready),  // input wire m_axis_tready
-  .m_axis_tdata(m_axis_write_data[ddrPortNetworkRx].data),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(m_axis_write_data[ddrPortNetworkRx].keep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(m_axis_write_data[ddrPortNetworkRx].last),    // output wire m_axis_tlast
-  .m_axis_tdest()    // output wire m_axis_tlast
-);
-`endif
-axis_512_to_64_converter tcp_txread_data_converter (
-  .aclk(net_clk),                    // input wire aclk
-  .aresetn(net_aresetn),              // input wire aresetn
-  .s_axis_tvalid(s_axis_read_data[ddrPortNetworkTx].valid),  // input wire s_axis_tvalid
-  .s_axis_tready(s_axis_read_data[ddrPortNetworkTx].ready),  // output wire s_axis_tready
-  .s_axis_tdata(s_axis_read_data[ddrPortNetworkTx].data),    // input wire [63 : 0] s_axis_tdata
-  .s_axis_tkeep(s_axis_read_data[ddrPortNetworkTx].keep),    // input wire [7 : 0] s_axis_tkeep
-  .s_axis_tlast(s_axis_read_data[ddrPortNetworkTx].last),    // input wire s_axis_tlast
-  .m_axis_tvalid(axis_txread_data.valid),  // output wire m_axis_tvalid
-  .m_axis_tready(axis_txread_data.ready),  // input wire m_axis_tready
-  .m_axis_tdata(axis_txread_data.data),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_txread_data.keep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_txread_data.last)    // output wire m_axis_tlast
-);
-
-axis_64_to_512_converter tcp_txwrite_data_converter (
-  .aclk(net_clk),                    // input wire aclk
-  .aresetn(net_aresetn),              // input wire aresetn
-  .s_axis_tvalid(axis_txwrite_data.valid),  // input wire s_axis_tvalid
-  .s_axis_tready(axis_txwrite_data.ready),  // output wire s_axis_tready
-  .s_axis_tdata(axis_txwrite_data.data),    // input wire [63 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_txwrite_data.keep),    // input wire [7 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_txwrite_data.last),    // input wire s_axis_tlast
-  .s_axis_tdest(1'b0),    // input wire s_axis_tlast
-  .m_axis_tvalid(m_axis_write_data[ddrPortNetworkTx].valid),  // output wire m_axis_tvalid
-  .m_axis_tready(m_axis_write_data[ddrPortNetworkTx].ready),  // input wire m_axis_tready
-  .m_axis_tdata(m_axis_write_data[ddrPortNetworkTx].data),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(m_axis_write_data[ddrPortNetworkTx].keep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(m_axis_write_data[ddrPortNetworkTx].last),    // output wire m_axis_tlast
-  .m_axis_tdest()    // output wire m_axis_tlast
-);
-
+//TODO move
 //RoCE Data Path
 axis_512_to_64_converter roce_read_data_converter (
   .aclk(net_clk),                    // input wire aclk
@@ -1843,32 +1774,6 @@ axis_64_to_512_converter roce_write_data_converter (
 );
 end
 if (WIDTH==512) begin
-//TCP Data Path
-/*assign axis_rxread_data.valid = s_axis_txread_data.valid;
-assign s_axis_rxread_data.ready = axis_txread_data.ready;
-assign axis_rxread_data.data = s_axis_txread_data.data;
-assign axis_rxread_data.keep = s_axis_txread_data.keep;
-assign axis_rxread_data.last = s_axis_txread_data.last;
-
-assign m_axis_rxwrite_data.valid = axis_txwrite_data.valid;
-assign axis_rxwrite_data.ready = m_axis_txwrite_data.ready;
-assign m_axis_rxwrite_data.data = axis_txwrite_data.data;
-assign m_axis_rxwrite_data.keep = axis_txwrite_data.keep;
-assign m_axis_rxwrite_data.last = axis_txwrite_data.last;
-
-assign axis_txread_data.valid = s_axis_txread_data.valid;
-assign s_axis_txread_data.ready = axis_txread_data.ready;
-assign axis_txread_data.data = s_axis_txread_data.data;
-assign axis_txread_data.keep = s_axis_txread_data.keep;
-assign axis_txread_data.last = s_axis_txread_data.last;
-
-assign m_axis_txwrite_data.valid = axis_txwrite_data.valid;
-assign axis_txwrite_data.ready = m_axis_txwrite_data.ready;
-assign m_axis_txwrite_data.data = axis_txwrite_data.data;
-assign m_axis_txwrite_data.keep = axis_txwrite_data.keep;
-assign m_axis_txwrite_data.last = axis_txwrite_data.last;*/
-
-
 //RoCE Data Path
 assign axis_roce_read_data.valid = s_axis_roce_read_data.valid; 
 assign s_axis_roce_read_data.ready = axis_roce_read_data.ready;
@@ -1899,7 +1804,8 @@ logic[31:0] tx_pkg_counter;
 
 logic[31:0] tcp_rx_pkg_counter;
 logic[31:0] tcp_tx_pkg_counter;
-
+logic[31:0] udp_rx_pkg_counter;
+logic[31:0] udp_tx_pkg_counter;
 logic[31:0] roce_rx_pkg_counter;
 logic[31:0] roce_tx_pkg_counter;
 
@@ -1912,6 +1818,8 @@ logic[31:0] roce_data_tx_host_pkg_counter;
 
 logic[31:0] arp_rx_pkg_counter;
 logic[31:0] arp_tx_pkg_counter;
+logic[31:0] icmp_rx_pkg_counter;
+logic[31:0] icmp_tx_pkg_counter;
 
 reg[7:0]  axis_stream_down_counter;
 reg axis_stream_down;
@@ -1938,6 +1846,9 @@ always @(posedge net_clk) begin
         arp_rx_pkg_counter <= '0;
         arp_tx_pkg_counter <= '0;
         
+        udp_rx_pkg_counter <= '0;
+        udp_tx_pkg_counter <= '0;
+
         roce_rx_pkg_counter <= '0;
         roce_tx_pkg_counter <= '0;
 
@@ -1977,6 +1888,17 @@ always @(posedge net_clk) begin
                 arp_tx_pkg_counter <= arp_tx_pkg_counter + 1;
             end
         end
+        //icmp
+        if (axis_icmp_slice_to_icmp.valid && axis_icmp_slice_to_icmp.ready) begin
+            if (axis_icmp_slice_to_icmp.last) begin
+                icmp_rx_pkg_counter <= icmp_rx_pkg_counter + 1;
+            end
+        end
+        if (axis_icmp_to_icmp_slice.valid && axis_icmp_to_icmp_slice.ready) begin
+            if (axis_icmp_to_icmp_slice.last) begin
+                icmp_tx_pkg_counter <= icmp_tx_pkg_counter + 1;
+            end
+        end
         //tcp
         if (axis_toe_slice_to_toe.valid && axis_toe_slice_to_toe.ready) begin
             if (axis_toe_slice_to_toe.last) begin
@@ -1988,14 +1910,25 @@ always @(posedge net_clk) begin
                 tcp_tx_pkg_counter <= tcp_tx_pkg_counter + 1;
             end
         end
-        //roce
+        //udp
         if (axis_udp_slice_to_udp.valid && axis_udp_slice_to_udp.ready) begin
             if (axis_udp_slice_to_udp.last) begin
-                roce_rx_pkg_counter <= rx_pkg_counter + 1;
+                udp_rx_pkg_counter <= udp_rx_pkg_counter + 1;
             end
         end
         if (axis_udp_to_udp_slice.valid && axis_udp_to_udp_slice.ready) begin
             if (axis_udp_to_udp_slice.last) begin
+                udp_tx_pkg_counter <= udp_tx_pkg_counter + 1;
+            end
+        end
+        //roce
+        if (axis_roce_slice_to_roce.valid && axis_roce_slice_to_roce.ready) begin
+            if (axis_roce_slice_to_roce.last) begin
+                roce_rx_pkg_counter <= roce_rx_pkg_counter + 1;
+            end
+        end
+        if (axis_roce_to_roce_slice.valid && axis_roce_to_roce_slice.ready) begin
+            if (axis_roce_to_roce_slice.last) begin
                 roce_tx_pkg_counter <= roce_tx_pkg_counter + 1;
             end
         end

@@ -88,41 +88,42 @@ wire[15:0]  lup_rsp_TDATA;
 //logic       regSessionCount_V_ap_vld;
 
 //TODO fix generate
-/*generate
+//generate
 if (RX_DDR_BYPASS_EN == 1) begin
-//RX Buffer bypass data streams
-wire axis_rxbuffer2app_tvalid;
-wire axis_rxbuffer2app_tready;
-wire[63:0] axis_rxbuffer2app_tdata;
-wire[7:0] axis_rxbuffer2app_tkeep;
-wire axis_rxbuffer2app_tlast;
-
-wire axis_tcp2rxbuffer_tvalid;
-wire axis_tcp2rxbuffer_tready;
-wire[63:0] axis_tcp2rxbuffer_tdata;
-wire[7:0] axis_tcp2rxbuffer_tkeep;
-wire axis_tcp2rxbuffer_tlast;
-
-wire[31:0] rx_buffer_data_count;
+    //RX Buffer bypass data streams
+    wire axis_rxbuffer2app_tvalid;
+    wire axis_rxbuffer2app_tready;
+    wire[63:0] axis_rxbuffer2app_tdata;
+    wire[7:0] axis_rxbuffer2app_tkeep;
+    wire axis_rxbuffer2app_tlast;
+    
+    wire axis_tcp2rxbuffer_tvalid;
+    wire axis_tcp2rxbuffer_tready;
+    wire[63:0] axis_tcp2rxbuffer_tdata;
+    wire[7:0] axis_tcp2rxbuffer_tkeep;
+    wire axis_tcp2rxbuffer_tlast;
+    
+    wire[31:0] rx_buffer_data_count;
 end
 else begin
-assign s_axis_read_sts[ddrPortNetworkRx].ready = 1'b1;
+    assign s_axis_read_sts[ddrPortNetworkRx].ready = 1'b1;
 end
-endgenerate
+//endgenerate
+
 assign s_axis_read_sts[ddrPortNetworkTx].ready = 1'b1;
 
 
 //hack for now //TODO
 wire[71:0] axis_write_cmd_data [1:0];
 wire[71:0] axis_read_cmd_data [1:0];
-generate
+//generate
 if (RX_DDR_BYPASS_EN == 0) begin
-assign m_axis_write_cmd[ddrPortNetworkRx].address = axis_write_cmd_data[ddrPortNetworkRx][63:32];
-assign m_axis_write_cmd[ddrPortNetworkRx].length = axis_write_cmd_data[ddrPortNetworkRx][22:0];
-assign m_axis_read_cmd[ddrPortNetworkRx].address = axis_read_cmd_data[ddrPortNetworkRx][63:32];
+    assign m_axis_write_cmd[ddrPortNetworkRx].address = axis_write_cmd_data[ddrPortNetworkRx][63:32];
+    assign m_axis_write_cmd[ddrPortNetworkRx].length = axis_write_cmd_data[ddrPortNetworkRx][22:0];
+    assign m_axis_read_cmd[ddrPortNetworkRx].address = axis_read_cmd_data[ddrPortNetworkRx][63:32];
 assign m_axis_read_cmd[ddrPortNetworkRx].length = axis_read_cmd_data[ddrPortNetworkRx][22:0];
 end
-endgenerate
+//endgenerate
 assign m_axis_write_cmd[ddrPortNetworkTx].address = axis_write_cmd_data[ddrPortNetworkTx][63:32];
 assign m_axis_write_cmd[ddrPortNetworkTx].length = axis_write_cmd_data[ddrPortNetworkTx][22:0];
 assign m_axis_read_cmd[ddrPortNetworkTx].address = axis_read_cmd_data[ddrPortNetworkTx][63:32];
@@ -132,17 +133,17 @@ assign m_axis_read_cmd[ddrPortNetworkTx].length = axis_read_cmd_data[ddrPortNetw
 
 toe_ip toe_inst (
 // Data output
-.m_axis_tcp_data_TVALID(axis_toe_to_toe_slice.valid), // output AXI_M_Stream_TVALID
-.m_axis_tcp_data_TREADY(axis_toe_to_toe_slice.ready), // input AXI_M_Stream_TREADY
+.m_axis_tcp_data_TVALID(axis_toe_to_toe_slice.valid),
+.m_axis_tcp_data_TREADY(axis_toe_to_toe_slice.ready),
 .m_axis_tcp_data_TDATA(axis_toe_to_toe_slice.data), // output [63 : 0] AXI_M_Stream_TDATA
-.m_axis_tcp_data_TKEEP(axis_toe_to_toe_slice.keep), // output [7 : 0] AXI_M_Stream_TSTRB
-.m_axis_tcp_data_TLAST(axis_toe_to_toe_slice.last), // output [0 : 0] AXI_M_Stream_TLAST
+.m_axis_tcp_data_TKEEP(axis_toe_to_toe_slice.keep),
+.m_axis_tcp_data_TLAST(axis_toe_to_toe_slice.last),
 // Data input
-.s_axis_tcp_data_TVALID(axis_toe_slice_to_toe.valid), // input AXI_S_Stream_TVALID
-.s_axis_tcp_data_TREADY(axis_toe_slice_to_toe.ready), // output AXI_S_Stream_TREADY
-.s_axis_tcp_data_TDATA(axis_toe_slice_to_toe.data), // input [63 : 0] AXI_S_Stream_TDATA
-.s_axis_tcp_data_TKEEP(axis_toe_slice_to_toe.keep), // input [7 : 0] AXI_S_Stream_TKEEP
-.s_axis_tcp_data_TLAST(axis_toe_slice_to_toe.last), // input [0 : 0] AXI_S_Stream_TLAST
+.s_axis_tcp_data_TVALID(axis_toe_slice_to_toe.valid),
+.s_axis_tcp_data_TREADY(axis_toe_slice_to_toe.ready),
+.s_axis_tcp_data_TDATA(axis_toe_slice_to_toe.data),
+.s_axis_tcp_data_TKEEP(axis_toe_slice_to_toe.keep),
+.s_axis_tcp_data_TLAST(axis_toe_slice_to_toe.last),
 `ifndef RX_DDR_BYPASS
 // rx read commands
 .m_axis_rxread_cmd_TVALID(m_axis_read_cmd[ddrPortNetworkRx].valid),
@@ -222,7 +223,7 @@ toe_ip toe_inst (
 .s_axis_session_lup_rsp_TREADY(lup_rsp_TREADY),
 .s_axis_session_lup_rsp_TDATA(lup_rsp_TDATA),
 
-/* Application Interface *//*
+/* Application Interface */
 // listen&close port
 .s_axis_listen_port_req_TVALID(s_axis_listen_port.valid),
 .s_axis_listen_port_req_TREADY(s_axis_listen_port.ready),
@@ -303,7 +304,7 @@ axis_data_fifo_64_d2048 rx_buffer_fifo (
   .axis_data_count(rx_buffer_data_count[11:0])
 );
 assign rx_buffer_data_count[31:12] = 20'h0;
-`endif*/
+`endif
 
 SmartCamCtl SmartCamCtl_inst
 (
@@ -333,7 +334,7 @@ SmartCamCtl SmartCamCtl_inst
 );
 
 
-/*if (WIDTH==64) begin
+if (WIDTH==64) begin
 //TCP Data Path
 `ifndef RX_DDR_BYPASS
 axis_512_to_64_converter tcp_rxread_data_converter (
@@ -399,6 +400,7 @@ axis_64_to_512_converter tcp_txwrite_data_converter (
   .m_axis_tlast(m_axis_write_data[ddrPortNetworkTx].last),    // output wire m_axis_tlast
   .m_axis_tdest()    // output wire m_axis_tlast
 );
+end
 
 if (WIDTH==512) begin
 //TCP Data Path
@@ -425,12 +427,12 @@ assign axis_txwrite_data.ready = m_axis_txwrite_data.ready;
 assign m_axis_txwrite_data.data = axis_txwrite_data.data;
 assign m_axis_txwrite_data.keep = axis_txwrite_data.keep;
 assign m_axis_txwrite_data.last = axis_txwrite_data.last;
-end*/
+end
 
 
 end
 else begin
-assign s_axis_rx_data.ready = 1'b0;
+assign s_axis_rx_data.ready = 1'b1;
 assign m_axis_tx_data.valid = 1'b0;
 
 //assign s_axis_tx_meta.ready = 1'b0;
