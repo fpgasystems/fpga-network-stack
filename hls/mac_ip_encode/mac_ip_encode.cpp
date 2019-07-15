@@ -227,6 +227,7 @@ void insert_ethernet_header(hls::stream<ethHeader<WIDTH> >&		headerIn,
 			headerIn.read(header);
 			net_axis<WIDTH> currWord;
 			//Always holds, no check required
+			header.consumeWord(currWord.data);
 			//if (header.consumeWord(currWord.data) < (WIDTH/8))
 			{
 				ge_state = PARTIAL_HEADER;
