@@ -383,7 +383,7 @@ axis_data_fifo_160 legacy_cmd_fifo (
 );
 
 // Merge the two FIFOs
-axis_interconnect_2to1_160 cmd_fifo_merge_inst (
+axis_interconnect_160_2to1 cmd_fifo_merge_inst (
   .ACLK(net_clk),                                  // input wire ACLK
   .ARESETN(net_aresetn),                            // input wire ARESETN
   .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
