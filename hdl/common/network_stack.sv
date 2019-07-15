@@ -212,18 +212,9 @@ reg[127:0] link_local_ipv6_address;
 //assign dhcp_ip_address_en = 1'b1;
 //assign dhcp_ip_address = 32'hD1D4010A;
 
-//register reset
-(* keep = "true", max_fanout = "256" *) reg aresetn_reg;
-(* keep = "true" *)  reg aresetn_reg2;
 always @(posedge net_clk)
 begin
-    aresetn_reg2 <=  net_aresetn;
-    aresetn_reg <= aresetn_reg2;
-end
-
-always @(posedge net_clk)
-begin
-    if (aresetn_reg == 0) begin
+    if (net_aresetn == 0) begin
         mie_mac_address <= 48'h000000000000;
         arp_mac_address <= 48'h000000000000;
         ipv6_mac_address <= 48'h000000000000;
@@ -276,7 +267,7 @@ tcp_stack #(
      .RX_DDR_BYPASS_EN(RX_DDR_BYPASS_EN)
  ) tcp_stack_inst(
      .net_clk(net_clk), // input aclk
-     .net_aresetn(aresetn_reg), // input aresetn
+     .net_aresetn(net_aresetn), // input aresetn
      
      // streams to network
      .s_axis_rx_data(axis_toe_slice_to_toe),
@@ -571,7 +562,7 @@ udp_stack #(
       .WIDTH(WIDTH)
   ) udp_stack_inst(
       .net_clk(net_clk), // input aclk
-      .net_aresetn(aresetn_reg), // input aresetn
+      .net_aresetn(net_aresetn), // input aresetn
       
       // streams to network
       .s_axis_rx_data(axis_udp_slice_to_udp),
@@ -738,7 +729,7 @@ roce_stack #(
     .ROCE_EN(ROCE_EN)
 ) rocev2_stack_inst(
     .net_clk(net_clk), // input aclk
-    .net_aresetn(aresetn_reg), // input aresetn
+    .net_aresetn(net_aresetn), // input aresetn
     //RX
 `ifdef IP_VERSION4
      //IPv4
@@ -882,7 +873,7 @@ ip_handler_ip ip_handler_inst (
 .myIpAddress_V(iph_ip_address),
 
 .aclk(net_clk), // input aclk
-.aresetn(aresetn_reg) // input aresetn
+.aresetn(net_aresetn) // input aresetn
 );
 
 // ARP lookup
@@ -916,7 +907,7 @@ mac_ip_encode_ip mac_ip_encode_inst (
 .regDefaultGateway_V(ip_default_gateway),                            // input wire [31 : 0] regDefaultGateway_V
   
 .aclk(net_clk), // input aclk
-.aresetn(aresetn_reg) // input aresetn
+.aresetn(net_aresetn) // input aresetn
 );
 
 `ifdef IP_VERSION4
@@ -948,7 +939,7 @@ eth_encode_ip eth_encode_inst (
 
 .localMacAddress_V(mie_mac_address),  
 .aclk(net_clk), // input aclk
-.aresetn(aresetn_reg) // input aresetn
+.aresetn(net_aresetn) // input aresetn
 );
 
 `endif
@@ -958,15 +949,15 @@ if (WIDTH==64) begin
 // merges icmp and tcp
 axis_interconnect_4to1 ip_merger (
   .ACLK(net_clk),                                  // input wire ACLK
-  .ARESETN(aresetn_reg),                            // input wire ARESETN
+  .ARESETN(net_aresetn),                            // input wire ARESETN
   .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
   .S01_AXIS_ACLK(net_clk),                // input wire S01_AXIS_ACLK
   .S02_AXIS_ACLK(net_clk),                // input wire S02_AXIS_ACLK
   .S03_AXIS_ACLK(net_clk),                // input wire S03_AXIS_ACLK
-  .S00_AXIS_ARESETN(aresetn_reg),          // input wire S00_AXIS_ARESETN
-  .S01_AXIS_ARESETN(aresetn_reg),          // input wire S01_AXIS_ARESETN
-  .S02_AXIS_ARESETN(aresetn_reg),          // input wire S02_AXIS_ARESETN
-  .S03_AXIS_ARESETN(aresetn_reg),          // input wire S03_AXIS_ARESETN
+  .S00_AXIS_ARESETN(net_aresetn),          // input wire S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn),          // input wire S01_AXIS_ARESETN
+  .S02_AXIS_ARESETN(net_aresetn),          // input wire S02_AXIS_ARESETN
+  .S03_AXIS_ARESETN(net_aresetn),          // input wire S03_AXIS_ARESETN
   
   .S00_AXIS_TVALID(axis_icmp_to_icmp_slice.valid),            // input wire S00_AXIS_TVALID
   .S00_AXIS_TREADY(axis_icmp_to_icmp_slice.ready),            // output wire S00_AXIS_TREADY
@@ -993,7 +984,7 @@ axis_interconnect_4to1 ip_merger (
   .S03_AXIS_TLAST(axis_roce_slice_to_merge.last),              // input wire S01_AXIS_TLAST
 
   .M00_AXIS_ACLK(net_clk),                // input wire M00_AXIS_ACLK
-  .M00_AXIS_ARESETN(aresetn_reg),          // input wire M00_AXIS_ARESETN
+  .M00_AXIS_ARESETN(net_aresetn),          // input wire M00_AXIS_ARESETN
   .M00_AXIS_TVALID(axis_intercon_to_mie.valid),            // output wire M00_AXIS_TVALID
   .M00_AXIS_TREADY(axis_intercon_to_mie.ready),            // input wire M00_AXIS_TREADY
   .M00_AXIS_TDATA(axis_intercon_to_mie.data),              // output wire [63 : 0] M00_AXIS_TDATA
@@ -1008,13 +999,13 @@ axis_interconnect_4to1 ip_merger (
 // merges ip and arp
 axis_interconnect_2to1 mac_merger (
   .ACLK(net_clk), // input ACLK
-  .ARESETN(aresetn_reg), // input ARESETN
+  .ARESETN(net_aresetn), // input ARESETN
   .S00_AXIS_ACLK(net_clk), // input S00_AXIS_ACLK
   .S01_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
   //.S02_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
-  .S00_AXIS_ARESETN(aresetn_reg), // input S00_AXIS_ARESETN
-  .S01_AXIS_ARESETN(aresetn_reg), // input S01_AXIS_ARESETN
-  //.S02_AXIS_ARESETN(aresetn_reg), // input S01_AXIS_ARESETN  
+  .S00_AXIS_ARESETN(net_aresetn), // input S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
+  //.S02_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
   .S00_AXIS_TVALID(axis_arp_to_arp_slice.valid), // input S00_AXIS_TVALID
   .S00_AXIS_TREADY(axis_arp_to_arp_slice.ready), // output S00_AXIS_TREADY
   .S00_AXIS_TDATA(axis_arp_to_arp_slice.data), // input [63 : 0] S00_AXIS_TDATA
@@ -1034,7 +1025,7 @@ axis_interconnect_2to1 mac_merger (
   .S02_AXIS_TLAST(axis_ethencode_to_intercon.last), // input S01_AXIS_TLAST*/
   
   .M00_AXIS_ACLK(net_clk), // input M00_AXIS_ACLK
-  .M00_AXIS_ARESETN(aresetn_reg), // input M00_AXIS_ARESETN
+  .M00_AXIS_ARESETN(net_aresetn), // input M00_AXIS_ARESETN
   .M00_AXIS_TVALID(m_axis_net.valid), // output M00_AXIS_TVALID
   .M00_AXIS_TREADY(m_axis_net.ready), // input M00_AXIS_TREADY
   .M00_AXIS_TDATA(m_axis_net.data), // output [63 : 0] M00_AXIS_TDATA
@@ -1049,7 +1040,7 @@ if (WIDTH==512) begin
 axi_stream #(.WIDTH(512))    axis_icmp_slice_to_merge();
 axis_64_to_512_converter icmp_out_data_converter (
   .aclk(net_clk),
-  .aresetn(aresetn_reg),
+  .aresetn(net_aresetn),
   .s_axis_tvalid(axis_icmp_to_icmp_slice.valid),
   .s_axis_tready(axis_icmp_to_icmp_slice.ready),
   .s_axis_tdata(axis_icmp_to_icmp_slice.data),
@@ -1065,15 +1056,15 @@ axis_64_to_512_converter icmp_out_data_converter (
 );
 axis_interconnect_512_4to1 ip_merger (
   .ACLK(net_clk),                                  // input wire ACLK
-  .ARESETN(aresetn_reg),                            // input wire ARESETN
+  .ARESETN(net_aresetn),                            // input wire ARESETN
   .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
   .S01_AXIS_ACLK(net_clk),                // input wire S01_AXIS_ACLK
   .S02_AXIS_ACLK(net_clk),                // input wire S02_AXIS_ACLK
   .S03_AXIS_ACLK(net_clk),                // input wire S03_AXIS_ACLK
-  .S00_AXIS_ARESETN(aresetn_reg),          // input wire S00_AXIS_ARESETN
-  .S01_AXIS_ARESETN(aresetn_reg),          // input wire S01_AXIS_ARESETN
-  .S02_AXIS_ARESETN(aresetn_reg),          // input wire S02_AXIS_ARESETN
-  .S03_AXIS_ARESETN(aresetn_reg),          // input wire S03_AXIS_ARESETN
+  .S00_AXIS_ARESETN(net_aresetn),          // input wire S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn),          // input wire S01_AXIS_ARESETN
+  .S02_AXIS_ARESETN(net_aresetn),          // input wire S02_AXIS_ARESETN
+  .S03_AXIS_ARESETN(net_aresetn),          // input wire S03_AXIS_ARESETN
   
   .S00_AXIS_TVALID(axis_icmp_slice_to_merge.valid),            // input wire S00_AXIS_TVALID
   .S00_AXIS_TREADY(axis_icmp_slice_to_merge.ready),            // output wire S00_AXIS_TREADY
@@ -1100,7 +1091,7 @@ axis_interconnect_512_4to1 ip_merger (
   .S03_AXIS_TLAST(axis_roce_slice_to_merge.last),              // input wire S01_AXIS_TLAST
 
   .M00_AXIS_ACLK(net_clk),                // input wire M00_AXIS_ACLK
-  .M00_AXIS_ARESETN(aresetn_reg),          // input wire M00_AXIS_ARESETN
+  .M00_AXIS_ARESETN(net_aresetn),          // input wire M00_AXIS_ARESETN
   .M00_AXIS_TVALID(axis_intercon_to_mie.valid),            // output wire M00_AXIS_TVALID
   .M00_AXIS_TREADY(axis_intercon_to_mie.ready),            // input wire M00_AXIS_TREADY
   .M00_AXIS_TDATA(axis_intercon_to_mie.data),              // output wire [63 : 0] M00_AXIS_TDATA
@@ -1115,13 +1106,13 @@ axis_interconnect_512_4to1 ip_merger (
 // merges ip and arp
 axis_interconnect_512_2to1 mac_merger (
   .ACLK(net_clk), // input ACLK
-  .ARESETN(aresetn_reg), // input ARESETN
+  .ARESETN(net_aresetn), // input ARESETN
   .S00_AXIS_ACLK(net_clk), // input S00_AXIS_ACLK
   .S01_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
   //.S02_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
-  .S00_AXIS_ARESETN(aresetn_reg), // input S00_AXIS_ARESETN
-  .S01_AXIS_ARESETN(aresetn_reg), // input S01_AXIS_ARESETN
-  //.S02_AXIS_ARESETN(aresetn_reg), // input S01_AXIS_ARESETN  
+  .S00_AXIS_ARESETN(net_aresetn), // input S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
+  //.S02_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
   .S00_AXIS_TVALID(axis_arp_to_arp_slice.valid), // input S00_AXIS_TVALID
   .S00_AXIS_TREADY(axis_arp_to_arp_slice.ready), // output S00_AXIS_TREADY
   .S00_AXIS_TDATA(axis_arp_to_arp_slice.data), // input [63 : 0] S00_AXIS_TDATA
@@ -1141,7 +1132,7 @@ axis_interconnect_512_2to1 mac_merger (
   .S02_AXIS_TLAST(axis_ethencode_to_intercon.last), // input S01_AXIS_TLAST*/
   
   .M00_AXIS_ACLK(net_clk), // input M00_AXIS_ACLK
-  .M00_AXIS_ARESETN(aresetn_reg), // input M00_AXIS_ARESETN
+  .M00_AXIS_ARESETN(net_aresetn), // input M00_AXIS_ARESETN
   .M00_AXIS_TVALID(m_axis_net.valid), // output M00_AXIS_TVALID
   .M00_AXIS_TREADY(m_axis_net.ready), // input M00_AXIS_TREADY
   .M00_AXIS_TDATA(m_axis_net.data), // output [63 : 0] M00_AXIS_TDATA
@@ -1223,7 +1214,7 @@ arp_server_subnet_ip arp_server_inst(
 .regReplyCount_V_ap_vld(),
 
 .aclk(net_clk), // input aclk
-.aresetn(aresetn_reg) // input aresetn
+.aresetn(net_aresetn) // input aresetn
 );
 
 /*assign axis_ttl_to_icmp_tvalid = 0;
@@ -1253,7 +1244,7 @@ icmp_server_ip icmp_server_inst (
   .m_axis_TKEEP(axis_icmp_to_icmp_slice.keep),     // output wire [7 : 0] dataOut_TKEEP
   .m_axis_TLAST(axis_icmp_to_icmp_slice.last),     // output wire [0 : 0] dataOut_TLAST
   .aclk(net_clk),                                    // input wire ap_clk
-  .aresetn(aresetn_reg)                                // input wire ap_rst_n
+  .aresetn(net_aresetn)                                // input wire ap_rst_n
 );
 
 // IPv6 to ICMPv6
@@ -1352,7 +1343,7 @@ generate
 if (WIDTH==64) begin
 axis_register_slice_64 axis_register_arp_in_slice(
  .aclk(net_clk),
- .aresetn(aresetn_reg),
+ .aresetn(net_aresetn),
  .s_axis_tvalid(axis_iph_to_arp_slice.valid),
  .s_axis_tready(axis_iph_to_arp_slice.ready),
  .s_axis_tdata(axis_iph_to_arp_slice.data),
@@ -1367,7 +1358,7 @@ axis_register_slice_64 axis_register_arp_in_slice(
  // ICMP Input Slice
 axis_register_slice_64 axis_register_icmp_in_slice(
   .aclk(net_clk),
-  .aresetn(aresetn_reg),
+  .aresetn(net_aresetn),
   .s_axis_tvalid(axis_iph_to_icmp_slice.valid),
   .s_axis_tready(axis_iph_to_icmp_slice.ready),
   .s_axis_tdata(axis_iph_to_icmp_slice.data),
@@ -1382,7 +1373,7 @@ axis_register_slice_64 axis_register_icmp_in_slice(
  // UDP Input Slice
 axis_register_slice_64 axis_register_upd_in_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_iph_to_udp_slice.valid),
 .s_axis_tready(axis_iph_to_udp_slice.ready),
 .s_axis_tdata(axis_iph_to_udp_slice.data),
@@ -1397,7 +1388,7 @@ axis_register_slice_64 axis_register_upd_in_slice(
  // UDP Output Slice
 axis_register_slice_64 axis_register_upd_out_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_udp_to_udp_slice.valid),
 .s_axis_tready(axis_udp_to_udp_slice.ready),
 .s_axis_tdata(axis_udp_to_udp_slice.data),
@@ -1412,7 +1403,7 @@ axis_register_slice_64 axis_register_upd_out_slice(
  // TOE Input Slice
 axis_register_slice_64 axis_register_toe_in_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_iph_to_toe_slice.valid),
 .s_axis_tready(axis_iph_to_toe_slice.ready),
 .s_axis_tdata(axis_iph_to_toe_slice.data),
@@ -1427,7 +1418,7 @@ axis_register_slice_64 axis_register_toe_in_slice(
  // ROCE Input Slice
 axis_register_slice_64 axis_register_roce_in_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_iph_to_roce_slice.valid),
 .s_axis_tready(axis_iph_to_roce_slice.ready),
 .s_axis_tdata(axis_iph_to_roce_slice.data),
@@ -1442,7 +1433,7 @@ axis_register_slice_64 axis_register_roce_in_slice(
 // ROCE Output Slice
 axis_register_slice_64 axis_register_roce_out_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_roce_to_roce_slice.valid),
 .s_axis_tready(axis_roce_to_roce_slice.ready),
 .s_axis_tdata(axis_roce_to_roce_slice.data),
@@ -1458,7 +1449,7 @@ end
 if (WIDTH==512) begin
 axis_register_slice_512 axis_register_arp_in_slice(
  .aclk(net_clk),
- .aresetn(aresetn_reg),
+ .aresetn(net_aresetn),
  .s_axis_tvalid(axis_iph_to_arp_slice.valid),
  .s_axis_tready(axis_iph_to_arp_slice.ready),
  .s_axis_tdata(axis_iph_to_arp_slice.data),
@@ -1474,7 +1465,7 @@ axis_register_slice_512 axis_register_arp_in_slice(
 //axis_register_slice_512 axis_register_icmp_in_slice(
 axis_512_to_64_converter icmp_in_data_converter (
   .aclk(net_clk),
-  .aresetn(aresetn_reg),
+  .aresetn(net_aresetn),
   .s_axis_tvalid(axis_iph_to_icmp_slice.valid),
   .s_axis_tready(axis_iph_to_icmp_slice.ready),
   .s_axis_tdata(axis_iph_to_icmp_slice.data),
@@ -1489,7 +1480,7 @@ axis_512_to_64_converter icmp_in_data_converter (
  // UDP Input Slice
 axis_register_slice_512 axis_register_upd_in_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_iph_to_udp_slice.valid),
 .s_axis_tready(axis_iph_to_udp_slice.ready),
 .s_axis_tdata(axis_iph_to_udp_slice.data),
@@ -1504,7 +1495,7 @@ axis_register_slice_512 axis_register_upd_in_slice(
  // UDP Output Slice
 axis_register_slice_512 axis_register_upd_out_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_udp_to_udp_slice.valid),
 .s_axis_tready(axis_udp_to_udp_slice.ready),
 .s_axis_tdata(axis_udp_to_udp_slice.data),
@@ -1519,7 +1510,7 @@ axis_register_slice_512 axis_register_upd_out_slice(
  // TOE Input Slice
 axis_register_slice_512 axis_register_toe_in_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_iph_to_toe_slice.valid),
 .s_axis_tready(axis_iph_to_toe_slice.ready),
 .s_axis_tdata(axis_iph_to_toe_slice.data),
@@ -1534,7 +1525,7 @@ axis_register_slice_512 axis_register_toe_in_slice(
 // ROCE Input Slice
 axis_register_slice_512 axis_register_roce_in_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_iph_to_roce_slice.valid),
 .s_axis_tready(axis_iph_to_roce_slice.ready),
 .s_axis_tdata(axis_iph_to_roce_slice.data),
@@ -1549,7 +1540,7 @@ axis_register_slice_512 axis_register_roce_in_slice(
 // ROCE Output Slice
 axis_register_slice_512 axis_register_roce_out_slice(
 .aclk(net_clk),
-.aresetn(aresetn_reg),
+.aresetn(net_aresetn),
 .s_axis_tvalid(axis_roce_to_roce_slice.valid),
 .s_axis_tready(axis_roce_to_roce_slice.ready),
 .s_axis_tdata(axis_roce_to_roce_slice.data),
