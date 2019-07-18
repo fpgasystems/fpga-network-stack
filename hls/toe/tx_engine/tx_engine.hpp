@@ -77,7 +77,7 @@ struct twoTuple
  */
 template <int WIDTH>
 void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
-				stream<rxSarEntry>&				rxSar2txEng_upd_rsp,
+				stream<rxSarReply>&				rxSar2txEng_upd_rsp,
 				stream<txTxSarReply>&			txSar2txEng_upd_rsp,
 				stream<net_axis<WIDTH> >&			txBufferReadData,
 #if (TCP_NODELAY)

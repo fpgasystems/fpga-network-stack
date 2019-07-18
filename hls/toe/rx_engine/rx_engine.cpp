@@ -1145,8 +1145,8 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						stream<appNotification>&				rxEng2rxApp_notification)
 #else
 						stream<appNotification>&				rxEng2rxApp_notification,
-						ap_uint<32>						rxbuffer_data_count,
-						ap_uint<32>						rxbuffer_max_data_count)
+						ap_uint<16>						rxbuffer_data_count,
+						ap_uint<16>						rxbuffer_max_data_count)
 #endif
 {
 #pragma HLS INLINE off
@@ -1887,8 +1887,8 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 				stream<appNotification>&			rxEng2rxApp_notification)
 #else
 				stream<appNotification>&			rxEng2rxApp_notification,
-				ap_uint<32>					rxbuffer_data_count,
-				ap_uint<32>					rxbuffer_max_data_count)
+				ap_uint<16>					rxbuffer_data_count,
+				ap_uint<16>					rxbuffer_max_data_count)
 #endif
 {
 //#pragma HLS DATAFLOW
@@ -2103,6 +2103,6 @@ template void rx_engine<DATA_WIDTH>(	stream<net_axis<DATA_WIDTH> >&					ipRxData
 				stream<appNotification>&			rxEng2rxApp_notification);
 #else
 				stream<appNotification>&			rxEng2rxApp_notification,
-				ap_uint<32>					rxbuffer_data_count,
-				ap_uint<32>					rxbuffer_max_data_count);
+				ap_uint<16>					rxbuffer_data_count,
+				ap_uint<16>					rxbuffer_max_data_count);
 #endif

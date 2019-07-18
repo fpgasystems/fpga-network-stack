@@ -39,4 +39,4 @@ void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 					stream<ap_uint<16> >&		txEng2rxSar_req, //read only
 					stream<rxSarEntry>&			rxSar2rxEng_upd_rsp,
 					stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
-					stream<rxSarEntry>&			rxSar2txEng_rsp);
+					stream<rxSarReply>&			rxSar2txEng_rsp);

@@ -50,19 +50,22 @@ void rx_app_stream_if(hls::stream<appReadRequest>&		appRxDataReq,
 					  stream<ap_uint<1> >&			rxBufferReadCmd)
 #endif
 {
-#pragma HLS PIPELINE II=1
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
 
-#pragma HLS DATA_PACK variable=rxSar2rxApp_upd_rsp
-#pragma HLS DATA_PACK variable=rxApp2rxSar_upd_req
 
 	static ap_uint<16>				rasi_readLength;
-	static ap_uint<2>				rasi_fsmState 	= 0;
+	static ap_uint<1>				rasi_fsmState 	= 0;
 
-	switch (rasi_fsmState) {
+	switch (rasi_fsmState)
+	{
 		case 0:
-			if (!appRxDataReq.empty() && !rxApp2rxSar_upd_req.full()) {
+			if (!appRxDataReq.empty())
+			{
 				appReadRequest	app_read_request = appRxDataReq.read();
-				if (app_read_request.length != 0) { 	// Make sure length is not 0, otherwise Data Mover will hang up
+ 				// Make sure length is not 0, otherwise Data Mover will hang up
+				if (app_read_request.length != 0)
+				{
 					// Get app pointer
 					rxApp2rxSar_upd_req.write(rxSarAppd(app_read_request.sessionID));
 					rasi_readLength = app_read_request.length;
@@ -71,7 +74,8 @@ void rx_app_stream_if(hls::stream<appReadRequest>&		appRxDataReq,
 			}
 			break;
 		case 1:
-			if (!rxSar2rxApp_upd_rsp.empty() && !appRxDataRspMetadata.full() && !rxBufferReadCmd.full() && !rxApp2rxSar_upd_req.full()) {
+			if (!rxSar2rxApp_upd_rsp.empty())
+			{
 				rxSarAppd	rxSar = rxSar2rxApp_upd_rsp.read();
 				appRxDataRspMetadata.write(rxSar.sessionID);
 #if !(RX_DDR_BYPASS)

@@ -98,35 +98,50 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 		}
 		else // Read
 		{
+			txSarEntry entry = tx_table[tst_txEngUpdate.sessionID];
+			//Pre-calculated usedLength, minWindow to improve timing in metaLoader
+			//When calculating the usedLength we also consider if the FIN was already sent
+			ap_uint<WINDOW_BITS> usedLength = ((ap_uint<WINDOW_BITS>) entry.not_ackd - entry.ackd);
+			ap_uint<WINDOW_BITS> usedLengthWithFIN = ((ap_uint<WINDOW_BITS>) entry.not_ackd - entry.ackd);
+			if (entry.finSent)
+			{
+				usedLengthWithFIN--;
+			}
 			ap_uint<WINDOW_BITS> minWindow;
 #if !(WINDOW_SCALE)
-			if (tx_table[tst_txEngUpdate.sessionID].cong_window < tx_table[tst_txEngUpdate.sessionID].recv_window)
+			if (entry.cong_window < entry.recv_window)
 			{
-				minWindow = tx_table[tst_txEngUpdate.sessionID].cong_window;
+				minWindow = entry.cong_window;
 			}
 			else
 			{
-				minWindow = tx_table[tst_txEngUpdate.sessionID].recv_window;
+				minWindow = entry.recv_window;
 			}
 #else
-			ap_uint<4> win_shift = tx_table[tst_txEngUpdate.sessionID].win_shift;
+			ap_uint<4> win_shift = entry.win_shift;
 			ap_uint<30> scaled_recv_window;
-			scaled_recv_window(win_shift+15, win_shift) = tx_table[tst_txEngUpdate.sessionID].recv_window;
-			if (tx_table[tst_txEngUpdate.sessionID].cong_window < scaled_recv_window)
+			scaled_recv_window(win_shift+15, win_shift) = entry.recv_window;
+			if (entry.cong_window < scaled_recv_window)
 			{
-				minWindow = tx_table[tst_txEngUpdate.sessionID].cong_window;
+				minWindow = entry.cong_window;
 			}
 			else
 			{
 				minWindow = scaled_recv_window;
 			}
 #endif
-			txSar2txEng_upd_rsp.write(txTxSarReply(	tx_table[tst_txEngUpdate.sessionID].ackd,
-													tx_table[tst_txEngUpdate.sessionID].not_ackd,
-													minWindow,
-													tx_table[tst_txEngUpdate.sessionID].app,
-													tx_table[tst_txEngUpdate.sessionID].finReady,
-													tx_table[tst_txEngUpdate.sessionID].finSent));
+			ap_uint<WINDOW_BITS> usableWindow = 0;
+			if (minWindow < usedLength)
+			{
+				usableWindow = minWindow - usedLength;
+			}
+			txSar2txEng_upd_rsp.write(txTxSarReply(	entry.ackd,
+													entry.not_ackd,
+													usableWindow, //minWindow,
+													entry.app,
+													usedLength,
+													entry.finReady,
+													entry.finSent));
 		}
 	}
 	// TX App Stream If

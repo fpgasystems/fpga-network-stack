@@ -56,7 +56,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
  *  @param[out]		txEng_tupleShortCutFifoOut
  */
 void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
-				hls::stream<rxSarEntry>&				rxSar2txEng_rsp,
+				hls::stream<rxSarReply>&				rxSar2txEng_rsp,
 				hls::stream<txTxSarReply>&				txSar2txEng_upd_rsp,
 				hls::stream<ap_uint<16> >&				txEng2rxSar_req,
 				hls::stream<txTxSarQuery>&				txEng2txSar_upd_req,
@@ -82,11 +82,8 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 	static ap_uint<32> ml_randomValue= 0x562301af; //Random seed initialization
 
 	static ap_uint<2> ml_segmentCount = 0;
-	static rxSarEntry	rxSar;
-	static txTxSarReply	txSar;
-	ap_uint<16> windowSize;
-	ap_uint<WINDOW_BITS> currLength;//TODO needed??
-	ap_uint<WINDOW_BITS> usableWindow; //TODO necessary??
+	static rxSarReply	rxSar;
+	static txTxSarReply	txSarReg;
 	ap_uint<WINDOW_BITS> slowstart_threshold;
 	static tx_engine_meta meta;
 	rstEvent resetEvent;
@@ -152,55 +149,32 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 		// Can bypass DDR
 #if (TCP_NODELAY)
 		case TX:
-			if ((!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty()) || ml_sarLoaded)
+			if ((!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty()))// || ml_sarLoaded)
 			{
-				if (!ml_sarLoaded)
-				{
-					rxSar2txEng_rsp.read(rxSar);
-					txSar2txEng_upd_rsp.read(txSar);
-				}
+				rxSar2txEng_rsp.read(rxSar);
+				txTxSarReply txSar = txSar2txEng_upd_rsp.read();
 
-				//Compute our space, Advertise at least a quarter/half, otherwise 0
-
-#if (WINDOW_SCALE)
-				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
-				windowSize = actualWindowSize >> rxSar.win_shift;
-#else
-				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
-#endif
 				meta.ackNumb = rxSar.recvd;
 				meta.seqNumb = txSar.not_ackd;
-				meta.window_size = windowSize;
+				meta.window_size = rxSar.windowSize; //Precalcualted in rx_sar_table ((rxSar.appd - rxSar.recvd) - 1)
 				meta.ack = 1; // ACK is always set when established
 				meta.rst = 0;
 				meta.syn = 0;
 				meta.fin = 0;
-				//meta.length = 0;
+				meta.length = ml_curEvent.length;
 
-				//currLength = ml_curEvent.length;
-				ap_uint<WINDOW_BITS> usedLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd);
-				// min_window, is the min(txSar.recv_window, txSar.cong_window)
-				if (txSar.min_window > usedLength)
-				{
-					usableWindow = txSar.min_window - usedLength;
-				}
-				else
-				{
-					usableWindow = 0;
-				}
-				//TODO this is hack, makes sure that probeTimer is never set.
-				//if (0x7FFF < ml_curEvent.length)
-				if (usableWindow < ml_curEvent.length)
+				//this is hack, makes sure that probeTimer is never set.
+				//ProbeTimer is not used, since application checks space before transmitting
+				if (0x7FFF < ml_curEvent.length) // Ox7FFF = 32767 
 				{
 					txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
 				}
-
-				meta.length = ml_curEvent.length;
 
 				//TODO some checking
 				txSar.not_ackd += ml_curEvent.length;
 
 				txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1));
+				//This state is always left
 				ml_FsmState = 0;
 
 
@@ -215,8 +189,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 
 					// Only set RT timer if we actually send sth, TODO only set if we change state and sent sth
 					txEng2timer_setRetransmitTimer.write(txRetransmitTimerSet(ml_curEvent.sessionID));
-				}//TODO if probe send msg length 1
-				ml_sarLoaded = true;
+				}
 			}
 
 			break;
@@ -232,15 +205,9 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				}
 
 				//Compute our space, Advertise at least a quarter/half, otherwise 0
-#if (WINDOW_SCALE)
-				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
-				windowSize = actualWindowSize >> rxSar.win_shift;
-#else
-				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
-#endif
 				meta.ackNumb = rxSar.recvd;
 				meta.seqNumb = txSar.not_ackd;
-				meta.window_size = windowSize;
+				meta.window_size = rxSar.windowSize; //Precalcualted in rx_sar_table ((rxSar.appd - rxSar.recvd) - 1)
 				meta.ack = 1; // ACK is always set when established
 				meta.rst = 0;
 				meta.syn = 0;
@@ -248,16 +215,6 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				meta.length = 0;
 
 				currLength = (txSar.app - ((ap_uint<WINDOW_BITS>)txSar.not_ackd));
-				ap_uint<WINDOW_BITS> usedLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd);
-				// min_window, is the min(txSar.recv_window, txSar.cong_window)
-				if (txSar.min_window > usedLength)
-				{
-					usableWindow = txSar.min_window - usedLength;
-				}
-				else
-				{
-					usableWindow = 0;
-				}
 				// Construct address before modifying txSar.not_ackd
 				ap_uint<32> pkgAddr;
 				pkgAddr(31, 30) = 0x01;
@@ -266,7 +223,8 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 
 
 				// Check length, if bigger than Usable Window or MMS
-				if (currLength <= usableWindow)
+				//precomputed in txSar Table: usableWindow = (min(recv_window, cong_windwo) < usedLength ? (min(recv_window, cong_window) - usedLength) : 0)
+				if (currLength <= txSar.usableWindow)
 				{
 					if (currLength >= MSS) //TODO change to >= MSS, use maxSegmentCount
 					{
@@ -306,7 +264,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				else
 				{
 					// code duplication, but better timing..
-					if (usableWindow >= MSS)
+					if (txSar.usableWindow >= MSS)
 					{
 						// We stay in this state and sent immediately another packet
 						txSar.not_ackd += MSS;
@@ -319,8 +277,8 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 						if (txSar.ackd == txSar.not_ackd)
 //#endif
 						{
-							txSar.not_ackd += usableWindow;
-							meta.length = usableWindow;
+							txSar.not_ackd += txSar.usableWindow;
+							meta.length = txSar.usableWindow;
 						}
 						// Set probe Timer to try again later
 						txEng2timer_setProbeTimer.write(ml_curEvent.sessionID);
@@ -351,31 +309,23 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 		case RT:
 			if ((!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty()) || ml_sarLoaded)
 			{
+				txTxSarReply txSar;
 				if (!ml_sarLoaded)
 				{
 					rxSar2txEng_rsp.read(rxSar);
-					txSar2txEng_upd_rsp.read(txSar);
+					txSar = txSar2txEng_upd_rsp.read();
+				}
+				else
+				{
+					txSar = txSarReg;
 				}
 
-				// Compute our window size
-#if (WINDOW_SCALE)
-				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
-				windowSize = actualWindowSize >> rxSar.win_shift;
-#else
-				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
-#endif
-				if (!txSar.finSent) //no FIN sent
-				{
-					currLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd);
-				}
-				else //FIN already sent
-				{
-					currLength = ((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd)-1;
-				}
+				//TODO use  usedLengthWithFIN
+				ap_uint<WINDOW_BITS> currLength = txSar.usedLength; //((ap_uint<WINDOW_BITS>) txSar.not_ackd - txSar.ackd);
 
 				meta.ackNumb = rxSar.recvd;
 				meta.seqNumb = txSar.ackd;
-				meta.window_size = windowSize;
+				meta.window_size = rxSar.windowSize; //Precalcualted in rx_sar_table ((rxSar.appd - rxSar.recvd) - 1)
 				meta.ack = 1; // ACK is always set when session is established
 				meta.rst = 0;
 				meta.syn = 0;
@@ -410,6 +360,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 					// We stay in this state and sent immediately another packet
 					meta.length = MSS;
 					txSar.ackd += MSS;
+					txSar.usedLength -= MSS;
 					// TODO replace with dynamic count, remove this
 					if (ml_segmentCount == 3)
 					{
@@ -449,6 +400,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 					txEng2timer_setRetransmitTimer.write(txRetransmitTimerSet(ml_curEvent.sessionID));
 				}
 				ml_sarLoaded = true;
+				txSarReg = txSar;
 			}
 			break;
 		case ACK:
@@ -456,16 +408,11 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 			if (!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty())
 			{
 				rxSar2txEng_rsp.read(rxSar);
-				txSar2txEng_upd_rsp.read(txSar);
-#if (WINDOW_SCALE)
-				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
-				windowSize = actualWindowSize >> rxSar.win_shift;
-#else
-				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
-#endif
+				txTxSarReply txSar = txSar2txEng_upd_rsp.read();
+
 				meta.ackNumb = rxSar.recvd;
 				meta.seqNumb = txSar.not_ackd; //Always send SEQ
-				meta.window_size = windowSize;
+				meta.window_size = rxSar.windowSize; //Precalcualted in rx_sar_table ((rxSar.appd - rxSar.recvd) - 1)
 				meta.length = 0;
 				meta.ack = 1;
 				meta.rst = 0;
@@ -481,9 +428,10 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 		case SYN:
 			if (((ml_curEvent.rt_count != 0) && !txSar2txEng_upd_rsp.empty()) || (ml_curEvent.rt_count == 0))
 			{
+				txTxSarReply txSar;
 				if (ml_curEvent.rt_count != 0)
 				{
-					txSar2txEng_upd_rsp.read(txSar);
+					txSar = txSar2txEng_upd_rsp.read();
 					meta.seqNumb = txSar.ackd;
 				}
 				else
@@ -506,7 +454,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				meta.win_shift = WINDOW_SCALE_BITS;
 #endif
 
-				txEng_ipMetaFifoOut.write(meta.length); //length
+				txEng_ipMetaFifoOut.write(meta.length);
 				txEng_tcpMetaFifoOut.write(meta);
 				txEng_isLookUpFifoOut.write(true);
 				txEng2sLookup_rev_req.write(ml_curEvent.sessionID);
@@ -519,7 +467,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 			if (!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty())
 			{
 				rxSar2txEng_rsp.read(rxSar);
-				txSar2txEng_upd_rsp.read(txSar);
+				txTxSarReply txSar = txSar2txEng_upd_rsp.read();
 
 				// construct SYN_ACK message
 				meta.ackNumb = rxSar.recvd;
@@ -550,7 +498,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				meta.win_shift = rxSar.win_shift;
 #endif
 
-				txEng_ipMetaFifoOut.write(meta.length); // length
+				txEng_ipMetaFifoOut.write(meta.length);
 				txEng_tcpMetaFifoOut.write(meta);
 				txEng_isLookUpFifoOut.write(true);
 				txEng2sLookup_rev_req.write(ml_curEvent.sessionID);
@@ -563,22 +511,21 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 		case FIN:
 			if ((!rxSar2txEng_rsp.empty() && !txSar2txEng_upd_rsp.empty()) || ml_sarLoaded)
 			{
+				txTxSarReply txSar;
 				if (!ml_sarLoaded)
 				{
 					rxSar2txEng_rsp.read(rxSar);
-					txSar2txEng_upd_rsp.read(txSar);
+					txSar = txSar2txEng_upd_rsp.read();
+				}
+				else
+				{
+					txSar = txSarReg;
 				}
 
 				//construct FIN message
-#if (WINDOW_SCALE)
-				ap_uint<WINDOW_BITS> actualWindowSize = (rxSar.appd - ((ap_uint<WINDOW_BITS>)rxSar.recvd)) - 1; // This works even for wrap around
-				windowSize = actualWindowSize >> rxSar.win_shift;
-#else
-				windowSize = (rxSar.appd - ((ap_uint<16>)rxSar.recvd)) - 1; // This works even for wrap around
-#endif
 				meta.ackNumb = rxSar.recvd;
 				//meta.seqNumb = txSar.not_ackd;
-				meta.window_size = windowSize;
+				meta.window_size = rxSar.windowSize; //Precalcualted in rx_sar_table ((rxSar.appd - rxSar.recvd) - 1)
 				meta.length = 0;
 				meta.ack = 1; // has to be set for FIN message as well
 				meta.rst = 0;
@@ -639,7 +586,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 			}
 			else if (!txSar2txEng_upd_rsp.empty())
 			{
-				txSar2txEng_upd_rsp.read(txSar);
+				txTxSarReply txSar = txSar2txEng_upd_rsp.read();
 				txEng_ipMetaFifoOut.write(0);
 				txEng_isLookUpFifoOut.write(true);
 				txEng2sLookup_rev_req.write(resetEvent.sessionID); //there is no sessionID??
@@ -787,8 +734,6 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
   static fsmStateType gi_state=META;
   static ipv4Header<WIDTH> header;
 
-  ap_uint<16>  length;
-
   switch (gi_state)
   {
   case META:
@@ -801,7 +746,7 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
       header.clear();
 
       //length = meta.length + 20; //was adding +40
-	  length = metaLength + 40;
+	  ap_uint<16> length = metaLength + 40;
 	  std::cout << "length: " << length << std::endl;
       header.setLength(length);
       header.setDstAddr(tuples.dstIp);
@@ -822,7 +767,7 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
   case HEADER:
   {
 	net_axis<WIDTH> sendWord;
-    if (header.consumeWord(sendWord.data) < WIDTH)
+    if (header.consumeWord(sendWord.data) < (WIDTH/8))
     {
       /*currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
       currWord.last = 0;
@@ -1405,7 +1350,7 @@ void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitche
 	case IDLE:
 		if (!memAccessBreakdown2readPkgStitcher.empty() && !readDataIn.empty())
 		{
-			pkgNeedsMerge = memAccessBreakdown2readPkgStitcher.read();
+			memAccessBreakdown2readPkgStitcher.read(pkgNeedsMerge);
 			net_axis<WIDTH> currWord = readDataIn.read();
 
 			offset = keepToLen<WIDTH>(currWord.keep);
@@ -2030,7 +1975,7 @@ void insert_checksum(	hls::stream<ap_uint<16> >&			checksumIn,
  */
 template <int WIDTH>
 void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
-				stream<rxSarEntry>&				rxSar2txEng_rsp,
+				stream<rxSarReply>&				rxSar2txEng_rsp,
 				stream<txTxSarReply>&			txSar2txEng_upd_rsp,
 				stream<net_axis<WIDTH> >&			txBufferReadData,
 #if (TCP_NODELAY)
@@ -2052,13 +1997,13 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 #pragma HLS INLINE //off
 
 	// Memory Read delay around 76 cycles, 10 cycles/packet, so keep meta of at least 8 packets
-	static stream<tx_engine_meta>		txEng_metaDataFifo("txEng_metaDataFifo");
+	//static stream<tx_engine_meta>		txEng_metaDataFifo("txEng_metaDataFifo");
 	static stream<ap_uint<16> >			txEng_ipMetaFifo("txEng_ipMetaFifo");
 	static stream<tx_engine_meta>		txEng_tcpMetaFifo("txEng_tcpMetaFifo");
-	#pragma HLS stream variable=txEng_metaDataFifo depth=16
-	#pragma HLS stream variable=txEng_ipMetaFifo depth=16
-	#pragma HLS stream variable=txEng_tcpMetaFifo depth=16
-	#pragma HLS DATA_PACK variable=txEng_metaDataFifo
+	//#pragma HLS stream variable=txEng_metaDataFifo depth=16
+	#pragma HLS stream variable=txEng_ipMetaFifo depth=32
+	#pragma HLS stream variable=txEng_tcpMetaFifo depth=32
+	//#pragma HLS DATA_PACK variable=txEng_metaDataFifo
 	//#pragma HLS DATA_PACK variable=txEng_ipMetaFifo
 	#pragma HLS DATA_PACK variable=txEng_tcpMetaFifo
 
@@ -2106,8 +2051,8 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	static stream<fourTuple>		txEng_tcpTupleFifo("txEng_tcpTupleFifo");
 	#pragma HLS stream variable=txEng_tupleShortCutFifo depth=2
 	#pragma HLS stream variable=txEng_isLookUpFifo depth=4
-	#pragma HLS stream variable=txEng_ipTupleFifo depth=4
-	#pragma HLS stream variable=txEng_tcpTupleFifo depth=4
+	#pragma HLS stream variable=txEng_ipTupleFifo depth=32
+	#pragma HLS stream variable=txEng_tcpTupleFifo depth=32
 	#pragma HLS DATA_PACK variable=txEng_tupleShortCutFifo
 	#pragma HLS DATA_PACK variable=txEng_ipTupleFifo
 	#pragma HLS DATA_PACK variable=txEng_tcpTupleFifo
@@ -2151,6 +2096,7 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	//ipHeaderConstruction<WIDTH>(txEng_ipMetaFifo, txEng_ipTupleFifo, txEng_ipHeaderBuffer);
 
 	static hls::stream<net_axis<WIDTH> >	txEng_shift2pseudoFifo("txEng_shift2pseudoFifo");
+	#pragma HLS stream variable=txEng_shift2pseudoFifo depth=2
 
 	//Stitches splitted reads back toghether
 	read_data_stitching<WIDTH>(memAccessBreakdown2txPkgStitcher, txBufferReadData, txBufferReadDataStitched);
@@ -2201,7 +2147,7 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 }
 
 template void tx_engine<DATA_WIDTH>(	stream<extendedEvent>&			eventEng2txEng_event,
-				stream<rxSarEntry>&				rxSar2txEng_rsp,
+				stream<rxSarReply>&				rxSar2txEng_rsp,
 				stream<txTxSarReply>&			txSar2txEng_upd_rsp,
 				stream<net_axis<DATA_WIDTH> >&			txBufferReadData,
 #if (TCP_NODELAY)

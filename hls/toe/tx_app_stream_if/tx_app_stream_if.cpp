@@ -87,20 +87,20 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 			if (state != ESTABLISHED)
 			{
 				// Notify app about fail
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
 			}
 #if !(TCP_NODELAY)
 			else if(tasi_writeMeta.length > maxWriteLength)
 			{
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
 
 			}
 #else
-			//else if(tasi_writeMeta.length > maxWriteLength || usableWindow < tasi_writeMeta.length)
-			else if (usableWindow < tasi_writeMeta.length)
+			else if(tasi_writeMeta.length > maxWriteLength || usableWindow < tasi_writeMeta.length)
+			//else if (usableWindow < tasi_writeMeta.length)
 			{
 				// Notify app about fail
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, usableWindow, ERROR_NOSPACE));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, usableWindow, ERROR_NOSPACE));
 			}
 #endif
 			else //if (state == ESTABLISHED && pkgLen <= tasi_maxWriteLength)
@@ -112,7 +112,7 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 				pkgAddr(WINDOW_BITS-1, 0) = writeSar.mempt;
 
 				tasi_meta2pkgPushCmd.write(mmCmd(pkgAddr, tasi_writeMeta.length));
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, NO_ERROR));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, NO_ERROR));
 				txAppStream2eventEng_setEvent.write(event(TX, tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
 				txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID, writeSar.mempt+tasi_writeMeta.length));
 			}

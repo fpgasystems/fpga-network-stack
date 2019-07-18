@@ -485,8 +485,8 @@ void toe(	// Data & Memory Interface
 			stream<appTxRsp>&					txDataRsp,
 #if RX_DDR_BYPASS
 			// Data counts for external FIFO
-			ap_uint<32>						axis_data_count,
-			ap_uint<32>						axis_max_data_count,
+			ap_uint<16>						axis_data_count,
+			ap_uint<16>						axis_max_data_count,
 #endif
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
@@ -542,7 +542,7 @@ void toe(	// Data & Memory Interface
 	static stream<rxSarAppd>			rxApp2rxSar_upd_req("rxApp2rxSar_upd_req");
 	static stream<rxSarAppd>			rxSar2rxApp_upd_rsp("rxSar2rxApp_upd_rsp");
 	static stream<ap_uint<16> >			txEng2rxSar_req("txEng2rxSar_req");
-	static stream<rxSarEntry>			rxSar2txEng_rsp("rxSar2txEng_rsp");
+	static stream<rxSarReply>			rxSar2txEng_rsp("rxSar2txEng_rsp");
 	#pragma HLS stream variable=rxEng2rxSar_upd_req		depth=2
 	#pragma HLS stream variable=rxSar2rxEng_upd_rsp		depth=2
 	#pragma HLS stream variable=rxApp2rxSar_upd_req		depth=2
@@ -650,7 +650,7 @@ void toe(	// Data & Memory Interface
 	#pragma HLS stream variable=sLookup2portTable_releasePort		depth=4
 
    static stream<net_axis<WIDTH> >                 txApp2txEng_data_stream("txApp2txEng_data_stream");
-   #pragma HLS stream variable=txApp2txEng_data_stream   depth=2048
+   #pragma HLS stream variable=txApp2txEng_data_stream   depth=1024
 	/*
 	 * Data Structures
 	 */
@@ -669,7 +669,8 @@ void toe(	// Data & Memory Interface
 								//sessionInsert_req,
 								//sessionDelete_req,
 								sessionUpdate_rsp,
-								regSessionCount);
+								regSessionCount,
+								myIpAddress);
 	// State Table
 	state_table(	rxEng2stateTable_upd_req,
 					txApp2stateTable_upd_req,

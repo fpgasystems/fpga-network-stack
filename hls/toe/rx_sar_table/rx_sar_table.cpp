@@ -46,7 +46,7 @@ void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 					stream<ap_uint<16> >&		txEng2rxSar_req, //read only
 					stream<rxSarEntry>&			rxSar2rxEng_upd_rsp,
 					stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
-					stream<rxSarEntry>&			rxSar2txEng_rsp)
+					stream<rxSarReply>&			rxSar2txEng_rsp)
 {
 
 	static rxSarEntry rx_table[MAX_SESSIONS];
@@ -60,19 +60,19 @@ void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 	if(!txEng2rxSar_req.empty())
 	{
 		ap_uint<16> addr = txEng2rxSar_req.read();
-		//rxSarEntry entry = rx_table[addr];
-		//TODO move code from metaLoader to here
+		rxSarEntry entry = rx_table[addr];
+		rxSarReply reply (entry);
 
-		/*rxSarEntry entry = rx_table[addr];
-		//Pre-calculated windowSize to improve timing in metaLoader
+		//Pre-calculated usedLength, windowSize to improve timing in metaLoader
 #if (WINDOW_SCALE)
 				ap_uint<WINDOW_BITS> actualWindowSize = (entry.appd - ((ap_uint<WINDOW_BITS>)entry.recvd)) - 1; // This works even for wrap around
-				ap_uint<16> windowSize = actualWindowSize >> entry.win_shift;
+				reply.windowSize = actualWindowSize >> entry.win_shift;
 #else
-				ap_uint<16> windowSize = (entry.appd - ((ap_uint<16>)entry.recvd)) - 1; // This works even for wrap around
-#endif*/
+				//This works even for wrap around
+				reply.windowSize = (entry.appd - ((ap_uint<16>)entry.recvd)) - 1; // This works even for wrap around
+#endif
 
-		rxSar2txEng_rsp.write(rx_table[addr]);
+		rxSar2txEng_rsp.write(reply);
 	}
 	// Read or Write access from the Rx App I/F to update the application pointer
 	else if(!rxApp2rxSar_upd_req.empty())

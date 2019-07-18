@@ -38,8 +38,6 @@ static const ap_uint<16> MSS=4096; //1460; //536
 
 static const uint16_t MAX_SESSIONS = 1000;
 
-//#define WINDOW_SCALE 1
-
 // TCP_NODELAY flag, to disable Nagle's Algorithm
 #define TCP_NODELAY 1
 
@@ -177,6 +175,23 @@ struct rxSarEntry
 #endif
 };
 
+struct rxSarReply
+{
+	ap_uint<32> recvd;
+#if (WINDOW_SCALE)
+	ap_uint<4>	win_shift;
+#endif
+	ap_uint<16>	windowSize;
+	ap_uint<WINDOW_BITS>	usedLength;
+	rxSarReply() {}
+	rxSarReply(rxSarEntry entry)
+#if !(WINDOW_SCALE)
+		:recvd(entry.recvd) {}
+#else
+		:recvd(entry.recvd), win_shift(entry.win_shift) {}
+#endif
+};
+
 struct rxSarRecvd
 {
 	ap_uint<16> sessionID;
@@ -204,6 +219,7 @@ struct rxSarAppd
 	rxSarAppd(ap_uint<16> id, ap_uint<WINDOW_BITS> appd)
 				:sessionID(id), appd(appd), write(1) {}
 };
+
 
 struct txSarEntry
 {
@@ -360,16 +376,17 @@ struct txTxSarReply
 {
 	ap_uint<32> ackd;
 	ap_uint<32> not_ackd;
-	ap_uint<WINDOW_BITS> min_window;
+	ap_uint<WINDOW_BITS> usableWindow;
 	ap_uint<WINDOW_BITS> app;
+	ap_uint<WINDOW_BITS> usedLength;
 	bool		finReady;
 	bool		finSent;
 //#if (WINDOW_SCALE)
 	ap_uint<4>	win_shift;
 //#endif
 	txTxSarReply() {}
-	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<WINDOW_BITS> min_window, ap_uint<WINDOW_BITS> app, bool finReady, bool finSent)
-		:ackd(ack), not_ackd(nack), min_window(min_window), app(app), finReady(finReady), finSent(finSent) {}
+	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<WINDOW_BITS> usableWindow, ap_uint<WINDOW_BITS> app, ap_uint<WINDOW_BITS> usedLength, bool finReady, bool finSent)
+		:ackd(ack), not_ackd(nack), usableWindow(usableWindow), app(app), usedLength(usedLength), finReady(finReady), finSent(finSent) {}
 };
 
 struct rxRetransmitTimerUpdate {
@@ -537,12 +554,13 @@ struct appTxMeta
 
 struct appTxRsp
 {
+	ap_uint<16>	sessionID;
 	ap_uint<16> length;
 	ap_uint<30> remaining_space;
 	ap_uint<2>	error;
 	appTxRsp() {}
-	appTxRsp(ap_uint<16> len, ap_uint<30> rem_space, ap_uint<2> err)
-		:length(len), remaining_space(rem_space), error(err) {}
+	appTxRsp(ap_uint<16> id, ap_uint<16> len, ap_uint<30> rem_space, ap_uint<2> err)
+		:sessionID(id), length(len), remaining_space(rem_space), error(err) {}
 };
 
 
@@ -882,12 +900,6 @@ public:
 
 };
 
-
-//TODO remove use from axi_utils
-/*ap_uint<16> byteSwap16(ap_uint<16> inputVector);
-ap_uint<32> byteSwap32(ap_uint<32> inputVector);
-/*ap_uint<8> lenToKeep(ap_uint<4> length);
-ap_uint<4> keepToLen(ap_uint<8> keepValue);		// This function counts the number of 1s in an 8-bit value*/
 
 template <int WIDTH>
 void toe(	// Data & Memory Interface
