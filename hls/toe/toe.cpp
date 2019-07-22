@@ -868,8 +868,8 @@ void toe_top(	// Data & Memory Interface
 			stream<appTxRsp>&					txDataRsp,
 #if RX_DDR_BYPASS
 			// Data counts for external FIFO
-			ap_uint<32>						axis_data_count,
-			ap_uint<32>						axis_max_data_count,
+			ap_uint<16>						axis_data_count,
+			ap_uint<16>						axis_max_data_count,
 #endif
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
