@@ -443,17 +443,6 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 	static hls::stream<bool>			validIpAddressFifo("validIpAddressFifo");
 	static hls::stream<bool>			ipv4ValidFifo("ipv4ValidFifo");
 
-#if DATA_WIDTH == 512
-	#pragma HLS STREAM variable=etherTypeFifo		depth=2
-	#pragma HLS STREAM variable=ethDataFifo		depth=4
-	#pragma HLS STREAM variable=ipv4ShiftFifo depth=1
-	#pragma HLS STREAM variable=ipv6ShiftFifo depth=1
-	#pragma HLS STREAM variable=ipDataFifo depth=1
-	#pragma HLS STREAM variable=ipDataMetaFifo depth=1
-	#pragma HLS STREAM variable=ipDataCheckFifo depth=64 //8, must hold IP header for checksum checking, max. 15 x 32bit
-	#pragma HLS STREAM variable=ipDataDropFifo depth=1
-	#pragma HLS STREAM variable=ipDataCutFifo depth=1
-#else
 	#pragma HLS STREAM variable=etherTypeFifo		depth=2
 	#pragma HLS STREAM variable=ethDataFifo		depth=4
 	#pragma HLS STREAM variable=ipv4ShiftFifo depth=2
@@ -463,7 +452,6 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 	#pragma HLS STREAM variable=ipDataCheckFifo depth=64 //8, must hold IP header for checksum checking, max. 15 x 32bit
 	#pragma HLS STREAM variable=ipDataDropFifo depth=2
 	#pragma HLS STREAM variable=ipDataCutFifo depth=2
-#endif
 	#pragma HLS STREAM variable=udpDataFifo depth=1
 	#pragma HLS STREAM variable=iph_subSumsFifoOut depth=2
 	#pragma HLS STREAM variable=validChecksumFifo depth=4
