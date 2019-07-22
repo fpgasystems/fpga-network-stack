@@ -42,10 +42,12 @@ int main(int argc, char* argv[]) {
 	hls::stream<net_axis<64> > outFifoUDP64("outFifoUDP64");
 	hls::stream<net_axis<DATA_WIDTH> > outFifoUDP("outFifoUDP");
 
+	hls::stream<net_axis<64> > outFifoROCE64("outFifoROCE64");
+	hls::stream<net_axis<DATA_WIDTH> > outFifoROCE("outFifoROCE");
+
 	hls::stream<net_axis<64> > outFifoICMP64("outFifoICMP64");
 	hls::stream<net_axis<DATA_WIDTH> > outFifoICMP("outFifoICMP");
 
-	//hls::stream<net_axis<DATA_WIDTH> > outFifoICMPexp("outFifoICMPexp");
 
 	hls::stream<net_axis<64> > outFifoICMPv6_64("outFifoICMPv6_64");
 	hls::stream<net_axis<DATA_WIDTH> > outFifoICMPv6("outFifoICMPv6");
@@ -97,31 +99,33 @@ int main(int argc, char* argv[]) {
 
 	net_axis<64> inWord;
 	int count = 0;
-	while (scan(inputFile, inWord)) {
+	while (scanLE(inputFile, inWord)) {
 		inFifo64.write(inWord);
-		ip_handler(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
+		ip_handler_top(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, outFifoROCE, ipAddress);
 
 		convertStreamWidth<64, 14>(inFifo64, inFifo);
 
 		convertStreamWidth<DATA_WIDTH, 15>(outFifoARP,outFifoARP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMPv6,outFifoICMPv6_64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoIPv6UDP,outFifoIPv6UDP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMP,outFifoICMP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoUDP,outFifoUDP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoTCP,outFifoTCP64);
+		convertStreamWidth<DATA_WIDTH, 16>(outFifoICMPv6,outFifoICMPv6_64);
+		convertStreamWidth<DATA_WIDTH, 17>(outFifoIPv6UDP,outFifoIPv6UDP64);
+		convertStreamWidth<DATA_WIDTH, 18>(outFifoICMP,outFifoICMP64);
+		convertStreamWidth<DATA_WIDTH, 19>(outFifoUDP,outFifoUDP64);
+		convertStreamWidth<DATA_WIDTH, 20>(outFifoTCP,outFifoTCP64);
+		convertStreamWidth<DATA_WIDTH, 21>(outFifoROCE, outFifoROCE64);
 
 	}
 	while (count < 30000)	{
-		ip_handler(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, ipAddress);
+		ip_handler_top(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, outFifoROCE, ipAddress);
 
-		convertStreamWidth<64, 14>(inFifo64, inFifo);
+		convertStreamWidth<64, 22>(inFifo64, inFifo);
 
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoARP,outFifoARP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMPv6,outFifoICMPv6_64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoIPv6UDP,outFifoIPv6UDP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoICMP,outFifoICMP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoUDP,outFifoUDP64);
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoTCP,outFifoTCP64);
+		convertStreamWidth<DATA_WIDTH, 23>(outFifoARP,outFifoARP64);
+		convertStreamWidth<DATA_WIDTH, 24>(outFifoICMPv6,outFifoICMPv6_64);
+		convertStreamWidth<DATA_WIDTH, 25>(outFifoIPv6UDP,outFifoIPv6UDP64);
+		convertStreamWidth<DATA_WIDTH, 26>(outFifoICMP,outFifoICMP64);
+		convertStreamWidth<DATA_WIDTH, 27>(outFifoUDP,outFifoUDP64);
+		convertStreamWidth<DATA_WIDTH, 28>(outFifoTCP,outFifoTCP64);
+		convertStreamWidth<DATA_WIDTH, 29>(outFifoROCE, outFifoROCE64);
 
 
 		count++;
