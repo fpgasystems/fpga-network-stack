@@ -1448,15 +1448,17 @@ void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitche
 			net_axis<WIDTH> currWord = readDataIn.read();
 
 			//Create new word consisting of current and previous word
-			sendWord.data((offset*8) -1, 0) = prevWord.data(WIDTH-1, WIDTH - (offset*8));
-			sendWord.keep(offset-1, 0) = prevWord.keep(WIDTH/8-1, WIDTH-offset);
+			// offset specifies how many bytes of prevWord are valid
+			sendWord.data((offset*8) -1, 0) = prevWord.data((offset*8) -1, 0);
+			sendWord.keep(offset-1, 0) = prevWord.keep(offset -1, 0); //WIDTH/8-1, WIDTH-offset);
 
-			sendWord.data(WIDTH-1, (offset*8)) = currWord.data(WIDTH - (offset*8)-1, 0);
-			sendWord.keep(WIDTH/8-1, offset) = currWord.keep(WIDTH/8 - offset-1, 0);
+			sendWord.data(WIDTH-1, (offset*8)) = currWord.data(WIDTH - (offset*8) - 1, 0);
+			sendWord.keep(WIDTH/8-1, offset) = currWord.keep(WIDTH/8 - offset - 1, 0);
 			sendWord.last = (currWord.keep[WIDTH/8 - offset] == 0);
 
 			readDataOut.write(sendWord);
-			prevWord = currWord;
+			prevWord.data((offset*8) - 1, 0) = currWord.data(WIDTH-1, WIDTH - (offset*8));
+			prevWord.keep(offset - 1, 0) = currWord.keep(WIDTH/8 - 1, WIDTH/8 - offset);
 			if (currWord.last)
 			{
 				state = IDLE;
