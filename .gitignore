@@ -8,6 +8,9 @@ vivado/**/proj/
 solution*/
 doc/
 
+#build folders
+build*/
+
 #project folders
 *_prj/
 

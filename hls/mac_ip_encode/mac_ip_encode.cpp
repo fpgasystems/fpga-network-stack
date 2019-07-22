@@ -228,10 +228,7 @@ void insert_ethernet_header(hls::stream<ethHeader<WIDTH> >&		headerIn,
 			net_axis<WIDTH> currWord;
 			//Always holds, no check required
 			header.consumeWord(currWord.data);
-			//if (header.consumeWord(currWord.data) < (WIDTH/8))
-			{
-				ge_state = PARTIAL_HEADER;
-			}
+			ge_state = PARTIAL_HEADER;
 			currWord.keep = ~0;
 			currWord.last = 0;
 			dataOut.write(currWord);
@@ -252,6 +249,10 @@ void insert_ethernet_header(hls::stream<ethHeader<WIDTH> >&		headerIn,
 			if (!currWord.last)
 			{
 				ge_state = BODY;
+			}
+			else
+			{
+				ge_state = (ETH_HEADER_SIZE >= WIDTH) ? HEADER : PARTIAL_HEADER;
 			}
 		}
 		break;
