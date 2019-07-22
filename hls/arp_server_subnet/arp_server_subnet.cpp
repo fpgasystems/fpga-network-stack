@@ -127,29 +127,24 @@ void generate_arp_pkg(	hls::stream<arpReplyMeta>&     arpReplyMetaFifo,
 		#endif
 		remainingLength = header.consumeWord(sendWord.data);
 
-      if (WIDTH < 512)
+      if (WIDTH > ARP_HEADER_SIZE)
       {
+		   sendWord.keep = lenToKeep(ARP_HEADER_SIZE);
+		   sendWord.last = 1;
+			gap_state = IDLE;
+      }
+		else
+		{
 		   sendWord.keep = ~0;
 		   sendWord.last = 0;
-      }
-      else
-      {
-		   sendWord.keep = lenToKeep(42);
-		   sendWord.last = 1;
-      }
+			if (remainingLength < (WIDTH/8))
+			{
+				gap_state = PARTIAL_HEADER;
+			}
+		}
+		
 		dataOut.write(sendWord);
 		std::cout << std::dec << "remaining lengt: " << remainingLength << std::endl;
-		if (remainingLength < (WIDTH/8))
-		{
-         if (WIDTH < 512)
-         {
-			   gap_state = PARTIAL_HEADER;
-         }
-         else
-         {
-			   gap_state = IDLE;
-         }
-		}
 		break;
 	}
 	case PARTIAL_HEADER:

@@ -26,26 +26,22 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
-
+#include "mac_ip_encode_config.hpp"
 #include "mac_ip_encode.hpp"
 
-int main()
+int main(int argc, char* argv[])
 {
 	net_axis<64> inData;
 	net_axis<64> outData;
-	hls::stream<axiWord>		arpFIFO;
+	hls::stream<net_axis<DATA_WIDTH> >		arpFIFO;
 	hls::stream<net_axis<64> >	icmpFifo64("icmpFifo64");
-	hls::stream<axiWord>		icmpFifo("icmpFifo");
-	hls::stream<axiWord> 		udpFIFO;
+	hls::stream<net_axis<DATA_WIDTH> >		icmpFifo("icmpFifo");
+	hls::stream<net_axis<DATA_WIDTH> > 		udpFIFO;
 	hls::stream<net_axis<64> >	tcpFifo64("tcpFifo64");
-	hls::stream<net_axis<128> >	tcpFifo128("tcpFifo128");
-	hls::stream<net_axis<256> >	tcpFifo256("tcpFifo256");
-	hls::stream<axiWord>			tcpFifo("tcpFifo");
+	hls::stream<net_axis<DATA_WIDTH> >			tcpFifo("tcpFifo");
 
 	hls::stream<net_axis<64> >	outFifo64("outFifo");
-	hls::stream<net_axis<128> >	outFifo128("outFifo");
-	hls::stream<net_axis<256> >	outFifo256("outFifo");
-	hls::stream<axiWord>			outFifo("outFifo");
+	hls::stream<net_axis<DATA_WIDTH> >			outFifo("outFifo");
 	//hls::stream<ap_uint<16> > checksumFIFO;
 	hls::stream<ap_uint<32> >	arpTableIn;
 	hls::stream<arpTableReply>	arpTableOut;
@@ -73,14 +69,22 @@ int main()
 		return -1;
 	}*/
 
-	tcpFile.open("../../../../in.dat");
+	if (argc < 3)
+	{
+		std::cerr << "[ERRO] missing arguments." << std::endl;
+		return -1;
+	}
+
+	//tcpFile.open("../../../../in.dat");
+	tcpFile.open(argv[1]);
 	if (!tcpFile)
 	{
 		std::cout << "Error: could not open tcp input file." << std::endl;
 		return -1;
 	}
 
-	outputFile.open("../../../../tcp.out");
+	//outputFile.open("../../../../tcp.out");
+	outputFile.open(argv[2]);
 	if (!outputFile)
 	{
 		std::cout << "Error: could not open test output file." << std::endl;
@@ -110,30 +114,6 @@ int main()
 	while (count < 250)
 	{
 
-#if (AXI_WIDTH == 512)
-	convertStreamToDoubleWidth(tcpFifo64, tcpFifo128);
-	convertStreamToDoubleWidth(tcpFifo128, tcpFifo256);
-	convertStreamToDoubleWidth(tcpFifo256, tcpFifo);
-	convertStreamToHalfWidth<512, 951>(outFifo, outFifo256);
-	convertStreamToHalfWidth<256, 952>(outFifo256, outFifo128);
-	convertStreamToHalfWidth<128, 953>(outFifo128, outFifo64);
-#elif (AXI_WIDTH == 256)
-	convertStreamToDoubleWidth(tcpFifo64, tcpFifo128);
-	convertStreamToDoubleWidth(tcpFifo128, tcpFifo);
-	convertStreamToHalfWidth<256, 952>(outFifo, outFifo128);
-	convertStreamToHalfWidth<128, 953>(outFifo128, outFifo64);
-#elif (AXI_WIDTH == 128)
-	convertStreamToDoubleWidth(tcpFifo64, tcpFifo);
-	convertStreamToHalfWidth<128, 953>(outFifo, outFifo64);
-#else
-	if (!tcpFifo64.empty()) {
-		tcpFifo.write(tcpFifo64.read());
-	}
-	if (!outFifo.empty()) {
-		outFifo64.write(outFifo.read());
-	}
-#endif
-
 		mac_ip_encode(tcpFifo, arpTableOut, outFifo, arpTableIn, regMacAddress, regSubNetMask, regDefaultGateway);
 		if (!arpTableIn.empty())
 		{
@@ -156,6 +136,10 @@ int main()
 			}
 			numbLookup++;
 		}
+
+		convertStreamWidth<64, 23>(tcpFifo64, tcpFifo);
+		convertStreamWidth<64, 24>(icmpFifo64, icmpFifo);
+		convertStreamWidth<DATA_WIDTH, 25>(outFifo, outFifo64);
 		count++;
 	}
 

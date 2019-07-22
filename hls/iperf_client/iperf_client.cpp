@@ -61,12 +61,11 @@ void client(	stream<ipTuple>&		openConnection,
 
 	enum iperfFsmStateType {IDLE, INIT_CON, WAIT_CON, CONSTRUCT_HEADER, INIT_RUN, START_PKG, CHECK_REQ, WRITE_PKG, CHECK_TIME, PKG_GAP};
 	static iperfFsmStateType iperfFsmState = IDLE;
-	static ap_uint<16> experimentID[10000];
-	#pragma HLS RESOURCE variable=experimentID core=RAM_1P_BRAM
 
+	static ap_uint<14> numConnections = 0;
+	static ap_uint<16> currentSessionID;
 	static ap_uint<14> sessionIt = 0;
 	static ap_uint<14> closeIt = 0;
-	static ap_uint<14> flushIt = 0;
 	static bool timeOver = false;
 	static ap_uint<8> wordCount = 0;
 	static ap_uint<4> ipAddressIdx = 0;
@@ -83,8 +82,9 @@ void client(	stream<ipTuple>&		openConnection,
 		//done do nothing
 		sessionIt = 0;
 		closeIt = 0;
-		flushIt = 0;
+		numConnections = 0;
 		timeOver = false;
+		ipAddressIdx = 0;
 		if (runExperiment)
 		{
 			iperfFsmState = INIT_CON;
@@ -143,28 +143,26 @@ void client(	stream<ipTuple>&		openConnection,
 		}
 		break;
 	case WAIT_CON:
-		if (sessionIt < useConn)
+		if (!openConStatus.empty())
 		{
-			if (!openConStatus.empty())
+			openStatus status = openConStatus.read();
+			if (status.success)
 			{
-				openStatus status = openConStatus.read();
-				if (status.success)
-				{
-					experimentID[sessionIt] = status.sessionID;
-					std::cout << "Connection successfully opened." << std::endl;
-					txMetaData.write(appTxMeta(status.sessionID, IPERF_TCP_HEADER_SIZE/8));
-				}
-				else
-				{
-					std::cout << "Connection could not be opened." << std::endl;
-				}
-				sessionIt++;
-				if (sessionIt == useConn) //maybe move outside
-				{
-					startSignal.write(true);
-					sessionIt = 0;
-					iperfFsmState = CONSTRUCT_HEADER;
-				}
+				//experimentID[sessionIt] = status.sessionID;
+				std::cout << "Connection successfully opened." << std::endl;
+				txMetaData.write(appTxMeta(status.sessionID, IPERF_TCP_HEADER_SIZE/8));
+				numConnections++;
+			}
+			else
+			{
+				std::cout << "Connection could not be opened." << std::endl;
+			}
+			sessionIt++;
+			if (sessionIt == useConn) //maybe move outside
+			{
+				startSignal.write(true);
+				sessionIt = 0;
+				iperfFsmState = CONSTRUCT_HEADER;
 			}
 		}
 		break;
@@ -173,18 +171,27 @@ void client(	stream<ipTuple>&		openConnection,
 		header.setDualMode(dualModeEn);
 		header.setListenPort(5001);
 		header.setSeconds(timeInSeconds);
-		if (sessionIt == useConn)
+		if (sessionIt == numConnections)
 		{
 			sessionIt = 0;
 			iperfFsmState = CHECK_REQ;
 		}
 		else if (!txStatus.empty())
 		{
-			//sessionIt++;
 			appTxRsp resp = txStatus.read();
 			if (resp.error == 0)
 			{
+				currentSessionID = resp.sessionID;
 				iperfFsmState = INIT_RUN;
+			}
+			else
+			{
+				//Check if connection was torn down
+				if (resp.error == 1)
+				{
+					std::cout << "Connection was torn down. " << resp.sessionID << std::endl;
+					numConnections--;
+				}
 			}
 		}
 		break;
@@ -196,7 +203,7 @@ void client(	stream<ipTuple>&		openConnection,
 			if (header.consumeWord(headerWord.data) < (WIDTH/8))
 			{
 				headerWord.last = 1;
-				txMetaData.write(appTxMeta(experimentID[sessionIt], pkgWordCount*(WIDTH/8)));
+				txMetaData.write(appTxMeta(currentSessionID, pkgWordCount*(WIDTH/8)));
 				sessionIt++;
 				iperfFsmState = CONSTRUCT_HEADER;
 			}
@@ -217,24 +224,28 @@ void client(	stream<ipTuple>&		openConnection,
 		}
 		break;
 	case CHECK_REQ:
-		if  (sessionIt < useConn)
+		if (!txStatus.empty())
 		{
-			if (!txStatus.empty())
+			appTxRsp resp = txStatus.read();
+			if (resp.error == 0)
 			{
-				appTxRsp resp = txStatus.read();
-				if (resp.error == 0)
+				currentSessionID = resp.sessionID;
+				iperfFsmState = START_PKG;
+			}
+			else
+			{
+				//Check if connection  was torn down
+				if (resp.error == 1)
 				{
-					iperfFsmState = START_PKG;
+					std::cout << "Connection was torn down. " << resp.sessionID << std::endl;
+					numConnections--;
 				}
 				else
 				{
-					txMetaData.write(appTxMeta(experimentID[sessionIt], pkgWordCount*(WIDTH/8)));
+					txMetaData.write(appTxMeta(resp.sessionID, pkgWordCount*(WIDTH/8)));
+					//sessionIt++;
 				}
 			}
-		}
-		else
-		{
-			sessionIt = 0;
 		}
 		break;
 	case START_PKG:
@@ -272,35 +283,23 @@ void client(	stream<ipTuple>&		openConnection,
 	}
 		break;
 	case CHECK_TIME:
-		if (timeOver && flushIt == useConn)
+		if (timeOver && closeIt == numConnections)
 		{
-			if (closeIt < useConn)
-			{
-				closeConnection.write(experimentID[closeIt]);
-				closeIt++;
-				if (closeIt == useConn)
-				{
-					iperfFsmState = IDLE;
-				}
-			}
-			else
-			{
-				closeIt = 0;
-			}
+			iperfFsmState = IDLE;
 		}
 		else
 		{
 			if (!timeOver)
 			{
-				txMetaData.write(appTxMeta(experimentID[sessionIt], pkgWordCount*(WIDTH/8)));
+				txMetaData.write(appTxMeta(currentSessionID, pkgWordCount*(WIDTH/8)));
 			}
 			else
 			{
-				flushIt++;
+				closeConnection.write(currentSessionID);
+				closeIt++;
 			}
 			
-			sessionIt++;
-			if (flushIt != useConn)
+			if (closeIt != numConnections)
 			{
 				iperfFsmState = CHECK_REQ;
 			}

@@ -43,4 +43,6 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 				hls::stream<net_axis<WIDTH> >&		m_axis_ICMP,
 				hls::stream<net_axis<WIDTH> >&		m_axis_UDP,
 				hls::stream<net_axis<WIDTH> >&		m_axis_TCP,
+				hls::stream<net_axis<WIDTH> >&		m_axis_ROCE,
 				ap_uint<32>				myIpAddress);
+

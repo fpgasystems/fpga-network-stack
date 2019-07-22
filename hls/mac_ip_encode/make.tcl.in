@@ -23,7 +23,7 @@ set command [lindex $argv 2]
 if {$command == "synthesis"} {
    csynth_design
 } elseif {$command == "csim"} {
-   csim_design
+   csim_design -argv {${CMAKE_CURRENT_SOURCE_DIR}/in.dat ${CMAKE_CURRENT_SOURCE_DIR}/tcp.out}
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "mac_ip_encode" -display_name "MAC IP Encoder" -vendor "ethz.systems.fpga" -version "2.0"
 } elseif {$command == "installip"} {

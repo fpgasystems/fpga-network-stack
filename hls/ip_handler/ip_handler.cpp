@@ -47,6 +47,7 @@ void detect_eth_protocol(	hls::stream<net_axis<WIDTH> >&	dataIn,
 	{
 		net_axis<WIDTH> word = dataIn.read();
 		header.parseWord(word.data);
+		std::cout << "DETECT ETH: ";
 		printLE(std::cout, word);
 		std::cout << std::endl;
 		if (header.isReady() && !metaWritten)
@@ -245,9 +246,10 @@ void cut_length(hls::stream<net_axis<WIDTH> > &dataIn, hls::stream<net_axis<WIDT
 	switch (cl_state)
 	{
 	case PKG:
-		if (!dataIn.empty() && !dataOut.full())
+		if (!dataIn.empty())
 		{
 			dataIn.read(currWord);
+
 			switch (cl_wordCount)
 			{
 			case 0:
@@ -509,7 +511,7 @@ void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
 					ap_uint<32>								myIpAddress)
 {
 	#pragma HLS DATAFLOW
-	#pragma HLS INTERFACE ap_ctrl_none register port=return
+	#pragma HLS INTERFACE ap_ctrl_none port=return
 
 	/*#pragma HLS INTERFACE axis port=s_axis_raw
 	#pragma HLS INTERFACE axis port=m_axis_ARP
@@ -534,6 +536,6 @@ void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
                            m_axis_icmp,
                            m_axis_udp,
                            m_axis_tcp,
-						   m_axis_roce,
+                           m_axis_roce,
                            myIpAddress);
 }

@@ -131,7 +131,7 @@ int main()
 			int toss = rand() % 2;
 			toss = (toss == 0 || meta.length == IPERF_TCP_HEADER_SIZE/8) ? 0 : -1;
 			std::cout << "toss: " << toss << std::endl;
-			txStatus.write(appTxRsp(meta.length, 0xFFFF, toss));
+			txStatus.write(appTxRsp(meta.sessionID, meta.length, 0xFFFF, toss));
 		}
 		while (!txData.empty())
 		{
