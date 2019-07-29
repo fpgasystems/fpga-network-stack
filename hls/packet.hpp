@@ -51,7 +51,7 @@ public:
 		{
 			w = header(((idx+1)*W)-1, idx*W);
 			idx++;
-			return (HEADER_SIZE - (idx*W));
+			return ((HEADER_SIZE - (idx*W)) / 8);
 		}
 		else if (idx*W < HEADER_SIZE)
 		{

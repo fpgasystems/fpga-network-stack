@@ -1,5 +1,5 @@
 /************************************************
-Copyright (c) 2016, Xilinx, Inc.
+Copyright (c) 2019, Systems Group, ETH Zurich
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -24,12 +24,13 @@ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIM
 PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015-2016 Xilinx, Inc.
 ************************************************/
 
 #include "../toe_config.hpp"
 #include "tx_engine.hpp"
 #include "../../ipv4/ipv4.hpp"
+#include "../two_complement_subchecksums.hpp"
 
 
 /** @ingroup tx_engine
@@ -829,7 +830,7 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
  *  @TODO this should be better, cleaner
  */
 //FIXME clean this up, code duplication
-void pseudoHeaderConstruction(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
+/*void pseudoHeaderConstruction(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 								stream<fourTuple>&			tcpTupleFifoIn,
 								stream<axiWord>&			dataOut)
 {
@@ -856,7 +857,7 @@ void pseudoHeaderConstruction(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 	}
 	else if (!phc_done)
 	{*/
-		switch(phc_currWord)
+		/*switch(phc_currWord)
 		{
 		case WORD_0:
 			if (!tcpTupleFifoIn.empty() && !tcpMetaDataFifoIn.empty())
@@ -911,7 +912,7 @@ void pseudoHeaderConstruction(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			 * [12] == ACK
 			 * [13] == URG
 			 */
-			sendWord.data[0] = 0; //NS bit
+			/*sendWord.data[0] = 0; //NS bit
 			sendWord.data[8] = phc_meta.fin; //control bits
 			sendWord.data[9] = phc_meta.syn;
 			sendWord.data[10] = phc_meta.rst;
@@ -947,7 +948,7 @@ void pseudoHeaderConstruction(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			break;
 		} //switch
 	//} //else
-}
+}*/
 
 template <int WIDTH>
 void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
@@ -976,8 +977,7 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			header.clear();
 			header.setSrcAddr(tuple.srcIp);
 			header.setDstAddr(tuple.dstIp);
-			//TODO this depends on SYN??
-			header.setLength(meta.length + 0x14); // +20 bytes for the header
+			header.setLength(meta.length + 0x14); // +20 bytes for the header without options
 			header.setSrcPort(tuple.srcPort);
 			header.setDstPort(tuple.dstPort);
 			header.setSeqNumb(meta.seqNumb);
@@ -1015,11 +1015,6 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			header.setWindowSize(meta.window_size);
 			header.setChecksum(0);
 
-			/*if (meta.syn)
-			{
-				header.setMssOption(MSS);
-			}*/
-
 			if (WIDTH > 256 && hasBody)
 			{
 				state = PARTIAL_HEADER;
@@ -1038,7 +1033,7 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 		sendWord.last = 0;
 		ap_uint<8> remainingLength = header.consumeWord(sendWord.data);
 		std::cout << std::dec << "remainingLenght: " << remainingLength << std::endl;
-		if (remainingLength < WIDTH)
+		if (remainingLength < (WIDTH/8))
 		//if (header.consumeWord(sendWord.data) < WIDTH)
 		{
 			if (hasBody)
@@ -1152,185 +1147,8 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 
 
 /** @ingroup tx_engine
- *	Reads in the TCP pseudo header stream and appends the corresponding payload stream.
- *	@param[in]		txEng_tcpHeaderBufferIn, incoming TCP pseudo header stream
- *	@param[in]		txBufferReadData, incoming payload stream
- *	@param[out]		dataOut, outgoing data stream
+ * In case of the payload had to bread using two DDR commands, it it concatened by this module
  */
-/*void tcpPkgStitcher(stream<axiWord>&		txEng_tcpHeaderBufferIn,
-					stream<axiWord>&		txBufferReadData,
-#if (TCP_NODELAY)
-					stream<bool>&			txEng_isDDRbypass,
-					stream<axiWord>&		txApp2txEng_data_stream,
-#endif
-					stream<axiWord>&		txEng_tcpSegOut,
-					stream<ap_uint<1> > &memAccessBreakdown2txPkgStitcher)
-{
-#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-
-	static ap_uint<3> 	ps_wordCount = 0;
-	static ap_uint<3>	tps_state = 0;
-	static axiWord 		currWord = axiWord(0, 0, 0);
-	static ap_uint<1> 	txPkgStitcherAccBreakDown = 0;
-	static ap_uint<4> 	shiftBuffer = 0;
-	static bool 		txEngBrkDownReadIn = false;
-
-	bool isShortCutData = false;
-
-	switch (tps_state)
-	{
-	case 0: // Read Header
-		if (!txEng_tcpHeaderBufferIn.empty())
-		{
-			txEng_tcpHeaderBufferIn.read(currWord);
-			txEng_tcpSegOut.write(currWord);
-			txEngBrkDownReadIn = false;
-			if (ps_wordCount == 3) {
-				if (currWord.data[9] == 1) // is a SYN packet
-				{
-					tps_state = 1;
-				}
-				else
-				{
-#if (TCP_NODELAY)
-					tps_state = 7;
-#else
-					tps_state = 2;
-#endif
-				}
-				ps_wordCount = 0;
-			}
-			else {
-				ps_wordCount++;
-			}
-			if (currWord.last)
-			{
-				tps_state = 0;
-				ps_wordCount = 0;
-			}
-		}
-		break;
-	case 1: // Read one more word for MSS Option
-		if (!txEng_tcpHeaderBufferIn.empty())
-		{
-			txEng_tcpHeaderBufferIn.read(currWord);
-			txEng_tcpSegOut.write(currWord);
-			tps_state = 7;
-			if (currWord.last)
-			{
-				tps_state = 0;
-			}
-			ps_wordCount = 0;
-		}
-		break;
-#if (TCP_NODELAY)
-	case 7:
-		if (!txEng_isDDRbypass.empty())
-		{
-			txEng_isDDRbypass.read(isShortCutData);
-			if (isShortCutData)
-			{
-				tps_state = 6;
-			}
-			else
-			{
-				tps_state = 2;
-			}
-		}
-		break;
-#endif
-	case 2:
-		if (!txBufferReadData.empty() && !txEng_tcpSegOut.full() &&  (txEngBrkDownReadIn == true || (txEngBrkDownReadIn == false && !memAccessBreakdown2txPkgStitcher.empty()))) {    // Read and output the first mem. access for the segment
-			if (txEngBrkDownReadIn == false) {
-				txEngBrkDownReadIn = true;
-				txPkgStitcherAccBreakDown = memAccessBreakdown2txPkgStitcher.read();
-			}
-			txBufferReadData.read(currWord);
-			//txPktCounter++;
-			//std::cerr <<  std::dec << cycleCounter << " - " << std::hex << currWord.data << " - " << currWord.keep << " - " << currWord.last << std::endl;
-			if (currWord.last) {								// When this mem. access is finished...
-				if (txPkgStitcherAccBreakDown == 0)	{			// Check if it was broken down in two. If not...
-					tps_state = 0;							// go back to the init state and wait for the next segment.
-					txEng_tcpSegOut.write(currWord);
-				}
-				else if (txPkgStitcherAccBreakDown == 1) {		// If yes, several options present themselves:
-					shiftBuffer = keepToLen<WIDTH>(currWord.keep);
-					txPkgStitcherAccBreakDown = 0;
-					currWord.last = 0;
-					if (currWord.keep != 0xFF)				// If the last word is complete, this means that the data are aligned correctly & nothing else needs to be done. If not we need to align them.
-						tps_state = 3;						// Go to the next state to do just that
-					else
-						txEng_tcpSegOut.write(currWord);
-				}
-			}
-			else
-				txEng_tcpSegOut.write(currWord);
-		}
-		break;
-	case 3: // 0x8F908348249AB4F8
-		if (!txBufferReadData.empty() && !txEng_tcpSegOut.full()) {    // Read the first word of a non_aligned second mem. access
-			axiWord outputWord = axiWord(currWord.data, 0xFF, 0);
-			currWord = txBufferReadData.read();
-			outputWord.data(63, (shiftBuffer * 8)) = currWord.data(((8 - shiftBuffer) * 8) - 1, 0);
-			ap_uint<4> keepCounter = keepToLen<WIDTH>(currWord.keep);
-			if (keepCounter < 8 - shiftBuffer) {	// If the entirety of the 2nd mem. access fits in this data word..
-				outputWord.keep = lenToKeep(keepCounter + shiftBuffer);
-				outputWord.last = 1;
-				tps_state = 0;	// then go back to idle
-			}
-			else if (currWord.last == 1)
-				tps_state = 5;
-			else
-				tps_state = 4;
-			txEng_tcpSegOut.write(outputWord);
-			//std::cerr <<  std::dec << cycleCounter << " - " << std::hex << outputWord.data << " - " << outputWord.keep << " - " << outputWord.last << std::endl;
-		}
-		break;
-	case 4: //6
-		if (!txBufferReadData.empty() && !txEng_tcpSegOut.full()) {    // Read the first word of a non_aligned second mem. access
-			axiWord outputWord = axiWord(0, 0xFF, 0);
-			outputWord.data((shiftBuffer * 8) - 1, 0) = currWord.data(63, (8 - shiftBuffer) * 8);
-			currWord = txBufferReadData.read();
-			outputWord.data(63, (8 * shiftBuffer)) = currWord.data(((8 - shiftBuffer) * 8) - 1, 0);
-			ap_uint<4> keepCounter = keepToLen<WIDTH>(currWord.keep);
-			if (keepCounter < 8 - shiftBuffer) {	// If the entirety of the 2nd mem. access fits in this data word..
-				outputWord.keep = lenToKeep(keepCounter + shiftBuffer);
-				outputWord.last = 1;
-				tps_state = 0;	// then go back to idle
-			}
-			else if (currWord.last == 1)
-				tps_state = 5;
-			txEng_tcpSegOut.write(outputWord);
-			//std::cerr <<  std::dec << cycleCounter << " - " << std::hex << outputWord.data << " - " << outputWord.keep << " - " << outputWord.last << std::endl;
-		}
-		break;
-	case 5:
-		if (!txEng_tcpSegOut.full()) {
-			ap_uint<4> keepCounter = keepToLen<WIDTH>(currWord.keep) - (8 - shiftBuffer);							// This is how many bits are valid in this word
-			axiWord outputWord = axiWord(0, lenToKeep(keepCounter), 1);
-			outputWord.data((shiftBuffer * 8) - 1, 0) = currWord.data(63, (8 - shiftBuffer) * 8);
-			txEng_tcpSegOut.write(outputWord);
-			//std::cerr <<  std::dec << cycleCounter << " - " << std::hex << outputWord.data << " - " << outputWord.keep << " - " << outputWord.last << std::endl;
-			tps_state = 0;
-		}
-		break;
-#if (TCP_NODELAY)
-	case 6:
-		if (!txApp2txEng_data_stream.empty() && !txEng_tcpSegOut.full())
-		{
-			txApp2txEng_data_stream.read(currWord);
-			txEng_tcpSegOut.write(currWord);
-			if (currWord.last)
-			{
-				tps_state = 0;
-			}
-		}
-		break;
-#endif
-	} // switch
-}*/
-
 template <int WIDTH>
 void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitcher,
 							hls::stream<net_axis<WIDTH> >&		readDataIn,
@@ -1450,7 +1268,7 @@ void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitche
 			//Create new word consisting of current and previous word
 			// offset specifies how many bytes of prevWord are valid
 			sendWord.data((offset*8) -1, 0) = prevWord.data((offset*8) -1, 0);
-			sendWord.keep(offset-1, 0) = prevWord.keep(offset -1, 0); //WIDTH/8-1, WIDTH-offset);
+			sendWord.keep(offset-1, 0) = prevWord.keep(offset -1, 0);
 
 			sendWord.data(WIDTH-1, (offset*8)) = currWord.data(WIDTH - (offset*8) - 1, 0);
 			sendWord.keep(WIDTH/8-1, offset) = currWord.keep(WIDTH/8 - offset - 1, 0);
@@ -1472,8 +1290,9 @@ void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitche
 	case RESIDUE:
 		{
 			net_axis<WIDTH> sendWord;
-			sendWord.data((offset*8) -1, 0) = prevWord.data(WIDTH-1, WIDTH - (offset*8));
-			sendWord.keep(offset-1, 0) = prevWord.keep(WIDTH/8-1, WIDTH-offset);
+			sendWord.data((offset*8) -1, 0) = prevWord.data((offset*8) -1, 0);
+			sendWord.keep(offset-1, 0) = prevWord.keep(offset -1, 0);
+
 #ifndef __SYNTHESIS__
 			sendWord.data(WIDTH-1, (offset*8)) = 0;
 #endif
@@ -1555,267 +1374,6 @@ void read_data_arbiter(stream<net_axis<WIDTH> >&		txBufferReadData,
 }
 
 
-template <int WIDTH>
-void two_complement_subchecksums(	hls::stream<net_axis<WIDTH> >&			dataIn,
-									hls::stream<net_axis<WIDTH> >&			dataOut,
-									hls::stream<subSums<WIDTH/16> >&		txEng_subChecksumsFifoOut)
-{
-#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-
-	//static ap_uint<17> tcts_tcp_sums[4] = {0, 0, 0, 0};
-	static subSums<WIDTH/16> tcts_tcp_sums;
-	//static bool tcts_firstWord = true;
-
-
-	if (!dataIn.empty())// && !tctc_checkChecksum)
-	{
-		net_axis<WIDTH> currWord = dataIn.read();
-		dataOut.write(currWord);
-
-		for (int i = 0; i < WIDTH/16; i++)
-		{
-#pragma HLS unroll
-			ap_uint<16> temp;
-			if (currWord.keep.range(i*2+1, i*2) == 0x3)
-			{
-				temp(7, 0) = currWord.data.range(i*16+15, i*16+8);
-				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums.sum[i] += temp;
-				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
-			}
-			else if (currWord.keep[i*2] == 0x1)
-			{
-				temp(7, 0) = 0;
-				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums.sum[i] += temp;
-				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
-			}
-		}
-		//tcts_firstWord = false;
-		if(currWord.last == 1)
-		{
-			//tcts_firstWord = true;
-			txEng_subChecksumsFifoOut.write(tcts_tcp_sums);
-			for (int i = 0; i < WIDTH/16; i++)
-			{
-				#pragma HLS UNROLL
-				tcts_tcp_sums.sum[i] = 0;
-			}
-		}
-	}
-}
-
-
-/** @ingroup tx_engine
- *  Computes the TCP checksum and writes it into @param tcpChecksumFifoOut
- *	@param[in]		dataIn, incoming data stream
- *	@param[out]		dataOut, outgoing data stream
- *	@param[out]		txEng_subChecksumsFifoOut, the computed subchecksums are stored into this FIFO
- */
-/*void tx_compute_tcp_subchecksums(	stream<axiWord>&			dataIn,
-									stream<axiWord>&			dataOut,
-									stream<subSums<4> >&		txEng_subChecksumsFifoOut)
-{
-#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-
-	//static ap_uint<17> tcts_tcp_sums[4] = {0, 0, 0, 0};
-	static subSums<4> tcts_tcp_sums;
-	//static bool tcts_firstWord = true;
-
-	axiWord currWord;
-
-	if (!dataIn.empty())// && !tctc_checkChecksum)
-	{
-		dataIn.read(currWord);
-		//if (!tcts_firstWord)
-		{
-			dataOut.write(currWord);
-		}
-		for (int i = 0; i < 4; i++)
-		{
-#pragma HLS unroll
-			ap_uint<16> temp;
-			if (currWord.keep.range(i*2+1, i*2) == 0x3)
-			{
-				temp(7, 0) = currWord.data.range(i*16+15, i*16+8);
-				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums.sum[i] += temp;
-				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
-			}
-			else if (currWord.keep[i*2] == 0x1)
-			{
-				temp(7, 0) = 0;
-				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums.sum[i] += temp;
-				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
-			}
-		}
-		//tcts_firstWord = false;
-		if(currWord.last == 1)
-		{
-			//tcts_firstWord = true;
-			txEng_subChecksumsFifoOut.write(tcts_tcp_sums);
-			tcts_tcp_sums.sum[0] = 0;
-			tcts_tcp_sums.sum[1] = 0;
-			tcts_tcp_sums.sum[2] = 0;
-			tcts_tcp_sums.sum[3] = 0;
-		}
-	}
-}*/
-
-/** @ingroup tx_engine
- *  Computes the TCP checksum from the 4 accumulated subsums and writes it into @param tcpChecksumFifoOut
- *	@param[in]		txEng_subChecksumsFifoIn, input FIFO with the 4 subsum
- *	@param[out]		tcpChecksumFifoOut, the computed checksum is stored into this FIFO
- */
-void tx_compute_tcp_checksum(	stream<subSums<4> >&		txEng_subChecksumsFifoIn,
-								stream<ap_uint<16> >&		txEng_tcpChecksumFifoOut)
-{
-#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-
-	//static ap_uint<3> tctc_cc_state = 0;
-	static subSums<4> tctc_tcp_sums;
-
-	if (!txEng_subChecksumsFifoIn.empty())
-	{
-		txEng_subChecksumsFifoIn.read(tctc_tcp_sums);
-		tctc_tcp_sums.sum[0] += tctc_tcp_sums.sum[2];
-		tctc_tcp_sums.sum[1] += tctc_tcp_sums.sum[3];
-		tctc_tcp_sums.sum[0] = (tctc_tcp_sums.sum[0] + (tctc_tcp_sums.sum[0] >> 16)) & 0xFFFF;
-		tctc_tcp_sums.sum[1] = (tctc_tcp_sums.sum[1] + (tctc_tcp_sums.sum[1] >> 16)) & 0xFFFF;
-		tctc_tcp_sums.sum[0] += tctc_tcp_sums.sum[1];
-		tctc_tcp_sums.sum[0] = (tctc_tcp_sums.sum[0] + (tctc_tcp_sums.sum[0] >> 16)) & 0xFFFF;
-		tctc_tcp_sums.sum[0] = ~tctc_tcp_sums.sum[0];
-		std::cout << "TCP TX checksum: " << (uint16_t) tctc_tcp_sums.sum[0] << std::endl;
-		txEng_tcpChecksumFifoOut.write(tctc_tcp_sums.sum[0]);
-	}
-
-	// MAYBE this gives btter timing?
-	/*switch (tctc_cc_state)
-	{
-	case 0:
-		if (!txEng_subChecksumsFifoIn.empty())
-		{
-			txEng_subChecksumsFifoIn.read(tctc_tcp_sums);
-			tctc_cc_state++;
-		}
-		break;
-	case 1:
-		tctc_tcp_sums.sum0 += tctc_tcp_sums.sum2;
-		tctc_tcp_sums.sum1 += tctc_tcp_sums.sum3;
-		tctc_tcp_sums.sum0 = (tctc_tcp_sums.sum0 + (tctc_tcp_sums.sum0 >> 16)) & 0xFFFF;
-		tctc_tcp_sums.sum1 = (tctc_tcp_sums.sum1 + (tctc_tcp_sums.sum1 >> 16)) & 0xFFFF;
-		tctc_cc_state++;
-		break;
-	case 2:
-		tctc_tcp_sums.sum0 += tctc_tcp_sums.sum1;
-		tctc_tcp_sums.sum0 = (tctc_tcp_sums.sum0 + (tctc_tcp_sums.sum0 >> 16)) & 0xFFFF;
-		tctc_cc_state++;
-		break;
-	case 3:
-		tctc_tcp_sums.sum0 = ~tctc_tcp_sums.sum0;
-		tctc_cc_state++;
-		break;
-	case 4: //TODO try to remove one state
-		txEng_tcpChecksumFifoOut.write(tctc_tcp_sums.sum0);
-		tctc_cc_state = 0;
-		break;
-	}*/
-}
-
-/** @ingroup tx_engine
- *  Reads the IP header stream and the payload stream, it also inserts the 2 checksums. The complete
- *  packet is then streamed out of the TCP engine.
- *  @param[in]		headerIn
- *  @param[in]		payloadIn
- *  @param[in]		ipChecksumFifoIn
- *  @param[in]		tcpChecksumFifoIn
- *  @param[out]		dataOut
- */
-/*void pkgStitcher(	stream<axiWord>& 		txEng_ipHeaderBufferIn,
-					stream<axiWord>& 		payloadIn,
-					stream<ap_uint<16> >& 	txEng_tcpChecksumFifoIn,
-					stream<axiWord>& 		ipTxDataOut)
-{
-//#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-	
-	enum { WORD_0, WORD_1, WORD_2, WORD_3, WORD_4 };
-	static ap_uint<3> ps_wordCount = 0;
-	axiWord headWord, dataWord, sendWord;
-	ap_uint<16> checksum;
-
-	switch (ps_wordCount)
-	{
-	case WORD_0:
-	case WORD_1:
-		if (!txEng_ipHeaderBufferIn.empty())
-		{
-			txEng_ipHeaderBufferIn.read(headWord);
-			sendWord = headWord;
-			ipTxDataOut.write(sendWord);
-			ps_wordCount++;
-		}
-		break;
-	case WORD_2: //concatenate here
-		if (!txEng_ipHeaderBufferIn.empty() && !payloadIn.empty())
-		{
-			txEng_ipHeaderBufferIn.read(headWord);
-			payloadIn.read(dataWord);
-			sendWord.data(31, 0) = headWord.data(31, 0);
-			sendWord.data(63, 32) = dataWord.data(63, 32);
-			sendWord.keep = 0xFF;
-			sendWord.last = 0;
-			ipTxDataOut.write(sendWord);
-			ps_wordCount++;
-		}
-		break;
-	case WORD_3:
-		if (!payloadIn.empty())
-		{
-			payloadIn.read(dataWord);
-			sendWord = dataWord;
-			ipTxDataOut.write(sendWord);
-			ps_wordCount++;
-		}
-		break;
-	case WORD_4:
-		if (!payloadIn.empty() && !txEng_tcpChecksumFifoIn.empty())
-		{
-			payloadIn.read(dataWord);
-			txEng_tcpChecksumFifoIn.read(checksum);
-			sendWord = dataWord;
-			// Insert TCP checksum
-			sendWord.data(39, 32) = checksum(15, 8);
-			sendWord.data(47, 40) = checksum(7, 0);
-			ipTxDataOut.write(sendWord);
-			ps_wordCount++;
-			if (dataWord.last) // is required, might be last word (when no data)
-			{
-				ps_wordCount = 0;
-			}
-		}
-		break;
-	default:
-		if (!payloadIn.empty())
-		{
-			payloadIn.read(dataWord);
-			sendWord = dataWord;
-			ipTxDataOut.write(sendWord);
-			if (dataWord.last)
-			{
-				ps_wordCount = 0;
-			}
-		}
-		break;
-
-	}
-
-
-}*/
 
 //TODO rename & reuse
 void txEngMemAccessBreakdown(	hls::stream<mmCmd>&	inputMemAccess,
@@ -1895,14 +1453,6 @@ void insert_checksum(	hls::stream<ap_uint<16> >&			checksumIn,
 	static ap_uint<2> state = (WIDTH > 128 ? 1 : 0);
 	static ap_uint<3> wordCount = 0;
 
-	/*if (!dataIn.empty())
-	{
-		net_axis<WIDTH> word = dataIn.read();
-		std::cout << "CHECK: ";
-		printLE(std::cout, word);
-		std::cout << std::endl;
-		dataOut.write(word);
-	}*/
 	switch(state)
 	{
 		case 0:
@@ -2009,20 +1559,18 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	//#pragma HLS DATA_PACK variable=txEng_ipMetaFifo
 	#pragma HLS DATA_PACK variable=txEng_tcpMetaFifo
 
-	static stream<net_axis<WIDTH> >		txBufferReadDataStitched("txBufferReadDAtaStitched");
-	//static stream<net_axis<WIDTH> >		txEng_ipHeaderBuffer("txEng_ipHeaderBuffer");
-	//static stream<net_axis<WIDTH> >		txEng_tcpHeaderBuffer("txEng_tcpHeaderBuffer");
-	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer0("txEng_tcpPkgBuffer0");
-	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer1("txEng_tcpPkgBuffer1");
-	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer2("txEng_tcpPkgBuffer2");
-	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer3("txEng_tcpPkgBuffer3");
-	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer4("txEng_tcpPkgBuffer4");
-	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer5("txEng_tcpPkgBuffer5");
-	static stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer6("txEng_tcpPkgBuffer6");
+	static hls::stream<net_axis<WIDTH> >		txBufferReadDataStitched("txBufferReadDAtaStitched");
+	static hls::stream<net_axis<WIDTH> >		txEng_shift2pseudoFifo("txEng_shift2pseudoFifo");
+	static hls::stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer0("txEng_tcpPkgBuffer0");
+	static hls::stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer1("txEng_tcpPkgBuffer1");
+	static hls::stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer2("txEng_tcpPkgBuffer2");
+	static hls::stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer3("txEng_tcpPkgBuffer3");
+	static hls::stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer4("txEng_tcpPkgBuffer4");
+	static hls::stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer5("txEng_tcpPkgBuffer5");
+	static hls::stream<net_axis<WIDTH> >		txEng_tcpPkgBuffer6("txEng_tcpPkgBuffer6");
 
 	#pragma HLS stream variable=txBufferReadDataStitched  depth=2
-	//#pragma HLS stream variable=txEng_ipHeaderBuffer depth=32 // Ip header is 3 words, keep at least 8 headers
-	//#pragma HLS stream variable=txEng_tcpHeaderBuffer depth=32 // TCP pseudo header is 4 words, keep at least 8 headers
+	#pragma HLS stream variable=txEng_shift2pseudoFifo depth=2
 	#pragma HLS stream variable=txEng_tcpPkgBuffer0 depth=2
 	#pragma HLS stream variable=txEng_tcpPkgBuffer1 depth=16   // is forwarded immediately, size is not critical
 	#pragma HLS stream variable=txEng_tcpPkgBuffer2 depth=256  // critical, has to keep complete packet for checksum computation
@@ -2031,8 +1579,8 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	#pragma HLS stream variable=txEng_tcpPkgBuffer5 depth=2
 	#pragma HLS stream variable=txEng_tcpPkgBuffer6 depth=2
 
-	//#pragma HLS DATA_PACK variable=txEng_ipHeaderBuffer
-	//#pragma HLS DATA_PACK variable=txEng_tcpHeaderBuffer
+	#pragma HLS DATA_PACK variable=txBufferReadDataStitched
+	#pragma HLS DATA_PACK variable=txEng_shift2pseudoFifo
 	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer0
 	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer1
 	#pragma HLS DATA_PACK variable=txEng_tcpPkgBuffer2
@@ -2095,11 +1643,6 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 					txEng_ipTupleFifo,
 					txEng_tcpTupleFifo);
 
-	//ipHeaderConstruction<WIDTH>(txEng_ipMetaFifo, txEng_ipTupleFifo, txEng_ipHeaderBuffer);
-
-	static hls::stream<net_axis<WIDTH> >	txEng_shift2pseudoFifo("txEng_shift2pseudoFifo");
-	#pragma HLS stream variable=txEng_shift2pseudoFifo depth=2
-
 	//Stitches splitted reads back toghether
 	read_data_stitching<WIDTH>(memAccessBreakdown2txPkgStitcher, txBufferReadData, txBufferReadDataStitched);
 	//Arbitrates between DRAM and bypass data, concatenas DRAM data if necessary
@@ -2114,24 +1657,8 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 
 	pseudoHeaderConstructionNew<WIDTH>(txEng_tcpMetaFifo, txEng_tcpTupleFifo, txEng_shift2pseudoFifo, txEng_tcpPkgBuffer1);
 	
-	
-	
-
-	/*tcpPkgStitcher<WIDTH>(	txEng_tcpHeaderBuffer,
-					txBufferReadData,
-#if (TCP_NODELAY)
-					txEng_isDDRbypass,
-					txApp2txEng_data_stream,
-#endif
-					txEng_tcpPkgBuffer1,
-					memAccessBreakdown2txPkgStitcher);*/
-
-	//TODO use functions from ipv4?
-	//tx_compute_tcp_subchecksums(txEng_tcpPkgBuffer1, txEng_tcpPkgBuffer2, txEng_subChecksumsFifo);
-	//tx_compute_tcp_checksum(txEng_subChecksumsFifo, txEng_tcpChecksumFifo);
-	two_complement_subchecksums<WIDTH>(txEng_tcpPkgBuffer1, txEng_tcpPkgBuffer2, txEng_subChecksumsFifo);
+	two_complement_subchecksums<WIDTH, 22>(txEng_tcpPkgBuffer1, txEng_tcpPkgBuffer2, txEng_subChecksumsFifo);
 	finalize_ipv4_checksum<WIDTH/16>(txEng_subChecksumsFifo, txEng_tcpChecksumFifo);
-
 
 	// Removes one word in case of WIDTH=64bit (IP part of pseudo header is 96bit)
 	remove_pseudo_header<WIDTH>(txEng_tcpPkgBuffer2, txEng_tcpPkgBuffer3);
@@ -2142,10 +1669,9 @@ void tx_engine(	stream<extendedEvent>&			eventEng2txEng_event,
 	insert_checksum<WIDTH>(txEng_tcpChecksumFifo, txEng_tcpPkgBuffer4, txEng_tcpPkgBuffer5);
 	
 	lshiftWordByOctet<WIDTH, 52>(((IPV4_HEADER_SIZE%WIDTH)/8), txEng_tcpPkgBuffer5, txEng_tcpPkgBuffer6);
-	//TODO make template	
+
 	generate_ipv4<WIDTH>(txEng_ipMetaFifo, txEng_ipTupleFifo, txEng_tcpPkgBuffer6, ipTxData);
 
-	//pkgStitcher<WIDTH>(txEng_ipHeaderBuffer, txEng_tcpPkgBuffer2, txEng_tcpChecksumFifo, ipTxData);
 }
 
 template void tx_engine<DATA_WIDTH>(	stream<extendedEvent>&			eventEng2txEng_event,

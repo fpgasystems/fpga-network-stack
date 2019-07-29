@@ -1,5 +1,5 @@
 /************************************************
-Copyright (c) 2016, Xilinx, Inc.
+Copyright (c) 2019, Systems Group, ETH Zurich
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -24,12 +24,13 @@ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIM
 PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015-2016 Xilinx, Inc.
 ************************************************/
 
 #include "../toe_config.hpp"
 #include "rx_engine.hpp"
 #include "../../ipv4/ipv4.hpp"
+#include "../two_complement_subchecksums.hpp"
 
 
 //parse IP header, and remove it
@@ -557,54 +558,6 @@ void rxCheckTCPchecksum(stream<net_axis<64> >&					dataIn,
 	}
 }
 
-//TODO this is the same code as in the TX Engine
-template <int WIDTH>
-void rx_two_complement_subchecksums(	hls::stream<net_axis<WIDTH> >&			dataIn,
-									hls::stream<net_axis<WIDTH> >&			dataOut,
-									hls::stream<subSums<WIDTH/16> >&		txEng_subChecksumsFifoOut)
-{
-#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-
-	static subSums<WIDTH/16> tcts_tcp_sums;
-
-
-	if (!dataIn.empty())
-	{
-		net_axis<WIDTH> currWord = dataIn.read();
-		dataOut.write(currWord);
-
-		for (int i = 0; i < WIDTH/16; i++)
-		{
-#pragma HLS unroll
-			ap_uint<16> temp;
-			if (currWord.keep.range(i*2+1, i*2) == 0x3)
-			{
-				temp(7, 0) = currWord.data.range(i*16+15, i*16+8);
-				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums.sum[i] += temp;
-				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
-			}
-			else if (currWord.keep[i*2] == 0x1)
-			{
-				temp(7, 0) = 0;
-				temp(15, 8) = currWord.data.range(i*16+7, i*16);
-				tcts_tcp_sums.sum[i] += temp;
-				tcts_tcp_sums.sum[i] = (tcts_tcp_sums.sum[i] + (tcts_tcp_sums.sum[i] >> 16)) & 0xFFFF;
-			}
-		}
-		if(currWord.last == 1)
-		{
-			txEng_subChecksumsFifoOut.write(tcts_tcp_sums);
-			for (int i = 0; i < WIDTH/16; i++)
-			{
-				#pragma HLS UNROLL
-				tcts_tcp_sums.sum[i] = 0;
-			}
-		}
-	}
-}
-
 template <int WIDTH>
 void processPseudoHeader(stream<net_axis<WIDTH> >&					dataIn,
 							stream<net_axis<WIDTH> >&				dataOut,
@@ -665,7 +618,7 @@ void processPseudoHeader(stream<net_axis<WIDTH> >&					dataIn,
 					tupleFifoOut.write(fourTuple(header.getSrcAddr(), header.getDstAddr(), header.getSrcPort(), header.getDstPort()));
 					if (meta.length != 0 || header.getDataOffset() > 5)
 					{
-						ofMetaOut.write(optionalFieldsMeta(header.getDataOffset(), header.getSynFlag()));
+						ofMetaOut.write(optionalFieldsMeta(header.getDataOffset() - 5, header.getSynFlag()));
 					}
 				}
 				if (meta.length != 0)
@@ -704,20 +657,26 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 	static ap_uint<2> state = 0;
 	static ap_uint<4> dataOffset = 0;
 	static net_axis<WIDTH> prevWord;
+	static tcpOptionalHeader<WIDTH> optionalHeader;
+	static bool parseHeader = false;
+	static bool headerWritten = false;
 
 	switch (state)
 	{
 	case 0:
 		if (!metaIn.empty() && !dataIn.empty())
 		{
+			optionalHeader.clear();
 			optionalFieldsMeta meta =  metaIn.read();
 			net_axis<WIDTH> currWord = dataIn.read();
-			dataOffset = meta.dataOffset - 5;
+			dataOffset = meta.dataOffset;// - 5;
 			std::cout << "OFFSET: " << dataOffset << std::endl;
 			std::cout << "DROP OO: ";
 			printLE(std::cout, currWord);
 			std::cout << std::endl;
 
+			optionalHeader.parseWord(currWord.data);
+			parseHeader = false;
 			if (dataOffset == 0)
 			{
 				dataOut.write(currWord);
@@ -728,19 +687,24 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 #if (WINDOW_SCALE)
 				if (meta.syn)
 				{
+					parseHeader = true;
 					std::cout << "WRITE Optional Fields" << std::endl;
 					dataOffsetOut.write(dataOffset);
-					optionalHeaderFieldsOut.write(currWord.data(319, 0));
+					if (optionalHeader.isReady() || currWord.last)
+					{
+						optionalHeaderFieldsOut.write(optionalHeader.getRawHeader());
+					}
 				}
 #endif
 			}
 
 			state = 1;
 			prevWord = currWord;
+			headerWritten = false;
 			if (currWord.last)
 			{
 				state = 0;
-				if (dataOffset != 0 && currWord.keep[dataOffset*4] != 0)
+				if (dataOffset != 0 && (dataOffset*4 < WIDTH/8) && currWord.keep[dataOffset*4] != 0)
 				{
 					std::cout << "s0 -> s2" << std::endl;
 					state = 2;
@@ -754,7 +718,15 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 			net_axis<WIDTH> currWord = dataIn.read();
 			net_axis<WIDTH> sendWord;
 			sendWord.last = 0;
-			//TODO use switch
+
+#if (WINDOW_SCALE)
+			optionalHeader.parseWord(currWord.data);
+			if ((optionalHeader.isReady() || currWord.last) && parseHeader && !headerWritten)
+			{
+				optionalHeaderFieldsOut.write(optionalHeader.getRawHeader());
+				headerWritten = true;
+			}
+#endif
 			if (dataOffset >= WIDTH/32)
 			{
 				dataOffset -= WIDTH/32;
@@ -832,7 +804,7 @@ void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 	case IDLE:
 		if (!dataOffsetIn.empty() && !optionalHeaderFieldsIn.empty())
 		{
-			std::cout << "PARSE 0" << std::endl;
+			std::cout << "PARSE IDLE" << std::endl;
 			dataOffsetIn.read(dataOffset);
 			optionalHeaderFieldsIn.read(fields);
 			state = PARSE;
@@ -853,7 +825,7 @@ void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 			optionLength = 1;
 			break;
 		case 3:
-			std::cout << "PARSE WS" << std::endl;
+			std::cout << "PARSE WS: " << (uint16_t)fields(19, 16) << std::endl;
 			windowScaleOut.write(fields(19, 16));
 			state = IDLE;
 			break;
@@ -923,7 +895,7 @@ void merge_header_meta(hls::stream<ap_uint<4> >&			rxEng_winScaleFifo,
  *  @param[out]		dataOut, outgoing data stream
  */
 //TODO remove
-template <int WIDTH>
+/*template <int WIDTH>
 void rxTcpInvalidDropper(stream<net_axis<WIDTH> >&				dataIn,
 							stream<bool>&				validFifoIn,
 							stream<net_axis<WIDTH> >&			dataOut)
@@ -978,7 +950,7 @@ void rxTcpInvalidDropper(stream<net_axis<WIDTH> >&				dataIn,
 		}
 		break;
 	} // switch
-}
+}*/
 
 
 
@@ -1923,9 +1895,11 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	static stream<pseudoMeta>			rxEng_ipMetaFifo("rxEng_ipMetaFifo");
 	//#pragma HLS stream variable=rxEng_tcpValidFifo depth=2
 	#pragma HLS stream variable=rxEng_metaDataFifo depth=2
+	#pragma HLS stream variable=rxEng_fsmMetaDataFifo depth=2
 	#pragma HLS stream variable=rxEng_tupleBuffer depth=2
 	#pragma HLS stream variable=rxEng_ipMetaFifo depth=2
 	#pragma HLS DATA_PACK variable=rxEng_metaDataFifo
+	#pragma HLS DATA_PACK variable=rxEng_fsmMetaDataFifo
 	#pragma HLS DATA_PACK variable=rxEng_tupleBuffer
 
 	static stream<extendedEvent>		rxEng_metaHandlerEventFifo("rxEng_metaHandlerEventFifo");
@@ -2003,7 +1977,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	//TODO data pack
 #endif
 
-	rx_two_complement_subchecksums<WIDTH>(rxEng_dataBuffer1, rxEng_dataBuffer2, subSumFifo);
+	two_complement_subchecksums<WIDTH, 11>(rxEng_dataBuffer1, rxEng_dataBuffer2, subSumFifo);
 	check_ipv4_checksum(subSumFifo, rxEng_checksumValidFifo);
 	processPseudoHeader<WIDTH>(rxEng_dataBuffer2,
 								rxEng_dataBuffer3a,

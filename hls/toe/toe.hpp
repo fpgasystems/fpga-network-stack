@@ -569,6 +569,7 @@ struct appTxRsp
 const uint32_t TCP_PSEUDO_HEADER_SIZE = 96;
 const uint32_t TCP_FULL_PSEUDO_HEADER_SIZE = 256;
 const uint32_t TCP_HEADER_SIZE = 160;
+const uint32_t TCP_OPTIONAL_HEADER_SIZE = 320;
 
 
 /**
@@ -900,6 +901,13 @@ public:
 
 };
 
+template <int W>
+class tcpOptionalHeader : public packetHeader<W, TCP_OPTIONAL_HEADER_SIZE> {
+	using packetHeader<W, TCP_OPTIONAL_HEADER_SIZE>::header;
+
+public:
+	tcpOptionalHeader() {}
+};
 
 template <int WIDTH>
 void toe(	// Data & Memory Interface
