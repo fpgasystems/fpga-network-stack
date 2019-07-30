@@ -13,8 +13,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/icmp_server.cpp -cflags "-I${CMAKE_CURRENT
 add_files -tb test_icmp_server.cpp
 
 
-config_rtl -disable_start_propagation
-
 #Check which command
 set command [lindex $argv 2]
 

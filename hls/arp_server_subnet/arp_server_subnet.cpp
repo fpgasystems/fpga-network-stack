@@ -269,14 +269,14 @@ void arp_server_subnet_top(	hls::stream<net_axis<DATA_WIDTH> >&          arpData
 						ap_uint<16>&			regReplyCount)
 {
 	#pragma HLS INTERFACE ap_ctrl_none port=return
-	#pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW disable_start_propagation
 
-	#pragma  HLS resource core=AXI4Stream variable=arpDataIn metadata="-bus_bundle s_axis"
-	#pragma  HLS resource core=AXI4Stream variable=arpDataOut metadata="-bus_bundle m_axis"
-	#pragma  HLS resource core=AXI4Stream variable=macIpEncode_req metadata="-bus_bundle s_axis_arp_lookup_request"
-	#pragma  HLS resource core=AXI4Stream variable=macIpEncode_rsp metadata="-bus_bundle m_axis_arp_lookup_reply"
-	#pragma  HLS resource core=AXI4Stream variable=hostIpEncode_req metadata="-bus_bundle s_axis_host_arp_lookup_request"
-	#pragma  HLS resource core=AXI4Stream variable=hostIpEncode_rsp metadata="-bus_bundle m_axis_host_arp_lookup_reply"
+	#pragma HLS INTERFACE axis register port=arpDataIn name=s_axis
+	#pragma HLS INTERFACE axis register port=arpDataOut name=m_axis
+	#pragma HLS INTERFACE axis register port=macIpEncode_req name=s_axis_arp_lookup_request
+	#pragma HLS INTERFACE axis register port=macIpEncode_rsp name=m_axis_arp_lookup_reply
+	#pragma HLS INTERFACE axis register port=hostIpEncode_req name=s_axis_host_arp_lookup_request
+	#pragma HLS INTERFACE axis register port=hostIpEncode_rsp name=m_axis_host_arp_lookup_reply
 	#pragma HLS DATA_PACK variable=macIpEncode_rsp
 	#pragma HLS DATA_PACK variable=hostIpEncode_rsp
    #pragma HLS INTERFACE ap_stable register port=myMacAddress
