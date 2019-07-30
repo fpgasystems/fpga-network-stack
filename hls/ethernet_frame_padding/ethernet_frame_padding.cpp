@@ -32,8 +32,8 @@ void ethernet_frame_padding(hls::stream<net_axis<64> >&			dataIn,
 #pragma HLS PIPELINE II=1
 #pragma HLS INTERFACE ap_ctrl_none port=return
 
-#pragma HLS resource core=AXI4Stream variable=dataIn metadata="-bus_bundle s_axis"
-#pragma HLS resource core=AXI4Stream variable=dataOut metadata="-bus_bundle m_axis"
+#pragma HLS INTERFACE axis register port=dataIn name=s_axis
+#pragma HLS INTERFACE axis register port=dataOut name=m_axis
 
 
 	static ap_uint<1> state = 0;

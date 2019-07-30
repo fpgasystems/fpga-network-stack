@@ -343,31 +343,29 @@ void dhcp_client(	stream<ap_uint<16> >&	openPort,
 					ap_uint<32>&			inputIpAddress,
 					ap_uint<32>&			dhcpIpAddressOut,
 					ap_uint<48>&			myMacAddress) {
-#pragma HLS DATAFLOW
+#pragma HLS DATAFLOW disable_start_propagation
 #pragma HLS INTERFACE ap_ctrl_none port=return
 
-	#pragma HLS resource core=AXI4Stream variable=openPort 		metadata="-bus_bundle m_axis_open_port"
-#pragma HLS resource core=AXI4Stream variable=confirmPortStatus metadata="-bus_bundle s_axis_open_port_status"
-#pragma HLS resource core=AXI4Stream variable=dataInMeta 		metadata="-bus_bundle s_axis_rx_metadata"
-#pragma HLS resource core=AXI4Stream variable=dataIn 			metadata="-bus_bundle s_axis_rx_data"
-#pragma HLS DATA_PACK variable=dataInMeta
+	#pragma HLS INTERFACE axis register port=openPort name=m_axis_open_port
+	#pragma HLS INTERFACE axis register port=confirmPortStatus name=s_axis_open_port_status
+	#pragma HLS INTERFACE axis register port=dataInMeta name=s_axis_rx_metadata
+	#pragma HLS INTERFACE axis register port=dataIn name=s_axis_rx_data
+	#pragma HLS INTERFACE axis register port=dataOutMeta name=m_axis_tx_metadata
+	#pragma HLS INTERFACE axis register port=dataOutLength name=m_axis_tx_length
+	#pragma HLS INTERFACE axis register port=dataOut name=m_axis_tx_data
+	#pragma HLS DATA_PACK variable=dataOutMeta
 
-#pragma HLS resource core=AXI4Stream variable=dataOutMeta 		metadata="-bus_bundle m_axis_tx_metadata"
-#pragma HLS resource core=AXI4Stream variable=dataOutLength 	metadata="-bus_bundle m_axis_tx_length"
-#pragma HLS resource core=AXI4Stream variable=dataOut 			metadata="-bus_bundle m_axis_tx_data"
-#pragma HLS DATA_PACK variable=dataOutMeta
-
-#pragma HLS INTERFACE ap_stable register	port=dhcpEnable
-#pragma HLS INTERFACE ap_stable register	port=dhcpIpAddressOut
-#pragma HLS INTERFACE ap_stable			port=myMacAddress
-#pragma HLS INTERFACE ap_stable register	port=inputIpAddress
+	#pragma HLS INTERFACE ap_stable register	port=dhcpEnable
+	#pragma HLS INTERFACE ap_stable register	port=dhcpIpAddressOut
+	#pragma HLS INTERFACE ap_stable			port=myMacAddress
+	#pragma HLS INTERFACE ap_stable register	port=inputIpAddress
 
 	static stream<dhcpReplyMeta>		dhcp_replyMetaFifo("dhcp_replyMetaFifo");
 	static stream<dhcpRequestMeta>		dhcp_requestMetaFifo("dhcp_requestMetaFifo");
-#pragma HLS stream variable=dhcp_replyMetaFifo depth=4
-#pragma HLS stream variable=dhcp_requestMetaFifo depth=4
-#pragma HLS DATA_PACK variable=dhcp_replyMetaFifo
-#pragma HLS DATA_PACK variable=dhcp_requestMetaFifo
+	#pragma HLS stream variable=dhcp_replyMetaFifo depth=4
+	#pragma HLS stream variable=dhcp_requestMetaFifo depth=4
+	#pragma HLS DATA_PACK variable=dhcp_replyMetaFifo
+	#pragma HLS DATA_PACK variable=dhcp_requestMetaFifo
 	static stream<ap_uint<1> >		portOpen("portOpen");
 
 	open_dhcp_port(openPort, confirmPortStatus, portOpen);

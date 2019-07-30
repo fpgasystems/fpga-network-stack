@@ -215,64 +215,36 @@ void echo_server_application(	hls::stream<ap_uint<16> >&		listenPort,
 								hls::stream<net_axis<64> > &			txData,
 								hls::stream<appTxRsp>&			txStatus)
 {
-	#pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW disable_start_propagation
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 
 
-/*#pragma HLS INTERFACE axis port=listenPort name=m_axis_listen_port
-#pragma HLS INTERFACE axis port=listenPortStatus name=s_axis_listen_port_status
-	//#pragma HLS INTERFACE axis port=closePort name=m_axis_close_port
+#pragma HLS INTERFACE axis register port=listenPort name=m_axis_listen_port
+#pragma HLS INTERFACE axis register port=listenPortStatus name=s_axis_listen_port_status
+	//#pragma HLS INTERFACE axis register port=closePort name=m_axis_close_port
 
-#pragma HLS INTERFACE axis port=notifications name=s_axis_notifications
-#pragma HLS INTERFACE axis port=readRequest name=m_axis_read_package
+#pragma HLS INTERFACE axis register port=notifications name=s_axis_notifications
+#pragma HLS INTERFACE axis register port=readRequest name=m_axis_read_package
 #pragma HLS DATA_PACK variable=notifications
 #pragma HLS DATA_PACK variable=readRequest
 
-#pragma HLS INTERFACE axis port=rxMetaData name=s_axis_rx_metadata
-#pragma HLS INTERFACE axis port=rxData name=s_axis_rx_data
+#pragma HLS INTERFACE axis register port=rxMetaData name=s_axis_rx_metadata
+#pragma HLS INTERFACE axis register port=rxData name=s_axis_rx_data
 //#pragma HLS DATA_PACK variable=rxMetaData
 
-#pragma HLS INTERFACE axis port=openConnection name=m_axis_open_connection
-#pragma HLS INTERFACE axis port=openConStatus name=s_axis_open_status
+#pragma HLS INTERFACE axis register port=openConnection name=m_axis_open_connection
+#pragma HLS INTERFACE axis register port=openConStatus name=s_axis_open_status
 #pragma HLS DATA_PACK variable=openConnection
 #pragma HLS DATA_PACK variable=openConStatus
 
-#pragma HLS INTERFACE axis port=closeConnection name=m_axis_close_connection
+#pragma HLS INTERFACE axis register port=closeConnection name=m_axis_close_connection
 
-#pragma HLS INTERFACE axis port=txMetaData name=m_axis_tx_metadata
-#pragma HLS INTERFACE axis port=txData name=m_axis_tx_data
-#pragma HLS INTERFACE axis port=txStatus name=s_axis_tx_status
+#pragma HLS INTERFACE axis register port=txMetaData name=m_axis_tx_metadata
+#pragma HLS INTERFACE axis register port=txData name=m_axis_tx_data
+#pragma HLS INTERFACE axis register port=txStatus name=s_axis_tx_status
 #pragma HLS DATA_PACK variable=txMetaData
-//#pragma HLS DATA_PACK variable=txData
-#pragma HLS DATA_PACK variable=txStatus*/
-
-//For now we rely on the old pragma, since the new pragma is not tested enough
-#pragma HLS resource core=AXI4Stream variable=listenPort metadata="-bus_bundle m_axis_listen_port"
-#pragma HLS resource core=AXI4Stream variable=listenPortStatus metadata="-bus_bundle s_axis_listen_port_status"
-	//#pragma HLS resource core=AXI4Stream variable=closePort metadata="-bus_bundle m_axis_close_port"
-
-#pragma HLS resource core=AXI4Stream variable=notifications metadata="-bus_bundle s_axis_notifications"
-#pragma HLS resource core=AXI4Stream variable=readRequest metadata="-bus_bundle m_axis_read_package"
-#pragma HLS DATA_PACK variable=notifications
-#pragma HLS DATA_PACK variable=readRequest
-
-#pragma HLS resource core=AXI4Stream variable=rxMetaData metadata="-bus_bundle s_axis_rx_metadata"
-#pragma HLS resource core=AXI4Stream variable=rxData metadata="-bus_bundle s_axis_rx_data"
-#pragma HLS DATA_PACK variable=rxData
-
-#pragma HLS resource core=AXI4Stream variable=openConnection metadata="-bus_bundle m_axis_open_connection"
-#pragma HLS resource core=AXI4Stream variable=openConStatus metadata="-bus_bundle s_axis_open_status"
-#pragma HLS DATA_PACK variable=openConnection
-#pragma HLS DATA_PACK variable=openConStatus
-
-#pragma HLS resource core=AXI4Stream variable=closeConnection metadata="-bus_bundle m_axis_close_connection"
-
-#pragma HLS resource core=AXI4Stream variable=txMetaData metadata="-bus_bundle m_axis_tx_metadata"
-#pragma HLS resource core=AXI4Stream variable=txData metadata="-bus_bundle m_axis_tx_data"
-#pragma HLS resource core=AXI4Stream variable=txStatus metadata="-bus_bundle s_axis_tx_status"
-#pragma HLS DATA_PACK variable=txMetaData
-#pragma HLS DATA_PACK variable=txData
 #pragma HLS DATA_PACK variable=txStatus
+
 
 	static hls::stream<ap_uint<16> >		esa_sessionidFifo("esa_sessionidFifo");
 	static hls::stream<ap_uint<16> >		esa_lengthFifo("esa_lengthFifo");

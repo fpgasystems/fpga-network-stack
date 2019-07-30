@@ -14,8 +14,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/arp_server_subnet.cpp -cflags "-I${CMAKE_C
 #add_files -tb test_arp_server_subnet.cpp
 
 
-config_rtl -disable_start_propagation
-
 #Check which command
 set command [lindex $argv 2]
 

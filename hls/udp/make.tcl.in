@@ -15,8 +15,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/udp.cpp -cflags "-I${CMAKE_CURRENT_BINARY_
 #add_files -tb test_udp.cpp
 
 
-config_rtl -disable_start_propagation
-
 #Check which command
 set command [lindex $argv 2]
 

@@ -522,23 +522,18 @@ void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
 					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_roce,
 					ap_uint<32>								myIpAddress)
 {
-	#pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW disable_start_propagation
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 
-	/*#pragma HLS INTERFACE axis port=s_axis_raw
-	#pragma HLS INTERFACE axis port=m_axis_ARP
-	#pragma HLS INTERFACE axis port=m_axis_ICMP
-	#pragma HLS INTERFACE axis port=m_axis_UDP
-	#pragma HLS INTERFACE axis port=m_axis_TCP*/ // leads to Combinatorial Loops
-	#pragma HLS resource core=AXI4Stream variable=s_axis_raw metadata="-bus_bundle s_axis_raw"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_arp metadata="-bus_bundle m_axis_arp"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_icmpv6 metadata="-bus_bundle m_axis_icmpv6"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_ipv6udp metadata="-bus_bundle m_axis_ipv6udp"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_icmp metadata="-bus_bundle m_axis_icmp"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_udp metadata="-bus_bundle m_axis_udp"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_tcp metadata="-bus_bundle m_axis_tcp"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_roce metadata="-bus_bundle m_axis_roce"
-
+	#pragma HLS INTERFACE axis register port=s_axis_raw
+	#pragma HLS INTERFACE axis register port=m_axis_arp
+	#pragma HLS INTERFACE axis register port=m_axis_icmpv6
+	#pragma HLS INTERFACE axis register port=m_axis_ipv6udp
+	#pragma HLS INTERFACE axis register port=m_axis_icmp
+	#pragma HLS INTERFACE axis register port=m_axis_udp
+	#pragma HLS INTERFACE axis register port=m_axis_tcp // leads to Combinatorial Loops
+	#pragma HLS INTERFACE axis register port=m_axis_roce
+	
 	#pragma HLS INTERFACE ap_stable register port=myIpAddress
 
    ip_handler<DATA_WIDTH>(s_axis_raw,

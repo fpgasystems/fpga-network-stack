@@ -248,17 +248,17 @@ void udp_top(	hls::stream<ipMeta>&		s_axis_rx_meta,
 				ap_uint<16>			reg_listen_port)
 
 {
-#pragma HLS DATAFLOW
-#pragma HLS INTERFACE ap_ctrl_none register port=return
+#pragma HLS DATAFLOW disable_start_propagation
+#pragma HLS INTERFACE ap_ctrl_none port=return
 
-#pragma HLS resource core=AXI4Stream variable=s_axis_rx_meta metadata="-bus_bundle s_axis_rx_meta"
-#pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
-#pragma HLS resource core=AXI4Stream variable=m_axis_rx_meta metadata="-bus_bundle m_axis_rx_meta"
-#pragma HLS resource core=AXI4Stream variable=m_axis_rx_data metadata="-bus_bundle m_axis_rx_data"
-#pragma HLS resource core=AXI4Stream variable=s_axis_tx_meta metadata="-bus_bundle s_axis_tx_meta"
-#pragma HLS resource core=AXI4Stream variable=s_axis_tx_data metadata="-bus_bundle s_axis_tx_data"
-#pragma HLS resource core=AXI4Stream variable=m_axis_tx_meta metadata="-bus_bundle m_axis_tx_meta"
-#pragma HLS resource core=AXI4Stream variable=m_axis_tx_data metadata="-bus_bundle m_axis_tx_data"
+#pragma HLS INTERFACE axis register port=s_axis_rx_meta
+#pragma HLS INTERFACE axis register port=s_axis_rx_data
+#pragma HLS INTERFACE axis register port=m_axis_rx_meta
+#pragma HLS INTERFACE axis register port=m_axis_rx_data
+#pragma HLS INTERFACE axis register port=s_axis_tx_meta
+#pragma HLS INTERFACE axis register port=s_axis_tx_data
+#pragma HLS INTERFACE axis register port=m_axis_tx_meta
+#pragma HLS INTERFACE axis register port=m_axis_tx_data
 #pragma HLS DATA_PACK variable=s_axis_rx_meta
 #pragma HLS DATA_PACK variable=m_axis_rx_meta
 #pragma HLS DATA_PACK variable=s_axis_tx_meta

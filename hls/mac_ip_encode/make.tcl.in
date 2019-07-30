@@ -15,8 +15,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/mac_ip_encode.cpp -cflags "-I${CMAKE_CURRE
 add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_mac_ip_encode.cpp
 
 
-config_rtl -disable_start_propagation
-
 #Check which command
 set command [lindex $argv 2]
 

@@ -340,15 +340,15 @@ void ipv4_top(		hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 				ap_uint<32>			local_ipv4_address,
 				ap_uint<8>			protocol)
 {
-#pragma HLS DATAFLOW
+#pragma HLS DATAFLOW disable_start_propagation
 #pragma HLS INTERFACE ap_ctrl_none register port=return
 
-#pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
-#pragma HLS resource core=AXI4Stream variable=m_axis_rx_meta metadata="-bus_bundle m_axis_rx_meta"
-#pragma HLS resource core=AXI4Stream variable=m_axis_rx_data metadata="-bus_bundle m_axis_rx_data"
-#pragma HLS resource core=AXI4Stream variable=s_axis_tx_meta metadata="-bus_bundle s_axis_tx_meta"
-#pragma HLS resource core=AXI4Stream variable=s_axis_tx_data metadata="-bus_bundle s_axis_tx_data"
-#pragma HLS resource core=AXI4Stream variable=m_axis_tx_data metadata="-bus_bundle m_axis_tx_data"
+#pragma HLS INTERFACE axis register port=s_axis_rx_data
+#pragma HLS INTERFACE axis register port=m_axis_rx_meta
+#pragma HLS INTERFACE axis register port=m_axis_rx_data
+#pragma HLS INTERFACE axis register port=s_axis_tx_meta
+#pragma HLS INTERFACE axis register port=s_axis_tx_data
+#pragma HLS INTERFACE axis register port=m_axis_tx_data
 #pragma HLS DATA_PACK variable=m_axis_rx_meta
 #pragma HLS DATA_PACK variable=s_axis_tx_meta
 #pragma HLS INTERFACE ap_stable register port=local_ipv4_address

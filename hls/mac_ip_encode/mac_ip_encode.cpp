@@ -431,14 +431,14 @@ void mac_ip_encode_top( hls::stream<net_axis<DATA_WIDTH> >&			dataIn,
 					ap_uint<32>					regSubNetMask,
 					ap_uint<32>					regDefaultGateway)
 {
-	#pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW disable_start_propagation
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 
-	#pragma HLS resource core=AXI4Stream variable=dataIn metadata="-bus_bundle s_axis_ip"
-	#pragma HLS resource core=AXI4Stream variable=dataOut metadata="-bus_bundle m_axis_ip"
+	#pragma HLS INTERFACE axis register port=dataIn name=s_axis_ip
+	#pragma HLS INTERFACE axis register port=dataOut name=m_axis_ip
+	#pragma HLS INTERFACE axis register port=arpTableIn name=s_axis_arp_lookup_reply
+	#pragma HLS INTERFACE axis register port=arpTableOut name=m_axis_arp_lookup_request
 
-	#pragma HLS resource core=AXI4Stream variable=arpTableIn metadata="-bus_bundle s_axis_arp_lookup_reply"
-	#pragma HLS resource core=AXI4Stream variable=arpTableOut metadata="-bus_bundle m_axis_arp_lookup_request"
 	#pragma HLS DATA_PACK variable=arpTableIn
 
 	#pragma HLS INTERFACE ap_stable register port=myMacAddress

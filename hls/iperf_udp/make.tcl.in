@@ -13,8 +13,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/iperf_udp.cpp -cflags "-I${CMAKE_CURRENT_B
 add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_iperf_udp.cpp
 
 
-config_rtl -disable_start_propagation
-
 #Check which command
 set command [lindex $argv 2]
 

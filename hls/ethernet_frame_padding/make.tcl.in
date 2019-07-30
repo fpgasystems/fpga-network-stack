@@ -15,8 +15,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/ethernet_frame_padding.cpp -cflags "-I${CM
 #add_files -tb test_ethernet_frame_padding.cpp
 
 
-config_rtl -disable_start_propagation
-
 #Check which command
 set command [lindex $argv 2]
 
