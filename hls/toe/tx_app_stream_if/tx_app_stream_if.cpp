@@ -88,7 +88,7 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 			{
 				tasi_writeToBufFifo.write(pkgPushMeta(true));
 				// Notify app about fail
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
 				tai_state = READ_REQUEST;
 			}
 #if !(TCP_NODELAY)
@@ -99,7 +99,7 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 			{
 				//tasi_writeToBufFifo.write(pkgPushMeta(true));
 				// Notify app about fail
-				//appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
+				//appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
 				waitCounter = 0;
 				tai_state = RETRY_SPACE;
 			}
@@ -107,7 +107,7 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 			{
 				// TODO there seems some redundancy
 				tasi_writeToBufFifo.write(pkgPushMeta(tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
-				appTxDataRsp.write(appTxRsp(tasi_writeMeta.length, maxWriteLength, NO_ERROR));
+				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, NO_ERROR));
 				//tasi_eventCacheFifo.write(eventMeta(tasi_writeSessionID, tasi_writeSar.mempt, pkgLen));
 				txAppStream2eventEng_setEvent.write(event(TX, tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
 				txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID, writeSar.mempt+tasi_writeMeta.length));
