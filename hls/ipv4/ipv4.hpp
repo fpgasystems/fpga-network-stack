@@ -254,5 +254,3 @@ void ipv4(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 			hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
 			ap_uint<32>			local_ipv4_address,
 			ap_uint<8>			protocol);
-
-#endif
