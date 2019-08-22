@@ -29,6 +29,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "toe_config.hpp"
 #include "toe.hpp"
+#include "toe_internals.hpp"
 
 #include "session_lookup_controller/session_lookup_controller.hpp"
 #include "state_table/state_table.hpp"
