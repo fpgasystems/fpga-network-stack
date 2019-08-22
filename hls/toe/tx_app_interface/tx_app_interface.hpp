@@ -35,16 +35,17 @@ using namespace hls;
 
 struct txAppTableEntry
 {
-	ap_uint<16>		ackd;
-	ap_uint<16>		mempt;
+	ap_uint<WINDOW_BITS>		ackd;
+	ap_uint<WINDOW_BITS>		mempt;
 #if (TCP_NODELAY)
-	ap_uint<16> 	min_window;
+	ap_uint<WINDOW_BITS> 	min_window;
 #endif
 	txAppTableEntry() {}
 };
 
+template <int WIDTH>
 void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
-					stream<axiWord>&				appTxDataReq,
+					stream<net_axis<WIDTH> >&				appTxDataReq,
 					stream<sessionState>&			stateTable2txApp_rsp,
 					stream<txSarAckPush>&			txSar2txApp_ack_push,
 					stream<mmStatus>&				txBufferWriteStatus,
@@ -59,9 +60,9 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 					stream<appTxRsp>&			appTxDataRsp,
 					stream<ap_uint<16> >&				txApp2stateTable_req,
 					stream<mmCmd>&					txBufferWriteCmd,
-					stream<axiWord>&				txBufferWriteData,
+					stream<net_axis<WIDTH> >&				txBufferWriteData,
 #if (TCP_NODELAY)
-					stream<axiWord>&				txApp2txEng_data_stream,
+					stream<net_axis<WIDTH> >&				txApp2txEng_data_stream,
 #endif
 					stream<txAppTxSarPush>&			txApp2txSar_push,
 

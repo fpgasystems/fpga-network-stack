@@ -10,13 +10,14 @@
 
 //#define AXI_WIDTH 512
 
-
 //TODO move to RoCE
-/*const uint16_t PMTU = 1408; //dividable by 8, 16, 32, 64
-const uint16_t PMTU_WORDS = PMTU / (AXI_WIDTH/8);
+const uint16_t PMTU = 1408; //dividable by 8, 16, 32, 64
+//const uint16_t PMTU_WORDS = PMTU / (AXI_WIDTH/8);
 const uint16_t MAX_QPS = 500;
 //This is not enabled/implemented for now due to simplification
 //const uint16_t FPGA_LOCAL_QPN = 1;
+
+const ap_uint<8> TCP_PROTOCOL = 0x06;
 const ap_uint<8> UDP_PROTOCOL = 0x11; //TODO move somewhere
 
 typedef enum {
@@ -49,9 +50,21 @@ typedef enum {
 bool checkIfResponse(ibOpCode code);
 bool checkIfWriteOrPartReq(ibOpCode code);
 bool checkIfAethHeader(ibOpCode code);
-bool checkIfRethHeader(ibOpCode code);*/
+bool checkIfRethHeader(ibOpCode code);
 
 //Adaptation of ap_axiu<>
+
+template <int D>
+struct axis
+{
+	ap_uint<D>		data;
+	ap_uint<D/8>	keep;
+	ap_uint<1>		last;
+	axis() {}
+	axis(ap_uint<D> data, ap_uint<D/8> keep, ap_uint<1> last)
+		:data(data), keep(keep), last(last) {}
+};
+
 template <int D>
 struct net_axis
 {
@@ -264,71 +277,6 @@ void printLE(std::ostream& output, routed_net_axis<D, R>& word)
 #endif
 }
 
-/*template <int W>
-void convertStreamToDoubleWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W*2> >&output)
-{
-#pragma HLS PIPELINE II=1
-#pragma HLS INLINE off
-
-	static ap_uint<1> even = 0;
-
-	static net_axis<W*2> temp;
-	net_axis<W> currWord;
-
-	if (!input.empty())
-	{
-		input.read(currWord);
-		switch (even)
-		{
-			case 0:
-				temp.data(W-1, 0) = currWord.data;
-				temp.keep((W/8)-1, 0) = currWord.keep;
-				temp.keep((W*2/8)-1, (W/8)) = 0; //0x0000; //TODO
-				temp.last = currWord.last;
-				even = 1;
-				//output.write(temp);
-				if (currWord.last)
-				{
-					temp.data((W*2)-1, W) = 0;
-					temp.keep((W*2/8)-1, (W/8)) = 0;
-					even = 0;
-					output.write(temp);
-				}
-				break;
-			case 1:
-				temp.data((W*2)-1, W) = currWord.data;
-				temp.keep((W*2/8)-1, (W/8)) = currWord.keep;
-				temp.last = currWord.last;
-				output.write(temp);
-				even = 0;
-				/*if (currWord.last)
-				{
-					even = 0;
-					output.write(temp);
-				}*/
-				//break;
-		//}
-		/*if (temp.last)
-		{
-			even = 0;
-			//temp.last = 1;
-			output.write(temp);
-			//std::cout << "convert write last" << std::endl;
-			output.write(temp);
-			even = false;
-		}
-		else
-		{
-			if (even)
-			{
-				//std::cout << "convert write even" << std::endl;
-				output.write(temp);
-			}
-			even = !even;
-		}*/
-	//}
-//}
-
 template <int W, int D, int DUMMY>
 void increaseStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W*D> >&output)
 {
@@ -358,46 +306,6 @@ void increaseStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<
 	}
 
 }
-
-
-/*template <int W, int DUMMY>
-void convertStreamToHalfWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W/2> >&output)
-{
-#pragma HLS PIPELINE II=1
-#pragma HLS INLINE off
-
-	enum fsmStateType {FIRST, SECOND};
-	static fsmStateType fsmState = FIRST;
-	static bool even = false;
-
-	static net_axis<W> currWord;
-	net_axis<W/2> temp;
-
-	switch (fsmState)
-	{
-		case FIRST:
-			if (!input.empty())
-			{
-				input.read(currWord);
-				temp.data = currWord.data((W/2)-1, 0);
-				temp.keep = currWord.keep(((W/2)/8)-1, 0);
-				temp.last = (currWord.keep[(W/8)/2] == 0); //(currWord.keep((W/8)-1, (W/8)/2) == 0);
-				output.write(temp);
-				if (currWord.keep[(W/8)/2])
-				{
-					fsmState = SECOND;
-				}
-			}
-			break;
-		case SECOND:
-			temp.data = currWord.data(W-1, W/2);
-			temp.keep = currWord.keep((W/8)-1, (W/8)/2);
-			temp.last = currWord.last;
-			output.write(temp);
-			fsmState = FIRST;
-			break;
-	}
-}*/
 
 template <int W, int D, int DUMMY>
 void reduceStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W/D> >&output)
@@ -540,12 +448,10 @@ void rshiftWordByOctet(	uint16_t offset,
 {
 #pragma HLS inline off
 #pragma HLS pipeline II=1 //TODO this has a bug, the bug might come from how it is used
-	//std::cout << "ENTER rshiftWordByOctet" << std::endl;
 
 	enum fsmStateType {PKG, REMAINDER};
 	static fsmStateType fsmState = PKG;
-	static bool rs_firstWord = true;
-	//static bool rs_writeRemainder = false;
+	static bool rs_firstWord = (offset != 0);
 	static T prevWord;
 
 	T currWord;
@@ -584,7 +490,7 @@ void rshiftWordByOctet(	uint16_t offset,
 			rs_firstWord = false;
 			if (currWord.last)
 			{
-				rs_firstWord = true;
+				rs_firstWord = (offset != 0);
 				//rs_writeRemainder = (sendWord.last == 0);
 				if (!sendWord.last)
 				{
@@ -618,76 +524,66 @@ void lshiftWordByOctet(	uint16_t offset,
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 	static bool ls_firstWord = true;
-		static bool ls_writeRemainder = false;
-		static net_axis<W> prevWord;
+	static bool ls_writeRemainder = false;
+	static net_axis<W> prevWord;
 
-		net_axis<W> currWord;
-		net_axis<W> sendWord;
+	net_axis<W> currWord;
+	net_axis<W> sendWord;
 
-		//std::cout << "ENTER lshiftWordByOctet" << std::endl;
-		//TODO use states
-		if (ls_writeRemainder)
+	//TODO use states
+	if (ls_writeRemainder)
+	{
+		sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+		sendWord.data((W-1), (8*offset)) = 0;
+		sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+		sendWord.keep((W/8-1), offset) = 0;
+		sendWord.last = 1;
+
+		output.write(sendWord);
+		ls_writeRemainder = false;
+	}
+	else if (!input.empty())
+	{
+		input.read(currWord);
+
+		if (offset == 0)
 		{
-			sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
-			sendWord.data((W-1), (8*offset)) = 0;
-			sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
-			sendWord.keep((W/8-1), offset) = 0;
-			sendWord.last = 1;
-
-			output.write(sendWord);
-			//print(std::cout, sendWord);
-			std::cout << std::endl;
-			ls_writeRemainder = false;
+			output.write(currWord);
 		}
-		else if (!input.empty())
+		else
 		{
-			input.read(currWord);
-			//std::cout << offset << ": read" << std::endl;
-			//print(std::cout, currWord);
-			//std::cout << std::endl;
 
-			if (offset == 0)
+			if (ls_firstWord)
 			{
-				output.write(currWord);
+				sendWord.data((8*offset)-1, 0) = 0;
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+				sendWord.keep(offset-1, 0) = 0xFFFFFFFF;
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
 			}
 			else
 			{
+				sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
 
-				if (ls_firstWord)
-				{
-					sendWord.data((8*offset)-1, 0) = 0;
-					sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
-					sendWord.keep(offset-1, 0) = 0xFFFFFFFF;
-					sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
-					sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
-				}
-				else
-				{
-					sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
-					sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+				sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
 
-					sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
-					sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
 
-					sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
+			}
+			output.write(sendWord);
 
-				}
-				output.write(sendWord);
-				//std::cout << offset << ": write" << std::endl;
-				//print(std::cout, sendWord);
-				//std::cout << std::endl;
+			prevWord = currWord;
+			ls_firstWord = false;
+			if (currWord.last)
+			{
+				ls_firstWord = true;
+				ls_writeRemainder = !sendWord.last;
+			}
+		} //else offset
+	}
 
-				prevWord = currWord;
-				ls_firstWord = false;
-				if (currWord.last)
-				{
-					ls_firstWord = true;
-					ls_writeRemainder = !sendWord.last;
-				}
-			} //else offset
-		}
-
-		//std::cout << "LEAVE lshiftWordByOctet" << std::endl;
 }
 
 //TODO move to utils
@@ -1093,164 +989,39 @@ void pass_valid_pkg(hls::stream<bool>&				pkgValidIn,
 
 
 template <class T>
-void duplicate_stream(	hls::stream<T>& input,
-						hls::stream<T>&	output0,
-						hls::stream<T>&	output1)
+void duplicate_stream(	hls::stream<T>&	in,
+								hls::stream<T>&	out0,
+								hls::stream<T>& 	out1)
 {
-#pragma HLS PIPELINE II=1
-#pragma HLS INLINE off
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
 
-	if (!input.empty())
+	if (!in.empty())
 	{
-		T word = input.read();
-		output0.write(word);
-		output1.write(word);
+		T item = in.read();
+		out0.write(item);
+		out1.write(item);
 	}
 }
 
-ap_uint<64> lenToKeep(ap_uint<32> length);
 
-template<int W>
-ap_uint<8> keepToLen(ap_uint<W/8> keepValue)
+ap_uint<64> lenToKeep(ap_uint<6> length);
+ap_uint<8> keepToLen(ap_uint<64> keepValue);
+
+template<int WIDTH>
+net_axis<WIDTH> alignWords(ap_uint<6> offset, net_axis<WIDTH>	prevWord, net_axis<WIDTH> currWord)
 {
-	switch (keepValue)
-	{
-	case 0x01:
-		return 0x1;
-	case 0x3:
-		return 0x2;
-	case 0x07:
-		return 0x3;
-	case 0x0F:
-		return 0x4;
-	case 0x1F:
-		return 0x5;
-	case 0x3F:
-		return 0x6;
-	case 0x7F:
-		return 0x7;
-	case 0xFF:
-		return 0x8;
-//#if W > 64
-	case 0x01FF:
-		return 0x9;
-	case 0x3FF:
-		return 0xA;
-	case 0x07FF:
-		return 0xB;
-	case 0x0FFF:
-		return 0xC;
-	case 0x1FFF:
-		return 0xD;
-	case 0x3FFF:
-		return 0xE;
-	case 0x7FFF:
-		return 0xF;
-	case 0xFFFF:
-		return 0x10;
-//#if W > 128
-	case 0x01FFFF:
-		return 0x11;
-	case 0x3FFFF:
-		return 0x12;
-	case 0x07FFFF:
-		return 0x13;
-	case 0x0FFFFF:
-		return 0x14;
-	case 0x1FFFFF:
-		return 0x15;
-	case 0x3FFFFF:
-		return 0x16;
-	case 0x7FFFFF:
-		return 0x17;
-	case 0xFFFFFF:
-		return 0x18;
-	case 0x01FFFFFF:
-		return 0x19;
-	case 0x3FFFFFF:
-		return 0x1A;
-	case 0x07FFFFFF:
-		return 0x1B;
-	case 0x0FFFFFFF:
-		return 0x1C;
-	case 0x1FFFFFFF:
-		return 0x1D;
-	case 0x3FFFFFFF:
-		return 0x1E;
-	case 0x7FFFFFFF:
-		return 0x1F;
-	case 0xFFFFFFFF:
-		return 0x20;
-//#if W > 256
-	case 0x01FFFFFFFF:
-		return 0x21;
-	case 0x3FFFFFFFF:
-		return 0x22;
-	case 0x07FFFFFFFF:
-		return 0x23;
-	case 0x0FFFFFFFFF:
-		return 0x24;
-	case 0x1FFFFFFFFF:
-		return 0x25;
-	case 0x3FFFFFFFFF:
-		return 0x26;
-	case 0x7FFFFFFFFF:
-		return 0x27;
-	case 0xFFFFFFFFFF:
-		return 0x28;
-	case 0x01FFFFFFFFFF:
-		return 0x29;
-	case 0x3FFFFFFFFFF:
-		return 0x2A;
-	case 0x07FFFFFFFFFF:
-		return 0x2B;
-	case 0x0FFFFFFFFFFF:
-		return 0x2C;
-	case 0x1FFFFFFFFFFF:
-		return 0x2D;
-	case 0x3FFFFFFFFFFF:
-		return 0x2E;
-	case 0x7FFFFFFFFFFF:
-		return 0x2F;
-	case 0xFFFFFFFFFFFF:
-		return 0x30;
 
-	case 0x01FFFFFFFFFFFF:
-		return 0x31;
-	case 0x3FFFFFFFFFFFF:
-		return 0x32;
-	case 0x07FFFFFFFFFFFF:
-		return 0x33;
-	case 0x0FFFFFFFFFFFFF:
-		return 0x34;
-	case 0x1FFFFFFFFFFFFF:
-		return 0x35;
-	case 0x3FFFFFFFFFFFFF:
-		return 0x36;
-	case 0x7FFFFFFFFFFFFF:
-		return 0x37;
-	case 0xFFFFFFFFFFFFFF:
-		return 0x38;
-	case 0x01FFFFFFFFFFFFFF:
-		return 0x39;
-	case 0x3FFFFFFFFFFFFFF:
-		return 0x3A;
-	case 0x07FFFFFFFFFFFFFF:
-		return 0x3B;
-	case 0x0FFFFFFFFFFFFFFF:
-		return 0x3C;
-	case 0x1FFFFFFFFFFFFFFF:
-		return 0x3D;
-	case 0x3FFFFFFFFFFFFFFF:
-		return 0x3E;
-	case 0x7FFFFFFFFFFFFFFF:
-		return 0x3F;
-	case 0xFFFFFFFFFFFFFFFF:
-		return 0x40;
-//#endif
-//#endif
-//#endif
-	}
+   net_axis<WIDTH> alignedWord;
+
+		alignedWord.data(WIDTH-1, WIDTH - (offset*8)) = currWord.data(offset*8-1, 0);
+		alignedWord.keep(WIDTH/8-1, WIDTH/8 - offset) = currWord.keep(offset - 1, 0);
+		alignedWord.data(WIDTH - (offset*8) -1, 0) = prevWord.data(WIDTH-1, offset*8);
+		alignedWord.keep(WIDTH/8 - offset - 1, 0)  = prevWord.keep(WIDTH/8-1, offset);
+		//alignedWord.last = (currWord.keep[offset] == 0);
+
+   return alignedWord;
 }
+
 
 #endif
