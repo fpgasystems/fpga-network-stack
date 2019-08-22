@@ -27,7 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015-2016 Xilinx, Inc.
 ************************************************/
 
-#include "../toe_config.hpp"
+#include "toe_config.hpp"
 #include "tx_engine.hpp"
 #include "../../ipv4/ipv4.hpp"
 #include "../two_complement_subchecksums.hpp"

@@ -7,26 +7,24 @@ create_clock -period ${CLOCK_PERIOD} -name default
 
 set_top ${PROJECT_NAME}
 
-
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/ack_delay/ack_delay.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/close_timer/close_timer.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/event_engine/event_engine.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/port_table/port_table.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/probe_timer/probe_timer.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/retransmit_timer/retransmit_timer.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_app_if/rx_app_if.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_app_stream_if/rx_app_stream_if.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_engine/rx_engine.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_sar_table/rx_sar_table.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/session_lookup_controller/session_lookup_controller.cpp
-#add_files session_lookup_controller/session_lookup_controller/stub_session_lookup.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/state_table/state_table.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_if/tx_app_if.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_stream_if/tx_app_stream_if.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_engine/tx_engine.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_sar_table/tx_sar_table.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_interface/tx_app_interface.cpp
-add_files ${CMAKE_CURRENT_SOURCE_DIR}/dummy_memory.cpp
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/../axi_utils.cpp
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/ack_delay/ack_delay.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/close_timer/close_timer.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/event_engine/event_engine.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/port_table/port_table.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/probe_timer/probe_timer.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/retransmit_timer/retransmit_timer.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_app_if/rx_app_if.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_app_stream_if/rx_app_stream_if.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_engine/rx_engine.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/rx_sar_table/rx_sar_table.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/session_lookup_controller/session_lookup_controller.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/state_table/state_table.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_if/tx_app_if.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_stream_if/tx_app_stream_if.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_engine/tx_engine.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_sar_table/tx_sar_table.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_interface/tx_app_interface.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/toe.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
 

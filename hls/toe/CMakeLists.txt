@@ -22,7 +22,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cma
 
 
 set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
-#set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
+set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
 
 
@@ -35,7 +35,7 @@ endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-#configure_file(${CMAKE_CURRENT_SOURCE_DIR}/toe_config.hpp.in toe_config.hpp)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/toe_config.hpp.in toe_config.hpp)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
 
 
@@ -57,10 +57,9 @@ set(EXAMPLE_HLS_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/tx_engine/tx_engine.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tx_sar_table/tx_sar_table.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_interface/tx_app_interface.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/dummy_memory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/toe.cpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/toe.hpp)
-#    ${CMAKE_CURRENT_SOURCE_DIR}/toe_config.hpp.in)
+    ${CMAKE_CURRENT_SOURCE_DIR}/toe.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/toe_config.hpp.in)
 
 
 #Setup HLS custom targets
