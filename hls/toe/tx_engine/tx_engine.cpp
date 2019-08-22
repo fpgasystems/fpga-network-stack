@@ -1171,7 +1171,7 @@ void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitche
 			memAccessBreakdown2readPkgStitcher.read(pkgNeedsMerge);
 			net_axis<WIDTH> currWord = readDataIn.read();
 
-			offset = keepToLen<WIDTH>(currWord.keep);
+			offset = keepToLen(currWord.keep);
 
 			//Check if packet has only 1 word
 			if (currWord.last)
@@ -1211,7 +1211,7 @@ void read_data_stitching(	hls::stream<bool>&			memAccessBreakdown2readPkgStitche
 		if (!readDataIn.empty())
 		{
 			net_axis<WIDTH> currWord = readDataIn.read();
-			offset = keepToLen<WIDTH>(currWord.keep);
+			offset = keepToLen(currWord.keep);
 
 			//Check if end of packet
 			if (currWord.last)
