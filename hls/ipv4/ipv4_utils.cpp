@@ -25,12 +25,11 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "ipv4.hpp"
-#pragma once
 
 void compute_ipv4_checksum(	hls::stream<net_axis<64> >&	dataIn,
 							hls::stream<net_axis<64> >&	dataOut,
 							hls::stream<subSums<4> >&	subSumFiFoOut,
-							const bool					skipChecksum=false)
+							const bool					skipChecksum)
 {
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
@@ -130,7 +129,7 @@ void compute_ipv4_checksum(	hls::stream<net_axis<64> >&	dataIn,
 void compute_ipv4_checksum(	hls::stream<net_axis<128> >&	dataIn,
 							hls::stream<net_axis<128> >&	dataOut,
 							hls::stream<subSums<8> >&	subSumFiFoOut,
-							const bool					skipChecksum=false)
+							const bool					skipChecksum)
 {
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
@@ -244,7 +243,7 @@ void compute_ipv4_checksum(	hls::stream<net_axis<128> >&	dataIn,
 void compute_ipv4_checksum(	hls::stream<net_axis<256> >&	dataIn,
 							hls::stream<net_axis<256> >&	dataOut,
 							hls::stream<subSums<16> >&	subSumFiFoOut,
-							const bool					skipChecksum=false)
+							const bool					skipChecksum)
 {
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
@@ -422,7 +421,7 @@ void compute_ipv4_checksum(	hls::stream<net_axis<256> >&	dataIn,
 void compute_ipv4_checksum(	hls::stream<net_axis<512> >&	dataIn,
 							hls::stream<net_axis<512> >&	dataOut,
 							hls::stream<subSums<32> >&		subSumFiFoOut,
-							const bool						skipChecksum=false)
+							const bool						skipChecksum)
 {
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
