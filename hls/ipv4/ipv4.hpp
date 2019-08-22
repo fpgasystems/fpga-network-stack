@@ -250,15 +250,9 @@ void ipv4(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 			hls::stream<ipv4Meta>&	m_axis_rx_meta,
 			hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
 			hls::stream<ipv4Meta>&	s_axis_tx_meta,
-<<<<<<< HEAD
 			hls::stream<net_axis<WIDTH> >&	s_axis_tx_data,
 			hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
 			ap_uint<32>			local_ipv4_address,
 			ap_uint<8>			protocol);
 
 #endif
-=======
-			hls::stream<axiWord>&	s_axis_tx_data,
-			hls::stream<axiWord>&	m_axis_tx_data,
-			ap_uint<32>			local_ipv4_address);
->>>>>>> scalable-datapath
