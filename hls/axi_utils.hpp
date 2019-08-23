@@ -1,5 +1,32 @@
-#ifndef AXIS_UTILS_HPP
-#define AXIS_UTILS_HPP
+/************************************************
+Copyright (c) 2019, Systems Group, ETH Zurich.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+may be used to endorse or promote products derived from this software
+without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+************************************************/
+#pragma once
 
 #include <hls_stream.h>
 #include "ap_int.h"
@@ -8,53 +35,9 @@
 #include <fstream>
 #include <iomanip>
 
-//#define AXI_WIDTH 512
-
-//TODO move to RoCE
-const uint16_t PMTU = 1408; //dividable by 8, 16, 32, 64
-//const uint16_t PMTU_WORDS = PMTU / (AXI_WIDTH/8);
-const uint16_t MAX_QPS = 500;
-//This is not enabled/implemented for now due to simplification
-//const uint16_t FPGA_LOCAL_QPN = 1;
-
-const ap_uint<8> TCP_PROTOCOL = 0x06;
-const ap_uint<8> UDP_PROTOCOL = 0x11; //TODO move somewhere
-
-typedef enum {
-	ROUTE_DMA = 0x0,
-	ROUTE_CUSTOM = 0x1,
-} axiRoute;
-
-//See page 246
-typedef enum {
-	RC_RDMA_WRITE_FIRST = 0x06,
-	RC_RDMA_WRITE_MIDDLE = 0x07,
-	RC_RDMA_WRITE_LAST = 0x08,
-	RC_RDMA_WRITE_LAST_WITH_IMD = 0x09,
-	RC_RDMA_WRITE_ONLY = 0x0A,
-	RC_RDMA_WRITE_ONLY_WIT_IMD = 0x0B,
-	RC_RDMA_READ_REQUEST = 0x0C,
-	RC_RDMA_READ_RESP_FIRST = 0x0D,
-	RC_RDMA_READ_RESP_MIDDLE = 0x0E,
-	RC_RDMA_READ_RESP_LAST = 0x0F,
-	RC_RDMA_READ_RESP_ONLY = 0x10,
-	RC_ACK = 0x11,
-	RC_RDMA_PART_ONLY = 0x18,
-	RC_RDMA_PART_FIRST = 0x19,
-	RC_RDMA_PART_MIDDLE = 0x1A,
-	RC_RDMA_PART_LAST = 0x1B,
-	RC_RDMA_READ_POINTER_REQUEST = 0x1C,
-	RC_RDMA_READ_CONSISTENT_REQUEST = 0x1D,
-} ibOpCode;
-
-bool checkIfResponse(ibOpCode code);
-bool checkIfWriteOrPartReq(ibOpCode code);
-bool checkIfAethHeader(ibOpCode code);
-bool checkIfRethHeader(ibOpCode code);
-
 //Adaptation of ap_axiu<>
 
-template <int D>
+/*template <int D>
 struct axis
 {
 	ap_uint<D>		data;
@@ -63,7 +46,7 @@ struct axis
 	axis() {}
 	axis(ap_uint<D> data, ap_uint<D/8> keep, ap_uint<1> last)
 		:data(data), keep(keep), last(last) {}
-};
+};*/
 
 template <int D>
 struct net_axis
@@ -76,7 +59,7 @@ struct net_axis
 		:data(data), keep(keep), last(last) {}
 };
 
-template <int D, int R=0>
+template <int D, int R=1>
 struct routed_net_axis
 {
 	ap_uint<D>		data;
@@ -84,14 +67,9 @@ struct routed_net_axis
 	ap_uint<1>		last;
 	ap_uint<R>		dest;
 	routed_net_axis() {}
-	//routed_net_axis(net_axis<D> w, axiRoute r)
-	//	:data(w.data), keep(w.keep), last(w.last), dest(r) {}
 	routed_net_axis(net_axis<D> w, ap_uint<R> r)
 		:data(w.data), keep(w.keep), last(w.last), dest(r) {}
 };
-
-//typedef net_axis<AXI_WIDTH> axiWord;*/
-typedef routed_net_axis<64, 1> routedAxiWord;
 
 template<int D>
 ap_uint<D> reverse(const ap_uint<D>& w)
@@ -437,7 +415,13 @@ template <class T>
 void assignDest(T& d, T& s) {}
 
 template <>
-void assignDest<routedAxiWord>(routedAxiWord& d, routedAxiWord& s);
+void assignDest<routed_net_axis<64> >(routed_net_axis<64>& d, routed_net_axis<64>& s);
+template <>
+void assignDest<routed_net_axis<128> >(routed_net_axis<128>& d, routed_net_axis<128>& s);
+template <>
+void assignDest<routed_net_axis<256> >(routed_net_axis<256>& d, routed_net_axis<256>& s);
+template <>
+void assignDest<routed_net_axis<512> >(routed_net_axis<512>& d, routed_net_axis<512>& s);
 
 // The 2nd template parameter is a hack to use this function multiple times
 
@@ -1022,6 +1006,3 @@ net_axis<WIDTH> alignWords(ap_uint<6> offset, net_axis<WIDTH>	prevWord, net_axis
 
    return alignedWord;
 }
-
-
-#endif

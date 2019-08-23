@@ -32,6 +32,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "../axi_utils.hpp"
 
+const uint16_t TCP_PROTOCOL = 0x06;
+
 // Forward declarations.
 struct rtlSessionUpdateRequest;
 struct rtlSessionUpdateReply;
