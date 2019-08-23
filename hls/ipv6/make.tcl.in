@@ -1,0 +1,38 @@
+
+open_project ${PROJECT_NAME}_prj
+
+open_solution "solution1"
+set_part ${FPGA_PART}
+create_clock -period ${CLOCK_PERIOD} -name default
+
+set_top ${PROJECT_NAME}_top
+
+#add_files ${CMAKE_SOURCE_DIR}/../packet.hpp
+#add_files ${CMAKE_SOURCE_DIR}/ipv6.hpp
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/ipv6.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+
+
+#add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_ipv6.cpp
+
+
+config_rtl -disable_start_propagation
+
+#Check which command
+set command [lindex $argv 2]
+
+if {$command == "synthesis"} {
+   csynth_design
+} elseif {$command == "csim"} {
+   csim_design
+} elseif {$command == "ip"} {
+   export_design -format ip_catalog -ipname "ipv6" -display_name "IPv6" -description "" -vendor "ethz.systems.fpga" -version "0.1"
+} elseif {$command == "installip"} {
+   file mkdir ${IPREPO_DIR}
+   file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
+   file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/
+} else {
+   puts "No valid command specified. Use vivado_hls -f make.tcl <synthesis|csim|ip> ."
+}
+
+
+exit
