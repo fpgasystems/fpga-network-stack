@@ -787,37 +787,35 @@ void rocev2_top(	//stream<ipUdpMeta>&	s_axis_rx_meta,
 				ap_uint<32>& 	 regCrcDropPkgCount,
 				ap_uint<32>& 	 regInvalidPsnDropCount)
 {
-#pragma HLS DATAFLOW //disable_start_propagation
+#pragma HLS DATAFLOW disable_start_propagation
 #pragma HLS INTERFACE ap_ctrl_none port=return
 
 	//DATA
-	#pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
-	//#pragma HLS resource core=AXI4Stream variable=m_axis_rx_data metadata="-bus_bundle m_axis_rx_data"
-	#pragma HLS resource core=AXI4Stream variable=s_axis_tx_data metadata="-bus_bundle s_axis_tx_data"
-	#pragma HLS resource core=AXI4Stream variable=s_axis_tx_meta metadata="-bus_bundle s_axis_tx_meta"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_tx_data metadata="-bus_bundle m_axis_tx_data"
+	#pragma HLS INTERFACE axis register port=s_axis_rx_data
+	#pragma HLS INTERFACE axis register port=s_axis_tx_data
+	#pragma HLS INTERFACE axis register port=s_axis_tx_data
+	#pragma HLS INTERFACE axis register port=m_axis_tx_meta
+	#pragma HLS INTERFACE axis register port=m_axis_tx_data
 	#pragma HLS DATA_PACK variable=s_axis_tx_meta
 
 	//MEMORY
-	#pragma HLS resource core=AXI4Stream variable=m_axis_mem_write_cmd metadata="-bus_bundle m_axis_mem_write_cmd"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_mem_read_cmd metadata="-bus_bundle m_axis_mem_read_cmd"
-	#pragma HLS resource core=AXI4Stream variable=m_axis_mem_write_data metadata="-bus_bundle m_axis_mem_write_data"
-	#pragma HLS resource core=AXI4Stream variable=s_axis_mem_read_data metadata="-bus_bundle s_axis_mem_read_data"
-	//#pragma HLS resource core=AXI4Stream variable=s_axis_mem_write_status metadata="-bus_bundle s_axis_mem_write_status"
+	#pragma HLS INTERFACE axis register port=m_axis_mem_write_cmd
+	#pragma HLS INTERFACE axis register port=m_axis_mem_read_cmd
+	#pragma HLS INTERFACE axis register port=m_axis_mem_write_data
+	#pragma HLS INTERFACE axis register port=s_axis_mem_read_data
 	#pragma HLS DATA_PACK variable=m_axis_mem_write_cmd
 	#pragma HLS DATA_PACK variable=m_axis_mem_read_cmd
-	//#pragma HLS DATA_PACK variable=s_axis_mem_write_status
 
 	//CONTROL
-	#pragma HLS resource core=AXI4Stream variable=s_axis_qp_interface metadata="-bus_bundle s_axis_qp_interface"
+	#pragma HLS INTERFACE axis register port=s_axis_qp_interface
+	#pragma HLS INTERFACE axis register port=s_axis_qp_conn_interface
 	#pragma HLS DATA_PACK variable=s_axis_qp_interface
-	#pragma HLS resource core=AXI4Stream variable=s_axis_qp_conn_interface metadata="-bus_bundle s_axis_qp_conn_interface"
 	#pragma HLS DATA_PACK variable=s_axis_qp_conn_interface
 
 	//Pointer chasing
 #if POINTER_CHASING_EN
-	#pragma HLS resource core=AXI4Stream variable=m_axis_rx_pcmeta metadata="-bus_bundle m_axis_rx_pcmeta"
-	#pragma HLS resource core=AXI4Stream variable=s_axis_tx_pcmeta metadata="-bus_bundle s_axis_tx_pcmeta"
+	#pragma HLS INTERFACE axis register port=m_axis_rx_pcmeta
+	#pragma HLS INTERFACE axis register port=s_axis_tx_pcmeta
 	#pragma HLS DATA_PACK variable=m_axis_rx_pcmeta
 	#pragma HLS DATA_PACK variable=s_axis_tx_pcmeta
 #endif
