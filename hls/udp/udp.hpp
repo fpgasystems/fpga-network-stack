@@ -41,6 +41,7 @@ typedef ipv4Meta ipMeta;
 #endif
 
 const uint32_t UDP_HEADER_SIZE = 64;
+const uint16_t UDP_PROTOCOL = 0x11;
 
 struct ipUdpMeta
 {
