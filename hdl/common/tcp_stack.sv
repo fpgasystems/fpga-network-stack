@@ -105,7 +105,6 @@ axi_stream #(.WIDTH(WIDTH) )   axis_rxread_data();
 axi_stream #(.WIDTH(WIDTH) )   axis_txwrite_data();
 axi_stream #(.WIDTH(WIDTH) )   axis_txread_data();
 
-
 axis_meta #(.WIDTH(16))     axis_listen_port();
 axis_meta #(.WIDTH(8))      axis_listen_port_status();
 axis_meta #(.WIDTH(48))     axis_open_connection();
