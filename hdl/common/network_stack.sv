@@ -872,8 +872,8 @@ ip_handler_ip ip_handler_inst (
 
 .myIpAddress_V(iph_ip_address),
 
-.aclk(net_clk), // input aclk
-.aresetn(net_aresetn) // input aresetn
+.ap_clk(net_clk), // input aclk
+.ap_rst_n(net_aresetn) // input aresetn
 );
 
 // ARP lookup
@@ -890,24 +890,24 @@ mac_ip_encode_ip mac_ip_encode_inst (
 .m_axis_ip_TDATA(axis_mie_to_intercon.data),
 .m_axis_ip_TKEEP(axis_mie_to_intercon.keep),
 .m_axis_ip_TLAST(axis_mie_to_intercon.last),
-.m_axis_arp_lookup_request_TVALID(axis_arp_lookup_request_TVALID),
-.m_axis_arp_lookup_request_TREADY(axis_arp_lookup_request_TREADY),
-.m_axis_arp_lookup_request_TDATA(axis_arp_lookup_request_TDATA),
+.m_axis_arp_lookup_request_V_V_TVALID(axis_arp_lookup_request_TVALID),
+.m_axis_arp_lookup_request_V_V_TREADY(axis_arp_lookup_request_TREADY),
+.m_axis_arp_lookup_request_V_V_TDATA(axis_arp_lookup_request_TDATA),
 .s_axis_ip_TVALID(axis_intercon_to_mie.valid),
 .s_axis_ip_TREADY(axis_intercon_to_mie.ready),
 .s_axis_ip_TDATA(axis_intercon_to_mie.data),
 .s_axis_ip_TKEEP(axis_intercon_to_mie.keep),
 .s_axis_ip_TLAST(axis_intercon_to_mie.last),
-.s_axis_arp_lookup_reply_TVALID(axis_arp_lookup_reply_TVALID),
-.s_axis_arp_lookup_reply_TREADY(axis_arp_lookup_reply_TREADY),
-.s_axis_arp_lookup_reply_TDATA(axis_arp_lookup_reply_TDATA),
+.s_axis_arp_lookup_reply_V_TVALID(axis_arp_lookup_reply_TVALID),
+.s_axis_arp_lookup_reply_V_TREADY(axis_arp_lookup_reply_TREADY),
+.s_axis_arp_lookup_reply_V_TDATA(axis_arp_lookup_reply_TDATA),
 
 .myMacAddress_V(mie_mac_address),                                    // input wire [47 : 0] regMacAddress_V
 .regSubNetMask_V(ip_subnet_mask),                                    // input wire [31 : 0] regSubNetMask_V
 .regDefaultGateway_V(ip_default_gateway),                            // input wire [31 : 0] regDefaultGateway_V
   
-.aclk(net_clk), // input aclk
-.aresetn(net_aresetn) // input aresetn
+.ap_clk(net_clk), // input aclk
+.ap_rst_n(net_aresetn) // input aresetn
 );
 
 `ifdef IP_VERSION4
@@ -1188,23 +1188,23 @@ arp_server_subnet_ip arp_server_inst(
 .m_axis_TDATA(axis_arp_to_arp_slice.data),
 .m_axis_TKEEP(axis_arp_to_arp_slice.keep),
 .m_axis_TLAST(axis_arp_to_arp_slice.last),
-.m_axis_arp_lookup_reply_TVALID(axis_arp_lookup_reply_TVALID),
-.m_axis_arp_lookup_reply_TREADY(axis_arp_lookup_reply_TREADY),
-.m_axis_arp_lookup_reply_TDATA(axis_arp_lookup_reply_TDATA),
-.m_axis_host_arp_lookup_reply_TVALID(axis_host_arp_lookup_reply_TVALID),
-.m_axis_host_arp_lookup_reply_TREADY(axis_host_arp_lookup_reply_TREADY),
-.m_axis_host_arp_lookup_reply_TDATA(axis_host_arp_lookup_reply_TDATA),
+.m_axis_arp_lookup_reply_V_TVALID(axis_arp_lookup_reply_TVALID),
+.m_axis_arp_lookup_reply_V_TREADY(axis_arp_lookup_reply_TREADY),
+.m_axis_arp_lookup_reply_V_TDATA(axis_arp_lookup_reply_TDATA),
+.m_axis_host_arp_lookup_reply_V_TVALID(axis_host_arp_lookup_reply_TVALID),
+.m_axis_host_arp_lookup_reply_V_TREADY(axis_host_arp_lookup_reply_TREADY),
+.m_axis_host_arp_lookup_reply_V_TDATA(axis_host_arp_lookup_reply_TDATA),
 .s_axis_TVALID(axis_arp_slice_to_arp.valid),
 .s_axis_TREADY(axis_arp_slice_to_arp.ready),
 .s_axis_TDATA(axis_arp_slice_to_arp.data),
 .s_axis_TKEEP(axis_arp_slice_to_arp.keep),
 .s_axis_TLAST(axis_arp_slice_to_arp.last),
-.s_axis_arp_lookup_request_TVALID(axis_arp_lookup_request_TVALID),
-.s_axis_arp_lookup_request_TREADY(axis_arp_lookup_request_TREADY),
-.s_axis_arp_lookup_request_TDATA(axis_arp_lookup_request_TDATA),
-.s_axis_host_arp_lookup_request_TVALID(axis_host_arp_lookup_request_TVALID),
-.s_axis_host_arp_lookup_request_TREADY(axis_host_arp_lookup_request_TREADY),
-.s_axis_host_arp_lookup_request_TDATA(axis_host_arp_lookup_request_TDATA),
+.s_axis_arp_lookup_request_V_V_TVALID(axis_arp_lookup_request_TVALID),
+.s_axis_arp_lookup_request_V_V_TREADY(axis_arp_lookup_request_TREADY),
+.s_axis_arp_lookup_request_V_V_TDATA(axis_arp_lookup_request_TDATA),
+.s_axis_host_arp_lookup_request_V_V_TVALID(axis_host_arp_lookup_request_TVALID),
+.s_axis_host_arp_lookup_request_V_V_TREADY(axis_host_arp_lookup_request_TREADY),
+.s_axis_host_arp_lookup_request_V_V_TDATA(axis_host_arp_lookup_request_TDATA),
 
 .myMacAddress_V(arp_mac_address),
 .myIpAddress_V(arp_ip_address),
@@ -1213,8 +1213,8 @@ arp_server_subnet_ip arp_server_inst(
 .regReplyCount_V(arp_reply_pkg_counter),
 .regReplyCount_V_ap_vld(),
 
-.aclk(net_clk), // input aclk
-.aresetn(net_aresetn) // input aresetn
+.ap_clk(net_clk), // input aclk
+.ap_rst_n(net_aresetn) // input aresetn
 );
 
 /*assign axis_ttl_to_icmp_tvalid = 0;
@@ -1243,8 +1243,8 @@ icmp_server_ip icmp_server_inst (
   .m_axis_TDATA(axis_icmp_to_icmp_slice.data),     // output wire [63 : 0] dataOut_TDATA
   .m_axis_TKEEP(axis_icmp_to_icmp_slice.keep),     // output wire [7 : 0] dataOut_TKEEP
   .m_axis_TLAST(axis_icmp_to_icmp_slice.last),     // output wire [0 : 0] dataOut_TLAST
-  .aclk(net_clk),                                    // input wire ap_clk
-  .aresetn(net_aresetn)                                // input wire ap_rst_n
+  .ap_clk(net_clk),                                    // input wire ap_clk
+  .ap_rst_n(net_aresetn)                                // input wire ap_rst_n
 );
 
 // IPv6 to ICMPv6
@@ -1296,8 +1296,8 @@ ipv6_ip ipv6_inst(
  
 .reg_ip_address_V(link_local_ipv6_address),
  
-.aclk(net_clk),                                    // input wire aclk
-.aresetn(aresetn_reg)                              // input wire aresetn
+.ap_clk(net_clk),                                    // input wire aclk
+.ap_rst_n(aresetn_reg)                              // input wire aresetn
 );
 
 icmpv6_server_ip icmpv6_server_inst (
@@ -1330,8 +1330,8 @@ icmpv6_server_ip icmpv6_server_inst (
   .local_mac_address_V(ipv6_mac_address),      // input wire [47 : 0] local_mac_address_V
   .local_ipv6_address_V(link_local_ipv6_address),    // input wire [127 : 0] local_ipv6_address_V
    
-  .aclk(net_clk),                                    // input wire aclk
-  .aresetn(aresetn_reg)                              // input wire aresetn
+  .ap_clk(net_clk),                                    // input wire aclk
+  .ap_rst_n(aresetn_reg)                              // input wire aresetn
 );
 `endif
 

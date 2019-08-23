@@ -275,13 +275,13 @@ void iperf_udp(	hls::stream<ipUdpMeta>&	rxMetaData,
 				ap_uint<8>		packetGap,
 				ap_uint<32>		targetIpAddress)
 {
-	#pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW disable_start_propagation
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 
-	#pragma HLS resource core=AXI4Stream variable=rxMetaData metadata="-bus_bundle s_axis_rx_metadata"
-	#pragma HLS resource core=AXI4Stream variable=rxData metadata="-bus_bundle s_axis_rx_data"
-	#pragma HLS resource core=AXI4Stream variable=txMetaData metadata="-bus_bundle m_axis_tx_metadata"
-	#pragma HLS resource core=AXI4Stream variable=txData metadata="-bus_bundle m_axis_tx_data"
+	#pragma HLS INTERFACE axis register port=rxMetaData name=s_axis_rx_metadata
+	#pragma HLS INTERFACE axis register port=rxData name=s_axis_rx_data
+	#pragma HLS INTERFACE axis register port=txMetaData name=m_axis_tx_metadata
+	#pragma HLS INTERFACE axis register port=txData name=m_axis_tx_data
 	#pragma HLS DATA_PACK variable=rxMetaData
 	#pragma HLS DATA_PACK variable=txMetaData
 
@@ -333,9 +333,13 @@ void iperf_udp(	hls::stream<ipUdpMeta>&	rxMetaData,
 					ap_uint<8>		packetGap,
 					ap_uint<32>		targetIpAddress)
 {
-	#pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW disable_start_propagation
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 
+	#pragma HLS INTERFACE axis_register port=rxMetaData name=s_axis_rx_metadata
+	#pragma HLS INTERFACE axis_register port=rxData name=s_axis_rx_data
+	#pragma HLS INTERFACE axis_register port=txMetaData name=m_axis_tx_metadata
+	#pragma HLS INTERFACE axis_register port=txData name=m_axis_tx_data
 	#pragma HLS resource core=AXI4Stream variable=rxMetaData metadata="-bus_bundle s_axis_rx_metadata"
 	#pragma HLS resource core=AXI4Stream variable=rxData metadata="-bus_bundle s_axis_rx_data"
 	#pragma HLS resource core=AXI4Stream variable=txMetaData metadata="-bus_bundle m_axis_tx_metadata"

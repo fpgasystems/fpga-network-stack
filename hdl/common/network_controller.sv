@@ -356,12 +356,10 @@ axis_data_fifo_160_cc cmd_fifo (
   .s_axis_tdata      (axis_by_tx_metadata_data),         // input wire [159 : 0] s_axis_tdata
 
   .m_axis_aclk       (net_clk),                       // input m_axis_clk
-  .m_axis_aresetn    (net_aresetn),                   // input m_axis_aresetn
   .m_axis_tvalid     (axis_by_merge_metadata_valid),          // output wire m_axis_tvalid
   .m_axis_tready     (axis_by_merge_metadata_ready),          // input wire m_axis_tready
   .m_axis_tdata      (axis_by_merge_metadata_data),           // output wire [159 : 0] m_axis_tdata
 
-  .axis_data_count   (),                // output wire [31 : 0] axis_data_count
   .axis_wr_data_count(),                              // output wire [31 : 0] axis_wr_data_count
   .axis_rd_data_count(by_cmd_fifo_count)                               // output wire [31 : 0] axis_rd_data_count
 );
@@ -377,9 +375,8 @@ axis_data_fifo_160 legacy_cmd_fifo (
   .m_axis_tvalid     (axis_legacy_merge_metadata_valid),          // output wire m_axis_tvalid
   .m_axis_tready     (axis_legacy_merge_metadata_ready),          // input wire m_axis_tready
   .m_axis_tdata      (axis_legacy_merge_metadata_data),           // output wire [159 : 0] m_axis_tdata
-  .axis_data_count   (legacy_cmd_fifo_count),                // output wire [31 : 0] axis_data_count
   .axis_wr_data_count(),                              // output wire [31 : 0] axis_wr_data_count
-  .axis_rd_data_count()                               // output wire [31 : 0] axis_rd_data_count
+  .axis_rd_data_count(legacy_cmd_fifo_count)                               // output wire [31 : 0] axis_rd_data_count
 );
 
 // Merge the two FIFOs

@@ -15,8 +15,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/ipv4.cpp -cflags "-I${CMAKE_CURRENT_BINARY
 #add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_ipv4.cpp
 
 
-config_rtl -disable_start_propagation
-
 #Check which command
 set command [lindex $argv 2]
 

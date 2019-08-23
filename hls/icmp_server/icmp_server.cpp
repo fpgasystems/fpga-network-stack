@@ -413,19 +413,13 @@ void icmp_server(stream<axiWord>&	dataIn,
 				 stream<axiWord>&	udpIn,
 				 stream<axiWord>&	ttlIn,
 				 stream<axiWord>&	dataOut) {
-#pragma HLS DATAFLOW
-#pragma HLS INTERFACE ap_ctrl_none port=return
+	#pragma HLS DATAFLOW disable_start_propagation
+	#pragma HLS INTERFACE ap_ctrl_none port=return
 
-//Due to a lack of testing the new pragma is not used yet
-/*#pragma HLS INTERFACE port=dataIn axis
-#pragma HLS INTERFACE port=udpIn axis
-#pragma HLS INTERFACE port=ttlIn axis
-#pragma HLS INTERFACE port=dataOut register axis*/
-
-	#pragma  HLS resource core=AXI4Stream variable=dataIn 	metadata="-bus_bundle s_axis"
-	#pragma  HLS resource core=AXI4Stream variable=udpIn 	metadata="-bus_bundle udpIn"
-	#pragma  HLS resource core=AXI4Stream variable=ttlIn 	metadata="-bus_bundle ttlIn"
-	#pragma  HLS resource core=AXI4Stream variable=dataOut 	metadata="-bus_bundle m_axis"
+	#pragma HLS INTERFACE axis register port=dataIn name=s_axis
+	#pragma HLS INTERFACE axis register port=udpIn name=udpIn
+	#pragma HLS INTERFACE axis register port=ttlIn name=ttlIn
+	#pragma HLS INTERFACE axis register port=dataOut name=m_axis
 
 	static stream<axiWord>			packageBuffer1("packageBuffer1");
 	static stream<axiWord>			udpPort2insertChecksum("udpPort2insertChecksum");

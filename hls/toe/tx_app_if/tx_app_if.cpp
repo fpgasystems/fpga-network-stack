@@ -82,7 +82,7 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 	ap_uint<16> freePort;
 	openStatus openSessionStatus;
 
-	if (!appOpenConnReq.empty() && !portTable2txApp_port_rsp.empty() && !txApp2sLookup_req.full())
+	if (!appOpenConnReq.empty() && !portTable2txApp_port_rsp.empty())
 	{
 		appOpenConnReq.read(server_addr);
 		portTable2txApp_port_rsp.read(freePort);

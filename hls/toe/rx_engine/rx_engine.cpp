@@ -1579,7 +1579,8 @@ void rxPackageDropper(stream<net_axis<WIDTH> >&		dataIn,
 		}
 		break;
 	case FWD:
-		if(!dataIn.empty() && !rxBufferDataOut.full()) {
+		if(!dataIn.empty())
+  		{
 			net_axis<WIDTH> currWord = dataIn.read();
 			if (currWord.last)
 			{
@@ -1589,7 +1590,8 @@ void rxPackageDropper(stream<net_axis<WIDTH> >&		dataIn,
 		}
 		break;
 	case DROP:
-		if(!dataIn.empty()) {
+		if(!dataIn.empty())
+ 		{
 			net_axis<WIDTH> currWord = dataIn.read();
 			if (currWord.last)
 			{
