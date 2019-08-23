@@ -34,7 +34,7 @@ void assignDest<routedAxiWord>(routedAxiWord& d, routedAxiWord& s)
 	d.dest = s.dest;
 }*/
 
-ap_uint<64> lenToKeep(ap_uint<32> length)
+ap_uint<64> lenToKeep(ap_uint<6> length)
 {
 	switch (length)
 	{
@@ -168,4 +168,150 @@ ap_uint<64> lenToKeep(ap_uint<32> length)
 		return 0xFFFFFFFFFFFFFFFF;
 	}//switch
 }
+
+//Input argument cannot be templatized, otherwise the case statement leads to duplicate definitions
+ap_uint<8> keepToLen(ap_uint<64> keepValue)
+{
+#pragma HLS INLINE
+
+	switch (keepValue)
+	{
+	case 0x01:
+		return 0x1;
+	case 0x3:
+		return 0x2;
+	case 0x07:
+		return 0x3;
+	case 0x0F:
+		return 0x4;
+	case 0x1F:
+		return 0x5;
+	case 0x3F:
+		return 0x6;
+	case 0x7F:
+		return 0x7;
+	case 0xFF:
+		return 0x8;
+//#if W > 64
+	case 0x01FF:
+		return 0x9;
+	case 0x3FF:
+		return 0xA;
+	case 0x07FF:
+		return 0xB;
+	case 0x0FFF:
+		return 0xC;
+	case 0x1FFF:
+		return 0xD;
+	case 0x3FFF:
+		return 0xE;
+	case 0x7FFF:
+		return 0xF;
+	case 0xFFFF:
+		return 0x10;
+//#if W > 128
+	case 0x01FFFF:
+		return 0x11;
+	case 0x3FFFF:
+		return 0x12;
+	case 0x07FFFF:
+		return 0x13;
+	case 0x0FFFFF:
+		return 0x14;
+	case 0x1FFFFF:
+		return 0x15;
+	case 0x3FFFFF:
+		return 0x16;
+	case 0x7FFFFF:
+		return 0x17;
+	case 0xFFFFFF:
+		return 0x18;
+	case 0x01FFFFFF:
+		return 0x19;
+	case 0x3FFFFFF:
+		return 0x1A;
+	case 0x07FFFFFF:
+		return 0x1B;
+	case 0x0FFFFFFF:
+		return 0x1C;
+	case 0x1FFFFFFF:
+		return 0x1D;
+	case 0x3FFFFFFF:
+		return 0x1E;
+	case 0x7FFFFFFF:
+		return 0x1F;
+	case 0xFFFFFFFF:
+		return 0x20;
+//#if W > 256
+	case 0x01FFFFFFFF:
+		return 0x21;
+	case 0x3FFFFFFFF:
+		return 0x22;
+	case 0x07FFFFFFFF:
+		return 0x23;
+	case 0x0FFFFFFFFF:
+		return 0x24;
+	case 0x1FFFFFFFFF:
+		return 0x25;
+	case 0x3FFFFFFFFF:
+		return 0x26;
+	case 0x7FFFFFFFFF:
+		return 0x27;
+	case 0xFFFFFFFFFF:
+		return 0x28;
+	case 0x01FFFFFFFFFF:
+		return 0x29;
+	case 0x3FFFFFFFFFF:
+		return 0x2A;
+	case 0x07FFFFFFFFFF:
+		return 0x2B;
+	case 0x0FFFFFFFFFFF:
+		return 0x2C;
+	case 0x1FFFFFFFFFFF:
+		return 0x2D;
+	case 0x3FFFFFFFFFFF:
+		return 0x2E;
+	case 0x7FFFFFFFFFFF:
+		return 0x2F;
+	case 0xFFFFFFFFFFFF:
+		return 0x30;
+
+	case 0x01FFFFFFFFFFFF:
+		return 0x31;
+	case 0x3FFFFFFFFFFFF:
+		return 0x32;
+	case 0x07FFFFFFFFFFFF:
+		return 0x33;
+	case 0x0FFFFFFFFFFFFF:
+		return 0x34;
+	case 0x1FFFFFFFFFFFFF:
+		return 0x35;
+	case 0x3FFFFFFFFFFFFF:
+		return 0x36;
+	case 0x7FFFFFFFFFFFFF:
+		return 0x37;
+	case 0xFFFFFFFFFFFFFF:
+		return 0x38;
+	case 0x01FFFFFFFFFFFFFF:
+		return 0x39;
+	case 0x3FFFFFFFFFFFFFF:
+		return 0x3A;
+	case 0x07FFFFFFFFFFFFFF:
+		return 0x3B;
+	case 0x0FFFFFFFFFFFFFFF:
+		return 0x3C;
+	case 0x1FFFFFFFFFFFFFFF:
+		return 0x3D;
+	case 0x3FFFFFFFFFFFFFFF:
+		return 0x3E;
+	case 0x7FFFFFFFFFFFFFFF:
+		return 0x3F;
+	case 0xFFFFFFFFFFFFFFFF:
+		return 0x40;
+//#endif
+//#endif
+//#endif
+	}
+}
+
 

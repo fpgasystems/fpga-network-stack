@@ -1,7 +1,8 @@
 open_project toe_prj
 
-set_top toe
+set_top toe_top
 
+add_files ../axi_utils.cpp
 add_files ack_delay/ack_delay.cpp
 add_files close_timer/close_timer.cpp
 add_files event_engine/event_engine.cpp
@@ -25,8 +26,9 @@ add_files toe.cpp
 add_files -tb toe_tb.cpp
 
 open_solution "solution1"
-set_part {xc7vx690tffg1761-2}
-create_clock -period 6.4 -name default
+#set_part {xc7vx690tffg1761-2}
+set_part {xcvu9p-flga2104-2L-e}
+create_clock -period 3.2 -name default
 
 config_rtl  -disable_start_propagation
 csynth_design

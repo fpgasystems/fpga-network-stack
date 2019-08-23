@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+#include "toe_config.hpp"
 #include "toe.hpp"
 #include "dummy_memory.hpp"
 #include "session_lookup_controller/session_lookup_controller.hpp"
@@ -42,12 +43,12 @@ unsigned int	simCycleCounter		= 0;
 void sessionLookupStub(stream<rtlSessionLookupRequest>& lup_req, stream<rtlSessionLookupReply>& lup_rsp,
 						stream<rtlSessionUpdateRequest>& upd_req, stream<rtlSessionUpdateReply>& upd_rsp) {
 						//stream<ap_uint<14> >& new_id, stream<ap_uint<14> >& fin_id)
-	static map<fourTupleInternal, ap_uint<14> > lookupTable;
+	static map<threeTupleInternal, ap_uint<14> > lookupTable;
 
 	rtlSessionLookupRequest request;
 	rtlSessionUpdateRequest update;
 
-	map<fourTupleInternal, ap_uint<14> >::const_iterator findPos;
+	map<threeTupleInternal, ap_uint<14> >::const_iterator findPos;
 
 	if (!lup_req.empty()) {
 		lup_req.read(request);
@@ -76,12 +77,13 @@ void sessionLookupStub(stream<rtlSessionLookupRequest>& lup_req, stream<rtlSessi
 }
 
 // Use Dummy Memory
-void simulateRx(dummyMemory* memory, stream<mmCmd>& WriteCmdFifo,  stream<mmStatus>& WriteStatusFifo, stream<mmCmd>& ReadCmdFifo,
-					stream<axiWord>& BufferIn, stream<axiWord>& BufferOut) {
+template <int WIDTH>
+void simulateRx(dummyMemory<WIDTH>* memory, stream<mmCmd>& WriteCmdFifo,  stream<mmStatus>& WriteStatusFifo, stream<mmCmd>& ReadCmdFifo,
+					stream<net_axis<WIDTH> >& BufferIn, stream<net_axis<WIDTH> >& BufferOut) {
 	mmCmd cmd;
 	mmStatus status;
-	axiWord inWord = axiWord(0, 0, 0);
-	axiWord outWord = axiWord(0, 0, 0);
+	net_axis<WIDTH> inWord = net_axis<WIDTH>(0, 0, 0);
+	net_axis<WIDTH> outWord = net_axis<WIDTH>(0, 0, 0);
 	static uint32_t rxMemCounter = 0;
 	static uint32_t rxMemCounterRd = 0;
 
@@ -95,22 +97,24 @@ void simulateRx(dummyMemory* memory, stream<mmCmd>& WriteCmdFifo,  stream<mmStat
 	if (!WriteCmdFifo.empty() && !stx_write) {
 		WriteCmdFifo.read(cmd);
 		memory->setWriteCmd(cmd);
+		//cerr << dec << "mem write cmd " << cmd.saddr << ", " << cmd.bbt << std::endl;
 		wrBufferWriteCounter = cmd.bbt;
 		stx_write = true;
 	}
 	else if (!BufferIn.empty() && stx_write) {
 		BufferIn.read(inWord);
-		//cerr << dec << rxMemCounter << " - " << hex << inWord.data << " " << inWord.keep << " " << inWord.last << endl;
-		//rxMemCounter++;;
+		//cerr << dec << rxMemCounter << " - " << hex << inWord.data << " " << inWord.keep << " " << inWord.last << " " << dec << wrBufferWriteCounter << endl;
+		//rxMemCounter++;
 		memory->writeWord(inWord);
-		if (wrBufferWriteCounter < 9) {
+		if (wrBufferWriteCounter < (WIDTH/8)) {
 			//fake_txBuffer.write(inWord); // RT hack
 			stx_write = false;
 			status.okay = 1;
 			WriteStatusFifo.write(status);
+			//cerr << "write status" << endl;
 		}
 		else
-			wrBufferWriteCounter -= 8;
+			wrBufferWriteCounter -= (WIDTH/8);
 	}
 	if (!ReadCmdFifo.empty() && !stx_read) {
 		ReadCmdFifo.read(cmd);
@@ -123,21 +127,22 @@ void simulateRx(dummyMemory* memory, stream<mmCmd>& WriteCmdFifo,  stream<mmStat
 		BufferOut.write(outWord);
 		//cerr << dec << rxMemCounterRd << " - " << hex << outWord.data << " " << outWord.keep << " " << outWord.last << endl;
 		rxMemCounterRd++;;
-		if (wrBufferReadCounter < 9)
+		if (wrBufferReadCounter < (WIDTH/8))
 			stx_read = false;
 		else
-			wrBufferReadCounter -= 8;
+			wrBufferReadCounter -= (WIDTH/8);
 	}
 }
 
 
 
-void simulateTx(dummyMemory* memory, stream<mmCmd>& WriteCmdFifo,  stream<mmStatus>& WriteStatusFifo, stream<mmCmd>& ReadCmdFifo,
-					stream<axiWord>& BufferIn, stream<axiWord>& BufferOut) {
+template <int WIDTH>
+void simulateTx(dummyMemory<WIDTH>* memory, stream<mmCmd>& WriteCmdFifo,  stream<mmStatus>& WriteStatusFifo, stream<mmCmd>& ReadCmdFifo,
+					stream<net_axis<WIDTH> >& BufferIn, stream<net_axis<WIDTH> >& BufferOut) {
 	mmCmd cmd;
 	mmStatus status;
-	axiWord inWord;
-	axiWord outWord;
+	net_axis<WIDTH> inWord;
+	net_axis<WIDTH> outWord;
 
 	static bool stx_write = false;
 	static bool stx_read = false;
@@ -180,7 +185,7 @@ void iperf(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 			// This is disabled for the time being, because it adds complexity/potential issues
 			//stream<ap_uint<16> >& closePort,
 			stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
-			stream<ap_uint<16> >& rxMetaData, stream<axiWord>& rxData, stream<axiWord>& rxDataOut,
+			stream<ap_uint<16> >& rxMetaData, stream<net_axis<64> >& rxData, stream<net_axis<64> >& rxDataOut,
 			stream<ipTuple>& openConnection, stream<openStatus>& openConStatus,
 			stream<ap_uint<16> >& closeConnection, vector<ap_uint<16> > &txSessionIDs) {
 
@@ -208,7 +213,7 @@ void iperf(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 		}
 	}
 
-	axiWord transmitWord;
+	net_axis<64> transmitWord;
 	// In case we are connecting back
 	if (!openConStatus.empty()) {
 		openStatus tempStatus = openConStatus.read();
@@ -228,7 +233,7 @@ void iperf(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 	enum consumeFsmStateType {WAIT_PKG, CONSUME, HEADER_2, HEADER_3};
 	static consumeFsmStateType  serverFsmState = WAIT_PKG;
 	ap_uint<16> sessionID;
-	axiWord currWord;
+	net_axis<64> currWord;
 	currWord.last = 0;
 	static bool dualTest = false;
 	static ap_uint<32> mAmount = 0;
@@ -361,7 +366,7 @@ ap_uint<8> encodeApUint8(string keepString){
 	return tempOutput;
 }
 
-ap_uint<16> checksumComputation(deque<axiWord>	pseudoHeader) {
+ap_uint<16> checksumComputation(deque<net_axis<64> >	pseudoHeader) {
 	ap_uint<32> tcpChecksum = 0;
 	for (uint8_t i=0;i<pseudoHeader.size();++i) {
 		ap_uint<64> tempInput = (pseudoHeader[i].data.range(7, 0), pseudoHeader[i].data.range(15, 8), pseudoHeader[i].data.range(23, 16), pseudoHeader[i].data.range(31, 24), pseudoHeader[i].data.range(39, 32), pseudoHeader[i].data.range(47, 40), pseudoHeader[i].data.range(55, 48), pseudoHeader[i].data.range(63, 56));
@@ -377,7 +382,7 @@ ap_uint<16> checksumComputation(deque<axiWord>	pseudoHeader) {
 
 
 //// This version does not work for TCP segments that are too long... overflow happens
-//ap_uint<16> checksumComputation(deque<axiWord>	pseudoHeader) {
+//ap_uint<16> checksumComputation(deque<net_axis<64> >	pseudoHeader) {
 //	ap_uint<20> tcpChecksum = 0;
 //	for (uint8_t i=0;i<pseudoHeader.size();++i) {
 //		ap_uint<64> tempInput = (pseudoHeader[i].data.range(7, 0), pseudoHeader[i].data.range(15, 8), pseudoHeader[i].data.range(23, 16), pseudoHeader[i].data.range(31, 24), pseudoHeader[i].data.range(39, 32), pseudoHeader[i].data.range(47, 40), pseudoHeader[i].data.range(55, 48), pseudoHeader[i].data.range(63, 56));
@@ -389,7 +394,7 @@ ap_uint<16> checksumComputation(deque<axiWord>	pseudoHeader) {
 //	return tcpChecksum.range(15, 0);	// and write it into the output
 //}
 
-ap_uint<16> recalculateChecksum(deque<axiWord> inputPacketizer) {
+ap_uint<16> recalculateChecksum(deque<net_axis<64> > inputPacketizer) {
 	ap_uint<16> newChecksum = 0;
 	// Create the pseudo-header
 	ap_uint<16> tcpLength 					= (inputPacketizer[0].data.range(23, 16), inputPacketizer[0].data.range(31, 24)) - 20;
@@ -409,7 +414,7 @@ ap_uint<16> recalculateChecksum(deque<axiWord> inputPacketizer) {
 	return checksumComputation(inputPacketizer);
 }
 
-short int injectAckNumber(deque<axiWord> &inputPacketizer, map<fourTuple, ap_uint<32> > &sessionList) {
+short int injectAckNumber(deque<net_axis<64> > &inputPacketizer, map<fourTuple, ap_uint<32> > &sessionList) {
 	fourTuple newTuple = fourTuple(inputPacketizer[1].data.range(63, 32), inputPacketizer[2].data.range(31, 0), inputPacketizer[2].data.range(47, 32), inputPacketizer[2].data.range(63, 48));
 	//cerr << hex << inputPacketizer[4].data << endl;
 	if (inputPacketizer[4].data.bit(9))	{													// If this packet is a SYN there's no need to inject anything
@@ -443,7 +448,7 @@ short int injectAckNumber(deque<axiWord> &inputPacketizer, map<fourTuple, ap_uin
 	}
 }
 
-bool parseOutputPacket(deque<axiWord> &outputPacketizer, map<fourTuple, ap_uint<32> > &sessionList, deque<axiWord> &inputPacketizer) {		// Looks for an ACK packet in the output stream and when found if stores the ackNumber from that packet into
+bool parseOutputPacket(deque<net_axis<64> > &outputPacketizer, map<fourTuple, ap_uint<32> > &sessionList, deque<net_axis<64> > &inputPacketizer) {		// Looks for an ACK packet in the output stream and when found if stores the ackNumber from that packet into
 // the seqNumbers deque and clears the deque containing the output packet.
 	bool returnValue = false;
 	bool finPacket = false;
@@ -477,7 +482,7 @@ bool parseOutputPacket(deque<axiWord> &outputPacketizer, map<fourTuple, ap_uint<
 	else if (outputPacketizer[4].data.bit(8) && !outputPacketizer[4].data.bit(12)) 	// If the FIN bit is set but without the ACK bit being set at the same time
 		sessionList.erase(fourTuple(outputPacketizer[1].data.range(63, 32), outputPacketizer[2].data.range(31, 0), outputPacketizer[2].data.range(47, 32), outputPacketizer[2].data.range(63, 48))); // Erase the tuple for this session from the map
 	else if (outputPacketizer[4].data.bit(12)) { // If the ACK bit is set
-		uint16_t packetLength = byteSwap16(outputPacketizer[0].data.range(31, 16));
+		uint16_t packetLength = reverse((ap_uint<16>) outputPacketizer[0].data.range(31, 16));
 		ap_uint<32> reversedSeqNumber = (outputPacketizer[3].data.range(7,0), outputPacketizer[3].data.range(15, 8), outputPacketizer[3].data.range(23, 16), outputPacketizer[3].data.range(31, 24));
 		if (outputPacketizer[4].data.bit(9) || outputPacketizer[4].data.bit(8))
 			reversedSeqNumber++;
@@ -540,16 +545,18 @@ bool parseOutputPacket(deque<axiWord> &outputPacketizer, map<fourTuple, ap_uint<
 	return returnValue;
 }
 
-void flushInputPacketizer(deque<axiWord> &inputPacketizer, stream<axiWord> &ipRxData, map<fourTuple, ap_uint<32> > &sessionList) {
+void flushInputPacketizer(deque<net_axis<64> > &inputPacketizer, stream<net_axis<64> > &ipRxData, map<fourTuple, ap_uint<32> > &sessionList) {
+	//std::cout << "input packetizer: " << inputPacketizer.size() << std::endl;
 	if (inputPacketizer.size() != 0) {
 		injectAckNumber(inputPacketizer, sessionList);
 		uint8_t inputPacketizerSize = inputPacketizer.size();
 		for (uint8_t i=0;i<inputPacketizerSize;++i) {
-			axiWord temp = inputPacketizer.front();
+			net_axis<64> temp = inputPacketizer.front();
 			ipRxData.write(temp);
 			inputPacketizer.pop_front();
 		}
 	}
+	//std::cout << "after input packetizer: " << inputPacketizer.size() << std::endl;
 }
 
 vector<string> parseLine(string stringBuffer) {
@@ -566,19 +573,28 @@ vector<string> parseLine(string stringBuffer) {
 	return tempBuffer;
 }
 
+template <int W, int X>
+void convertPacketWidth(hls::stream<net_axis<W> >&	input, hls::stream<net_axis<X> >& output)
+{
+	while(!input.empty())
+	{
+		convertStreamWidth<W, 24>(input, output);
+	}
+}
+
 int main(int argc, char *argv[]) {
-	stream<axiWord>						ipRxData("ipRxData");
+	stream<net_axis<DATA_WIDTH> >						ipRxData("ipRxData");
 	stream<mmStatus>					rxBufferWriteStatus("rxBufferWriteStatus");
 	stream<mmStatus>					txBufferWriteStatus("txBufferWriteStatus");
-	stream<axiWord>						rxBufferReadData("rxBufferReadData");
-	stream<axiWord>						txBufferReadData("txBufferReadData");
-	stream<axiWord>						ipTxData("ipTxData");
+	stream<net_axis<DATA_WIDTH> >						rxBufferReadData("rxBufferReadData");
+	stream<net_axis<DATA_WIDTH> >						txBufferReadData("txBufferReadData");
+	stream<net_axis<DATA_WIDTH> >						ipTxData("ipTxData");
 	stream<mmCmd>						rxBufferWriteCmd("rxBufferWriteCmd");
 	stream<mmCmd>						rxBufferReadCmd("rxBufferReadCmd");
 	stream<mmCmd>						txBufferWriteCmd("txBufferWriteCmd");
 	stream<mmCmd>						txBufferReadCmd("txBufferReadCmd");
-	stream<axiWord>						rxBufferWriteData("rxBufferWriteData");
-	stream<axiWord>						txBufferWriteData("txBufferWriteData");
+	stream<net_axis<DATA_WIDTH> >						rxBufferWriteData("rxBufferWriteData");
+	stream<net_axis<DATA_WIDTH> >						txBufferWriteData("txBufferWriteData");
 	stream<rtlSessionLookupReply>		sessionLookup_rsp("sessionLookup_rsp");
 	stream<rtlSessionUpdateReply>		sessionUpdate_rsp("sessionUpdate_rsp");
 	stream<rtlSessionLookupRequest>		sessionLookup_req("sessionLookup_req");
@@ -588,29 +604,33 @@ int main(int argc, char *argv[]) {
 	stream<appReadRequest>				rxDataReq("rxDataReq");
 	stream<ipTuple>						openConnReq("openConnReq");
 	stream<ap_uint<16> >				closeConnReq("closeConnReq");
-	stream<ap_uint<16> >				txDataReqMeta("txDataReqMeta");
-	stream<axiWord>						txDataReq("txDataReq");
+	stream<appTxMeta>					txDataReqMeta("txDataReqMeta");
+	stream<net_axis<DATA_WIDTH> >						txDataReq("txDataReq");
 	stream<bool>						listenPortRsp("listenPortRsp");
 	stream<appNotification>				notification("notification");
 	stream<ap_uint<16> >				rxDataRspMeta("rxDataRspMeta");
-	stream<axiWord>						rxDataRsp("rxDataRsp");
+	stream<net_axis<DATA_WIDTH> >						rxDataRsp("rxDataRsp");
 	stream<openStatus>					openConnRsp("openConnRsp");
-	stream<ap_int<17> >					txDataRsp("txDataRsp");
+	stream<appTxRsp>					txDataRsp("txDataRsp");
 	ap_uint<16>							regSessionCount;
-	ap_uint<16>							relSessionCount;
-	axiWord								ipTxDataOut_Data;
-	axiWord								ipRxData_Data;
-	axiWord								ipTxDataIn_Data;
-	stream<axiWord> 					rxDataOut("rxDataOut");						// This stream contains the data output from the Rx App I/F
-	axiWord								rxDataOut_Data;								// This variable is where the data read from the stream above is temporarily stored before output
+	//ap_uint<16>							relSessionCount;
+	stream<net_axis<64> >						ipRxData64;
+	stream<net_axis<64> >						rxDataRsp64;
+	stream<net_axis<64> >						ipTxData64;
+	stream<net_axis<64> >						txDataReq64;
+	net_axis<64>								ipTxDataOut_Data;
+	net_axis<64>								ipRxData_Data;
+	net_axis<64>								ipTxDataIn_Data;
+	stream<net_axis<64> > 					rxDataOut("rxDataOut");						// This stream contains the data output from the Rx App I/F
+	net_axis<64>								rxDataOut_Data;								// This variable is where the data read from the stream above is temporarily stored before output
 
-	dummyMemory rxMemory;
-	dummyMemory txMemory;
+	dummyMemory<DATA_WIDTH> rxMemory;
+	dummyMemory<DATA_WIDTH> txMemory;
 	
 	map<fourTuple, ap_uint<32> > sessionList;
 
-	deque<axiWord>	inputPacketizer;
-	deque<axiWord>	outputPacketizer;						// This deque collects the output data word until a whole packet is accumulated.
+	deque<net_axis<64> >	inputPacketizer;
+	deque<net_axis<64> >	outputPacketizer;						// This deque collects the output data word until a whole packet is accumulated.
 
 	ifstream	rxInputFile;
 	ifstream	txInputFile;
@@ -746,7 +766,8 @@ int main(int argc, char *argv[]) {
 			unsigned short int temp;
 			string stringBuffer;
 			string txStringBuffer;
-			flushInputPacketizer(inputPacketizer, ipRxData, sessionList);			// Before processing the input file data words, write any packets generated from the B itself
+			flushInputPacketizer(inputPacketizer, ipRxData64, sessionList);			// Before processing the input file data words, write any packets generated from the B itself
+			convertPacketWidth(ipRxData64, ipRxData);
 			if (testRxPath == true) {
 				//flushInputPacketizer(inputPacketizer, ipRxData, sessionList);			// Before processing the input file data words, write any packets generated from the B itself
 				getline(rxInputFile, stringBuffer);
@@ -766,11 +787,12 @@ int main(int argc, char *argv[]) {
 						}
 						firstWordFlag = false;
 						string tempString = "0000000000000000";
-						ipRxData_Data = axiWord(encodeApUint64(stringVector[0]), encodeApUint8(stringVector[2]), atoi(stringVector[1].c_str()));
+						ipRxData_Data = net_axis<64>(encodeApUint64(stringVector[0]), encodeApUint8(stringVector[2]), atoi(stringVector[1].c_str()));
 						inputPacketizer.push_back(ipRxData_Data);
 					} while (ipRxData_Data.last != 1);
 					firstWordFlag = true;
-					flushInputPacketizer(inputPacketizer, ipRxData, sessionList);
+					flushInputPacketizer(inputPacketizer, ipRxData64, sessionList);
+					convertPacketWidth(ipRxData64, ipRxData);
 				}
 			}
 			if (testTxPath == true && txSessionIDs.size() > 0) {
@@ -792,14 +814,15 @@ int main(int argc, char *argv[]) {
 							txStringVector = parseLine(txStringBuffer);
 						}
 						else { // If this is the first word of the data then the request has to be written into the Tx App I/F
-							txDataReqMeta.write(txSessionIDs[currentTxSessionID]);
+							txDataReqMeta.write(appTxMeta(txSessionIDs[currentTxSessionID], 1460)); //TODO fix this
 							currentTxSessionID == noOfTxSessions - 1 ? currentTxSessionID = 0 : currentTxSessionID++;
 						}
 						firstWordFlag = false;
 						string tempString = "0000000000000000";
-						ipTxDataIn_Data = axiWord(encodeApUint64(txStringVector[0]), encodeApUint8(txStringVector[2]), atoi(txStringVector[1].c_str()));
-						txDataReq.write(ipTxDataIn_Data);
+						ipTxDataIn_Data = net_axis<64>(encodeApUint64(txStringVector[0]), encodeApUint8(txStringVector[2]), atoi(txStringVector[1].c_str()));
+						txDataReq64.write(ipTxDataIn_Data);
 					} while (ipTxDataIn_Data.last != 1);
+					convertPacketWidth(txDataReq64, txDataReq);
 					firstWordFlag = true;
 				}
 			}
@@ -810,18 +833,21 @@ int main(int argc, char *argv[]) {
 			sessionLookup_req, sessionUpdate_req, listenPortReq, rxDataReq, openConnReq, closeConnReq, txDataReqMeta, txDataReq,
 			//listenPortRsp, notification, rxDataRspMeta, rxDataRsp, openConnRsp, txDataRsp);
 			//relSessionCount, regSessionCount);
-			listenPortRsp, notification, rxDataRspMeta, rxDataRsp, openConnRsp, txDataRsp, 0x01010101, relSessionCount, regSessionCount);
+			listenPortRsp, notification, rxDataRspMeta, rxDataRsp, openConnRsp, txDataRsp, 0x01010101, /*relSessionCount,*/ regSessionCount);
 
+		//TODO use actual iperf
+		convertStreamWidth<DATA_WIDTH, 22>(rxDataRsp, rxDataRsp64);
 		iperf(listenPortReq, listenPortRsp, notification, rxDataReq,
-			  rxDataRspMeta, rxDataRsp, rxDataOut, openConnReq, openConnRsp,
+			  rxDataRspMeta, rxDataRsp64, rxDataOut, openConnReq, openConnRsp,
 			  closeConnReq, txSessionIDs);
 
-		simulateRx(&rxMemory, rxBufferWriteCmd, rxBufferWriteStatus, rxBufferReadCmd, rxBufferWriteData, rxBufferReadData);
-		simulateTx(&txMemory, txBufferWriteCmd, txBufferWriteStatus, txBufferReadCmd, txBufferWriteData, txBufferReadData);
+		simulateRx<DATA_WIDTH>(&rxMemory, rxBufferWriteCmd, rxBufferWriteStatus, rxBufferReadCmd, rxBufferWriteData, rxBufferReadData);
+		simulateTx<DATA_WIDTH>(&txMemory, txBufferWriteCmd, txBufferWriteStatus, txBufferReadCmd, txBufferWriteData, txBufferReadData);
 		  		   sessionLookupStub(sessionLookup_req, sessionLookup_rsp,	sessionUpdate_req, sessionUpdate_rsp);
 
-		if (!ipTxData.empty()) {
-			ipTxData.read(ipTxDataOut_Data);
+		convertStreamWidth<DATA_WIDTH,23>(ipTxData, ipTxData64);
+		if (!ipTxData64.empty()) {
+			ipTxData64.read(ipTxDataOut_Data);
 			string dataOutput = decodeApUint64(ipTxDataOut_Data.data);
 			string keepOutput = decodeApUint8(ipTxDataOut_Data.keep);
 			txOutput << dataOutput << " " << ipTxDataOut_Data.last << " " << keepOutput << endl;
@@ -852,9 +878,9 @@ int main(int argc, char *argv[]) {
 			rxOutput << dataOutput << " " << rxDataOut_Data.last << " " << keepOutput << endl;
 		}
 		if (!txDataRsp.empty()) {
-			ap_uint<17> tempResp = txDataRsp.read();
-			if (tempResp == -1 || tempResp == -2)
-				cerr << endl << "Warning: Attempt to write data into the Tx App I/F of the TOE was unsuccesfull. Returned error code: " << tempResp << endl;
+			appTxRsp tempResp = txDataRsp.read();
+			if (tempResp.error != 0)
+				cerr << endl << "Warning: Attempt to write data into the Tx App I/F of the TOE was unsuccesfull. Returned error code: " << tempResp.error << endl;
 		}
 		simCycleCounter++;
 		//cout << dec << simCycleCounter << endl;
@@ -874,7 +900,7 @@ int main(int argc, char *argv[]) {
 	if (roundedRxPayloadCounter != (txPacketCounter - 1))
 		cout << "WARNING: Number of received packets (" << rxPayloadCounter << ") is not equal to the number of Tx Packets (" << txPacketCounter << ")!" << endl;
 	// Output Number of Sessions
-	cerr << "Number of Sessions opened: " <<  dec << regSessionCount << endl << "Number of Sessions closed: " << relSessionCount << endl;
+	//cerr << "Number of Sessions opened: " <<  dec << regSessionCount << endl << "Number of Sessions closed: " << relSessionCount << endl;
 	// Convert command line arguments to strings
 	if(argc == 5) {
 		vector<string> args(argc);

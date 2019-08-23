@@ -2,6 +2,7 @@ open_project toe_prj
 
 set_top toe
 
+add_files ../axi_utils.cpp
 add_files ack_delay/ack_delay.cpp
 add_files close_timer/close_timer.cpp
 add_files event_engine/event_engine.cpp
@@ -29,7 +30,8 @@ set_part {xc7vx690tffg1761-2}
 create_clock -period 6.66 -name default
 
 #csim_design -clean -argv {../../../../testVectors/io_finwp_5.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat ../../../../testVectors/rx_io_finwp_5.gold}
-csim_design -clean -argv {../../../../testVectors/io_fin_5.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat ../../../../testVectors/rx_io_fin_5.gold}
+csim_design -clean -argv {0 ../../../../testVectors/io_fin_5.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat ../../../../testVectors/rx_io_fin_5.gold}
+#csim_design -clean -argv {0 ../../../../testVectors/mysyn.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat ../../../../testVectors/rx_io_fin_5.gold}
 #csim_design -clean -setup
 #csynth_design
 #cosim_design -tool modelsim -rtl verilog -trace_level all -argv {../../../../testVectors/in9.dat ../../../../testVectors/rxOutput.dat ../../../../testVectors/txOutput.dat}

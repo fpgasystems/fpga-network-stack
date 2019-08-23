@@ -29,8 +29,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 
 #include "rx_app_stream_if.hpp"
 
-using namespace hls;
-
 /** @ingroup rx_app_stream_if
  *  This application interface is used to receive data streams of established connections.
  *  The Application polls data from the buffer by sending a readRequest. The module checks
@@ -42,29 +40,32 @@ using namespace hls;
  *  @param[out]		rxApp2rxSar_upd_req
  *  @param[out]		rxBufferReadCmd
  */
-void rx_app_stream_if(stream<appReadRequest>&		appRxDataReq,
-					  stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
-					  stream<ap_uint<16> >&			appRxDataRspMetadata,
-					  stream<rxSarAppd>&			rxApp2rxSar_upd_req,
+void rx_app_stream_if(hls::stream<appReadRequest>&		appRxDataReq,
+					  hls::stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
+					  hls::stream<ap_uint<16> >&		appRxDataRspMetadata,
+					  hls::stream<rxSarAppd>&			rxApp2rxSar_upd_req,
 #if !(RX_DDR_BYPASS)
-					  stream<mmCmd>&				rxBufferReadCmd)
+					  hls::stream<mmCmd>&				rxBufferReadCmd)
 #else
 					  stream<ap_uint<1> >&			rxBufferReadCmd)
 #endif
 {
-#pragma HLS PIPELINE II=1
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
 
-#pragma HLS DATA_PACK variable=rxSar2rxApp_upd_rsp
-#pragma HLS DATA_PACK variable=rxApp2rxSar_upd_req
 
 	static ap_uint<16>				rasi_readLength;
-	static ap_uint<2>				rasi_fsmState 	= 0;
+	static ap_uint<1>				rasi_fsmState 	= 0;
 
-	switch (rasi_fsmState) {
+	switch (rasi_fsmState)
+	{
 		case 0:
-			if (!appRxDataReq.empty() && !rxApp2rxSar_upd_req.full()) {
+			if (!appRxDataReq.empty())
+			{
 				appReadRequest	app_read_request = appRxDataReq.read();
-				if (app_read_request.length != 0) { 	// Make sure length is not 0, otherwise Data Mover will hang up
+ 				// Make sure length is not 0, otherwise Data Mover will hang up
+				if (app_read_request.length != 0)
+				{
 					// Get app pointer
 					rxApp2rxSar_upd_req.write(rxSarAppd(app_read_request.sessionID));
 					rasi_readLength = app_read_request.length;
@@ -73,13 +74,14 @@ void rx_app_stream_if(stream<appReadRequest>&		appRxDataReq,
 			}
 			break;
 		case 1:
-			if (!rxSar2rxApp_upd_rsp.empty() && !appRxDataRspMetadata.full() && !rxBufferReadCmd.full() && !rxApp2rxSar_upd_req.full()) {
+			if (!rxSar2rxApp_upd_rsp.empty())
+			{
 				rxSarAppd	rxSar = rxSar2rxApp_upd_rsp.read();
 				appRxDataRspMetadata.write(rxSar.sessionID);
 #if !(RX_DDR_BYPASS)
 				ap_uint<32> pkgAddr = 0;
-				pkgAddr(29, 16) = rxSar.sessionID(13, 0);
-				pkgAddr(15, 0) = rxSar.appd;
+				pkgAddr(29, WINDOW_BITS) = rxSar.sessionID(13, 0);
+				pkgAddr(WINDOW_BITS-1, 0) = rxSar.appd;
 				rxBufferReadCmd.write(mmCmd(pkgAddr, rasi_readLength));
 #else
 				rxBufferReadCmd.write(1);

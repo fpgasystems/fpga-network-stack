@@ -56,15 +56,10 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 	#pragma HLS DEPENDENCE variable=tx_table inter false
 	#pragma HLS RESOURCE variable=tx_table core=RAM_T2P_BRAM
 
-	txTxSarQuery tst_txEngUpdate;
-	txTxSarRtQuery txEngRtUpdate;
-	rxTxSarQuery tst_rxEngUpdate;
-	txAppTxSarPush push;
-
 	// TX Engine
 	if (!txEng2txSar_upd_req.empty())
 	{
-		txEng2txSar_upd_req.read(tst_txEngUpdate);
+		txTxSarQuery tst_txEngUpdate = txEng2txSar_upd_req.read();
 		if (tst_txEngUpdate.write)
 		{
 			if (!tst_txEngUpdate.isRtQuery)
@@ -96,40 +91,69 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			}
 			else
 			{
-				txEngRtUpdate = tst_txEngUpdate;
+				txTxSarRtQuery txEngRtUpdate = tst_txEngUpdate;
 				tx_table[tst_txEngUpdate.sessionID].slowstart_threshold = txEngRtUpdate.getThreshold();
 				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS) TODO is this correct or less, eg. 1/2 * MSS
 			}
 		}
 		else // Read
 		{
-			ap_uint<16> minWindow;
-			if (tx_table[tst_txEngUpdate.sessionID].cong_window < tx_table[tst_txEngUpdate.sessionID].recv_window)
+			txSarEntry entry = tx_table[tst_txEngUpdate.sessionID];
+			//Pre-calculated usedLength, minWindow to improve timing in metaLoader
+			//When calculating the usedLength we also consider if the FIN was already sent
+			ap_uint<WINDOW_BITS> usedLength = ((ap_uint<WINDOW_BITS>) entry.not_ackd - entry.ackd);
+			ap_uint<WINDOW_BITS> usedLengthWithFIN = ((ap_uint<WINDOW_BITS>) entry.not_ackd - entry.ackd);
+			if (entry.finSent)
 			{
-				minWindow = tx_table[tst_txEngUpdate.sessionID].cong_window;
+				usedLengthWithFIN--;
+			}
+			ap_uint<WINDOW_BITS> minWindow;
+#if !(WINDOW_SCALE)
+			if (entry.cong_window < entry.recv_window)
+			{
+				minWindow = entry.cong_window;
 			}
 			else
 			{
-				minWindow = tx_table[tst_txEngUpdate.sessionID].recv_window;
+				minWindow = entry.recv_window;
 			}
-			txSar2txEng_upd_rsp.write(txTxSarReply(	tx_table[tst_txEngUpdate.sessionID].ackd,
-													tx_table[tst_txEngUpdate.sessionID].not_ackd,
-													minWindow,
-													tx_table[tst_txEngUpdate.sessionID].app,
-													tx_table[tst_txEngUpdate.sessionID].finReady,
-													tx_table[tst_txEngUpdate.sessionID].finSent));
+#else
+			ap_uint<4> win_shift = entry.win_shift;
+			ap_uint<30> scaled_recv_window;
+			scaled_recv_window(win_shift+15, win_shift) = entry.recv_window;
+			if (entry.cong_window < scaled_recv_window)
+			{
+				minWindow = entry.cong_window;
+			}
+			else
+			{
+				minWindow = scaled_recv_window;
+			}
+#endif
+			ap_uint<WINDOW_BITS> usableWindow = 0;
+			if (minWindow < usedLength)
+			{
+				usableWindow = minWindow - usedLength;
+			}
+			txSar2txEng_upd_rsp.write(txTxSarReply(	entry.ackd,
+													entry.not_ackd,
+													usableWindow, //minWindow,
+													entry.app,
+													usedLength,
+													entry.finReady,
+													entry.finSent));
 		}
 	}
 	// TX App Stream If
 	else if (!txApp2txSar_app_push.empty()) //write only
 	{
-		txApp2txSar_app_push.read(push);
+	 	txAppTxSarPush push = txApp2txSar_app_push.read();
 		tx_table[push.sessionID].app = push.app;
 	}
 	// RX Engine
 	else if (!rxEng2txSar_upd_req.empty())
 	{
-		rxEng2txSar_upd_req.read(tst_rxEngUpdate);
+		rxTxSarQuery tst_rxEngUpdate = rxEng2txSar_upd_req.read();
 		if (tst_rxEngUpdate.write)
 		{
 			tx_table[tst_rxEngUpdate.sessionID].ackd = tst_rxEngUpdate.ackd;
@@ -137,18 +161,37 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			tx_table[tst_rxEngUpdate.sessionID].cong_window = tst_rxEngUpdate.cong_window;
 			tx_table[tst_rxEngUpdate.sessionID].count = tst_rxEngUpdate.count;
 			tx_table[tst_rxEngUpdate.sessionID].fastRetransmitted = tst_rxEngUpdate.fastRetransmitted;
+#if (WINDOW_SCALE)
+			ap_uint<4> win_shift;
+			if (tst_rxEngUpdate.init)
+			{
+				win_shift = tst_rxEngUpdate.win_shift;
+				tx_table[tst_rxEngUpdate.sessionID].win_shift = tst_rxEngUpdate.win_shift;
+			}
+			else
+			{
+				win_shift = tx_table[tst_rxEngUpdate.sessionID].win_shift;
+			}
+#endif
 			// Push ACK to txAppInterface
 #if !(TCP_NODELAY)
 			txSar2txApp_ack_push.write(txSarAckPush(tst_rxEngUpdate.sessionID, tst_rxEngUpdate.ackd));
 #else
-			ap_uint<16> minWindow;
-			if (tst_rxEngUpdate.cong_window < tst_rxEngUpdate.recv_window)
+
+#if (WINDOW_SCALE)
+			ap_uint<30> scaled_recv_window;
+			scaled_recv_window(win_shift+15, win_shift) = tst_rxEngUpdate.recv_window;
+#else
+			ap_uint<30> scaled_recv_window = tst_rxEngUpdate.recv_window;
+#endif
+			ap_uint<WINDOW_BITS> minWindow;
+			if (tst_rxEngUpdate.cong_window < scaled_recv_window) //tst_rxEngUpdate.recv_window)
 			{
 				minWindow = tst_rxEngUpdate.cong_window;
 			}
 			else
 			{
-				minWindow = tst_rxEngUpdate.recv_window;
+				minWindow = scaled_recv_window;
 			}
 			txSar2txApp_ack_push.write(txSarAckPush(tst_rxEngUpdate.sessionID, tst_rxEngUpdate.ackd, minWindow));
 #endif

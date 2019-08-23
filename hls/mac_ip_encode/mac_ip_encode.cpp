@@ -381,19 +381,11 @@ void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 	static hls::stream<net_axis<WIDTH> > dataStreamBuffer3("dataStreamBuffer3");
 	static hls::stream<net_axis<WIDTH> > dataStreamBuffer4("dataStreamBuffer4");
 
-#if DATA_WIDTH == 512
-	#pragma HLS stream variable=dataStreamBuffer0 depth=1
-	#pragma HLS stream variable=dataStreamBuffer1 depth=32
-	#pragma HLS stream variable=dataStreamBuffer2 depth=1
-	#pragma HLS stream variable=dataStreamBuffer3 depth=1
-	#pragma HLS stream variable=dataStreamBuffer4 depth=1
-#else
 	#pragma HLS stream variable=dataStreamBuffer0 depth=2
 	#pragma HLS stream variable=dataStreamBuffer1 depth=32
 	#pragma HLS stream variable=dataStreamBuffer2 depth=2
 	#pragma HLS stream variable=dataStreamBuffer3 depth=2
 	#pragma HLS stream variable=dataStreamBuffer4 depth=2
-#endif
 	#pragma HLS DATA_PACK variable=dataStreamBuffer0
 	#pragma HLS DATA_PACK variable=dataStreamBuffer1
 	#pragma HLS DATA_PACK variable=dataStreamBuffer2

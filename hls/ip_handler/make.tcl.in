@@ -8,6 +8,7 @@ create_clock -period ${CLOCK_PERIOD} -name default
 set_top ${PROJECT_NAME}_top
 
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/../axi_utils.cpp
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/../ipv4/ipv4_utils.cpp
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/ip_handler.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
 

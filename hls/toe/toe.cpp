@@ -27,7 +27,9 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 
+#include "toe_config.hpp"
 #include "toe.hpp"
+#include "toe_internals.hpp"
 
 #include "session_lookup_controller/session_lookup_controller.hpp"
 #include "state_table/state_table.hpp"
@@ -48,77 +50,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 #include "rx_app_stream_if/rx_app_stream_if.hpp"
 #include "tx_app_interface/tx_app_interface.hpp"
 
-
-ap_uint<16> byteSwap16(ap_uint<16> inputVector) {
-	return (inputVector.range(7,0), inputVector(15, 8));
-}
-
-ap_uint<32> byteSwap32(ap_uint<32> inputVector) {
-	return (inputVector.range(7,0), inputVector(15, 8), inputVector.range(23,16), inputVector(31, 24));
-}
-
-ap_uint<4> keepToLen(ap_uint<8> keepValue)
-{
-  switch (keepValue)
-  {
-  case 0x01:
-    return 0x1;
-    break;
-  case 0x3:
-    return 0x2;
-    break;
-  case 0x07:
-    return 0x3;
-    break;
-  case 0x0F:
-    return 0x4;
-    break;
-  case 0x1F:
-    return 0x5;
-    break;
-  case 0x3F:
-    return 0x6;
-    break;
-  case 0x7F:
-    return 0x7;
-    break;
-  case 0xFF:
-    return 0x8;
-    break;
-  }
-}
-
-ap_uint<8> lenToKeep(ap_uint<4> length)
-{
-  switch(length)
-  {
-  case 1:
-    return 0x01;
-    break;
-  case 2:
-    return 0x03;
-    break;
-  case 3:
-    return 0x07;
-    break;
-  case 4:
-    return 0x0F;
-    break;
-  case 5:
-    return 0x1F;
-    break;
-  case 6:
-    return 0x3F;
-    break;
-  case 7:
-    return 0x7F;
-    break;
-  case 8:
-    return 0xFF;
-    break;
-  }
-}
-
 /** @ingroup timer
  *
  */
@@ -137,25 +68,6 @@ void timerCloseMerger(stream<ap_uint<16> >& in1, stream<ap_uint<16> >& in2, stre
 	{
 		in2.read(sessionID);
 		out.write(sessionID);
-	}
-}
-
-/** @ingroup tcp_module
- * Generic stream merger function
- */
-template <typename T>
-void stream_merger(stream<T>& in1, stream<T>& in2, stream<T>& out)
-{
-#pragma HLS PIPELINE II=1
-
-
-	if (!in1.empty())
-	{
-		out.write(in1.read());
-	}
-	else if (!in2.empty())
-	{
-		out.write(in2.read());
 	}
 }
 
@@ -210,6 +122,8 @@ void timerWrapper(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetransmitT
 						rtTimer2stateTable_releaseState,
 						timer2stateTable_releaseState);
 }
+
+//TODO use same code as in TX Engine
 void rxAppMemAccessBreakdown(stream<mmCmd> &inputMemAccess, stream<mmCmd> &outputMemAccess, stream<ap_uint<1> > &rxAppDoubleAccess) {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -244,31 +158,43 @@ void rxAppMemAccessBreakdown(stream<mmCmd> &inputMemAccess, stream<mmCmd> &outpu
 }
 
 #if !(RX_DDR_BYPASS)
-void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxDataRsp, stream<ap_uint<1> > &rxAppDoubleAccess) {
+template <int WIDTH> 
+void rxAppMemDataRead(	stream<net_axis<WIDTH> >&	rxBufferReadData,
+						stream<net_axis<WIDTH> >&	rxDataRsp,
+						stream<ap_uint<1> >&		rxAppDoubleAccess)
+{
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
-	static axiWord rxAppMemRdRxWord = axiWord(0, 0, 0);
+	static net_axis<WIDTH> rxAppMemRdRxWord;// = axiWord(0, 0, 0);
 	static ap_uint<1> rxAppDoubleAccessFlag = 0;
 	static enum rAstate {RXAPP_IDLE = 0, RXAPP_STREAM, RXAPP_JOIN, RXAPP_STREAMMERGED, RXAPP_STREAMUNMERGED, RXAPP_RESIDUE} rxAppState;
-	static ap_uint<4> rxAppMemRdOffset = 0;
+	static ap_uint<8> rxAppMemRdOffset = 0;
 	static ap_uint<8> rxAppOffsetBuffer = 0;
-	switch(rxAppState) {
+
+	switch(rxAppState)
+	{
 	case RXAPP_IDLE:
-		if (!rxAppDoubleAccess.empty() && !rxBufferReadData.empty() && !rxDataRsp.full()) {
+		if (!rxAppDoubleAccess.empty() && !rxBufferReadData.empty())
+		{
 			//rxAppMemRdOffset = 0;
 			rxAppDoubleAccessFlag = rxAppDoubleAccess.read();
 			rxBufferReadData.read(rxAppMemRdRxWord);
-			rxAppMemRdOffset = keepToLen(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
+			rxAppMemRdOffset = keepToLen<WIDTH>(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
 			if (rxAppMemRdRxWord.last == 1 && rxAppDoubleAccessFlag == 1) {		// If this is the last word and this access was broken down
 				rxAppMemRdRxWord.last = ~rxAppDoubleAccessFlag;					// Negate the last flag inn the axiWord and determine if there's an offset
-				if (rxAppMemRdOffset == 8) {									// No need to offset anything
-					rxDataRsp.write(rxAppMemRdRxWord);							// Output the word directly
+				if (rxAppMemRdOffset == (WIDTH/8)) // No need to offset anything
+				{
+					// Output the word directly
+					rxDataRsp.write(rxAppMemRdRxWord);
 					//std::cerr << "Mem.Data: " << std::hex << rxAppMemRdRxWord.data << " - " << rxAppMemRdRxWord.keep << " - " << rxAppMemRdRxWord.last << std::endl;
-					rxAppState = RXAPP_STREAMUNMERGED;							// Jump to stream merged since there's no joining to be performed.
+					// Jump to stream merged since there's no joining to be performed.
+					rxAppState = RXAPP_STREAMUNMERGED;							
 				}
-				else if (rxAppMemRdOffset < 8) {								// If this data word is not full
-					rxAppState = RXAPP_JOIN;									// Don't output anything and go to RXAPP_JOIN to fetch more data to fill in the data word
+				else if (rxAppMemRdOffset < (WIDTH/8)) //If this data word is not full
+				{
+					// Don't output anything and go to RXAPP_JOIN to fetch more data to fill in the data word
+					rxAppState = RXAPP_JOIN;
 				}
 			}
 			else if (rxAppMemRdRxWord.last == 1 && rxAppDoubleAccessFlag == 0)	{ // If this is the 1st and last data word of this segment and no mem. access breakdown occured,
@@ -283,18 +209,20 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 
 		}
 		break;
-	case RXAPP_STREAM:															// This state outputs the all the data words in the 1st memory access of a segment but the 1st one.
-		if (!rxBufferReadData.empty() && !rxDataRsp.full()) {					// Verify that there's data in the input and space in the output
-			rxBufferReadData.read(rxAppMemRdRxWord);							// Read the data word in
-			rxAppMemRdOffset = keepToLen(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
+	case RXAPP_STREAM:	// This state outputs the all the data words in the 1st memory access of a segment but the 1st one.
+		if (!rxBufferReadData.empty())
+		{
+			rxBufferReadData.read(rxAppMemRdRxWord);
+			rxAppMemRdOffset = keepToLen<WIDTH>(rxAppMemRdRxWord.keep);						// Count the number of valid bytes in this data word
+
 			if (rxAppMemRdRxWord.last == 1 && rxAppDoubleAccessFlag == 1) {		// If this is the last word and this access was broken down
 				rxAppMemRdRxWord.last = ~rxAppDoubleAccessFlag;					// Negate the last flag inn the axiWord and determine if there's an offset
-				if (rxAppMemRdOffset == 8) {									// No need to offset anything
+				if (rxAppMemRdOffset == (WIDTH/8)) {									// No need to offset anything
 					rxDataRsp.write(rxAppMemRdRxWord);							// Output the word directly
 					//std::cerr << "Mem.Data: " << std::hex << rxAppMemRdRxWord.data << " - " << rxAppMemRdRxWord.keep << " - " << rxAppMemRdRxWord.last << std::endl;
 					rxAppState = RXAPP_STREAMUNMERGED;							// Jump to stream merged since there's no joining to be performed.
 				}
-				else if (rxAppMemRdOffset < 8) {								// If this data word is not full
+				else if (rxAppMemRdOffset < (WIDTH/8)) {								// If this data word is not full
 					rxAppState = RXAPP_JOIN;									// Don't output anything and go to RXAPP_JOIN to fetch more data to fill in the data word
 				}
 			}
@@ -310,8 +238,9 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 		}
 		break;
 	case RXAPP_STREAMUNMERGED:													// This state handles 2nd mem.access data when no realignment is required
-		if (!rxBufferReadData.empty() && !rxDataRsp.full()) {					// First determine that there's data to input and space in the output
-			axiWord temp = rxBufferReadData.read();								// If so read the data in a tempVariable
+		if (!rxBufferReadData.empty())
+		{
+			net_axis<WIDTH> temp = rxBufferReadData.read();								// If so read the data in a tempVariable
 			if (temp.last == 1)													// If this is the last data word...
 				rxAppState = RXAPP_IDLE;										// Go back to the output state. Everything else is perfectly fine as is
 			rxDataRsp.write(temp);												// Finally, output the data word before changing states
@@ -319,15 +248,20 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 		}
 		break;
 	case RXAPP_JOIN:															// This state performs the hand over from the 1st to the 2nd mem. access for this segment if a mem. access has occured
-		if (!rxBufferReadData.empty() && !rxDataRsp.full()) {					// First determine that there's data to input and space in the output
-			axiWord temp = axiWord(0, 0xFF, 0);
+		if (!rxBufferReadData.empty())
+		{
+			net_axis<WIDTH> temp;
+			temp.data = 0;
+			temp.keep = ~uint64_t(0);
+			temp.last = 0x0;
+
 			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range((rxAppMemRdOffset * 8) - 1, 0);	// In any case, insert the data of the new data word in the old one. Here we don't pay attention to the exact number of bytes in the new data word. In case they don't fill the entire remaining gap, there will be garbage in the output but it doesn't matter since the KEEP signal indicates which bytes are valid.
 			rxAppMemRdRxWord = rxBufferReadData.read();
-			temp.data.range(63, (rxAppMemRdOffset * 8)) = rxAppMemRdRxWord.data.range(((8 - rxAppMemRdOffset) * 8) - 1, 0);				// Buffer & realign temp into rxAppmemRdRxWord (which is a static variable)
-			ap_uint<4> tempCounter = keepToLen(rxAppMemRdRxWord.keep);					// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
-			rxAppOffsetBuffer = tempCounter - (8 - rxAppMemRdOffset);				// Calculate the number of bytes to go into the next & final data word
+			temp.data.range(WIDTH-1, (rxAppMemRdOffset * 8)) = rxAppMemRdRxWord.data.range(((8 - rxAppMemRdOffset) * 8) - 1, 0);				// Buffer & realign temp into rxAppmemRdRxWord (which is a static variable)
+			ap_uint<8> tempCounter = keepToLen<WIDTH>(rxAppMemRdRxWord.keep);					// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
+			rxAppOffsetBuffer = tempCounter - ((WIDTH/8) - rxAppMemRdOffset);				// Calculate the number of bytes to go into the next & final data word
 			if (rxAppMemRdRxWord.last == 1) {
-				if ((tempCounter + rxAppMemRdOffset) <= 8) {						// Check if the residue from the 1st segment and the data in the 1st data word of the 2nd segment fill this data word. If not...
+				if ((tempCounter + rxAppMemRdOffset) <= (WIDTH/8)) {						// Check if the residue from the 1st segment and the data in the 1st data word of the 2nd segment fill this data word. If not...
 					temp.keep = lenToKeep(tempCounter + rxAppMemRdOffset);	// then set the KEEP value of the output to the sum of the 2 data word's bytes
 					temp.last = 1;									// also set the LAST to 1, since this is going to be the final word of this segment
 					rxAppState = RXAPP_IDLE;									// And go back to idle when finished with this state
@@ -342,15 +276,20 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 		}
 		break;
 	case RXAPP_STREAMMERGED:													// This state outputs all of the remaining, realigned data words of the 2nd mem.access, which resulted from a data word
-		if (!rxBufferReadData.empty() && !rxDataRsp.full()) {					// Verify that there's data at the input and that the output is ready to receive data
-			axiWord temp = axiWord(0, 0xFF, 0);
-			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range(63, ((8 - rxAppMemRdOffset) * 8));
+		if (!rxBufferReadData.empty())
+		{
+			net_axis<WIDTH> temp;
+			temp.data = 0;
+			temp.keep = ~uint64_t(0);
+			temp.last = 0;
+
+			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range(WIDTH-1, ((8 - rxAppMemRdOffset) * 8));
 			rxAppMemRdRxWord = rxBufferReadData.read();							// Read the new data word in
-			temp.data.range(63, (rxAppMemRdOffset * 8)) = rxAppMemRdRxWord.data.range(((8 - rxAppMemRdOffset) * 8) - 1, 0);
-			ap_uint<4> tempCounter = keepToLen(rxAppMemRdRxWord.keep);			// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
-			rxAppOffsetBuffer = tempCounter - (8 - rxAppMemRdOffset);				// Calculate the number of bytes to go into the next & final data word
+			temp.data.range(WIDTH-1, (rxAppMemRdOffset * 8)) = rxAppMemRdRxWord.data.range(((8 - rxAppMemRdOffset) * 8) - 1, 0);
+			ap_uint<8> tempCounter = keepToLen<WIDTH>(rxAppMemRdRxWord.keep);			// Determine how any bytes are valid in the new data word. It might be that this is the only data word of the 2nd segment
+			rxAppOffsetBuffer = tempCounter - ((WIDTH/8) - rxAppMemRdOffset);				// Calculate the number of bytes to go into the next & final data word
 			if (rxAppMemRdRxWord.last == 1) {
-				if ((tempCounter + rxAppMemRdOffset) <= 8) {							// Check if the residue from the 1st segment and the data in the 1st data word of the 2nd segment fill this data word. If not...
+				if ((tempCounter + rxAppMemRdOffset) <= (WIDTH/8)) {							// Check if the residue from the 1st segment and the data in the 1st data word of the 2nd segment fill this data word. If not...
 					temp.keep = lenToKeep(tempCounter + rxAppMemRdOffset);			// then set the KEEP value of the output to the sum of the 2 data word's bytes
 					temp.last = 1;													// also set the LAST to 1, since this is going to be the final word of this segment
 					rxAppState = RXAPP_IDLE;										// And go back to idle when finished with this state
@@ -363,9 +302,13 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 		}
 		break;
 	case RXAPP_RESIDUE:
-		if (!rxDataRsp.full()) {
-			axiWord temp = axiWord(0, lenToKeep(rxAppOffsetBuffer), 1);
-			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range(63, ((8 - rxAppMemRdOffset) * 8));
+		{
+			net_axis<WIDTH> temp;// = axiWord(0, lenToKeep(rxAppOffsetBuffer), 1);
+			temp.data = 0;
+			temp.keep = lenToKeep(rxAppOffsetBuffer);
+			temp.last = 1;
+
+			temp.data.range((rxAppMemRdOffset * 8) - 1, 0) = rxAppMemRdRxWord.data.range(WIDTH-1, ((8 - rxAppMemRdOffset) * 8));
 			rxDataRsp.write(temp);												// And finally write the data word to the output
 			//std::cerr << "Mem.Data: " << std::hex << temp.data << " - " << temp.keep << " - " << temp.last << std::endl;
 			rxAppState = RXAPP_IDLE;											// And go back to the idle stage
@@ -374,15 +317,15 @@ void rxAppMemDataRead(stream<axiWord> &rxBufferReadData, stream<axiWord> &rxData
 	}
 }
 #else
+template <int WIDTH>
 void rxAppMemDataRead(	stream<ap_uint<1> >&	rxBufferReadCmd,
-						stream<axiWord>&		rxBufferReadData,
-						stream<axiWord>&		rxDataRsp)
+						stream<net_axis<WIDTH> >&		rxBufferReadData,
+						stream<net_axis<WIDTH> >&		rxDataRsp)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
 	static ap_uint<1> ramdr_fsmState = 0;
-	axiWord currWord;
 
 	switch(ramdr_fsmState)
 	{
@@ -396,7 +339,7 @@ void rxAppMemDataRead(	stream<ap_uint<1> >&	rxBufferReadCmd,
 	case 1:
 		if (!rxBufferReadData.empty() && !rxDataRsp.full())
 		{
-			rxBufferReadData.read(currWord);
+			net_axis<WIDTH> currWord = rxBufferReadData.read();
 			rxDataRsp.write(currWord);
 			if (currWord.last)
 			{
@@ -411,7 +354,7 @@ void rxAppMemDataRead(	stream<ap_uint<1> >&	rxBufferReadCmd,
 
 
 
-
+template <int WIDTH>
 void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 					stream<rxSarAppd>&				rxSar2rxApp_upd_rsp,
 					stream<ap_uint<16> >&			appListenPortReq,
@@ -426,8 +369,8 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 					stream<bool>&					appListenPortRsp,
 					stream<ap_uint<16> >& 			rxApp2portTable_listen_req,
 					stream<appNotification>&		appNotification,
-					stream<axiWord> 				&rxBufferReadData,
-					stream<axiWord> 				&rxDataRsp)
+					stream<net_axis<WIDTH> > 				&rxBufferReadData,
+					stream<net_axis<WIDTH> > 				&rxDataRsp)
 {
 	#pragma HLS INLINE
 	#pragma HLS PIPELINE II=1
@@ -447,7 +390,7 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 	rx_app_stream_if(appRxDataReq, rxSar2rxApp_upd_rsp, appRxDataRspMetadata,
 						rxApp2rxSar_upd_req, rxAppStreamIf2memAccessBreakdown);
 	rxAppMemAccessBreakdown(rxAppStreamIf2memAccessBreakdown, rxBufferReadCmd, rxAppDoubleAccess);
-	rxAppMemDataRead(rxBufferReadData, rxDataRsp, rxAppDoubleAccess);
+	rxAppMemDataRead<WIDTH>(rxBufferReadData, rxDataRsp, rxAppDoubleAccess);
 #else
 	rx_app_stream_if(appRxDataReq, rxSar2rxApp_upd_rsp, appRxDataRspMetadata,
 						rxApp2rxSar_upd_req, rxBufferReadCmd);
@@ -498,23 +441,24 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
  *  @param[out]		openConnRsp
  *  @param[out]		txDataRsp
  */
+template <int WIDTH>
 void toe(	// Data & Memory Interface
-			stream<axiWord>&						ipRxData,
+			stream<net_axis<WIDTH> >&						ipRxData,
 #if !(RX_DDR_BYPASS)
 			stream<mmStatus>&						rxBufferWriteStatus,
 #endif
 			stream<mmStatus>&						txBufferWriteStatus,
-			stream<axiWord>&						rxBufferReadData,
-			stream<axiWord>&						txBufferReadData,
-			stream<axiWord>&						ipTxData,
+			stream<net_axis<WIDTH> >&						rxBufferReadData,
+			stream<net_axis<WIDTH> >&						txBufferReadData,
+			stream<net_axis<WIDTH> >&						ipTxData,
 #if !(RX_DDR_BYPASS)
 			stream<mmCmd>&							rxBufferWriteCmd,
 			stream<mmCmd>&							rxBufferReadCmd,
 #endif
 			stream<mmCmd>&							txBufferWriteCmd,
 			stream<mmCmd>&							txBufferReadCmd,
-			stream<axiWord>&						rxBufferWriteData,
-			stream<axiWord>&						txBufferWriteData,
+			stream<net_axis<WIDTH> >&						rxBufferWriteData,
+			stream<net_axis<WIDTH> >&						txBufferWriteData,
 			// SmartCam Interface
 			stream<rtlSessionLookupReply>&			sessionLookup_rsp,
 			stream<rtlSessionUpdateReply>&			sessionUpdate_rsp,
@@ -532,108 +476,25 @@ void toe(	// Data & Memory Interface
 			stream<ipTuple>&						openConnReq,
 			stream<ap_uint<16> >&					closeConnReq,
 			stream<appTxMeta>&					   txDataReqMeta,
-			stream<axiWord>&						txDataReq,
+			stream<net_axis<WIDTH> >&						txDataReq,
 
 			stream<bool>&							listenPortRsp,
 			stream<appNotification>&				notification,
 			stream<ap_uint<16> >&					rxDataRspMeta,
-			stream<axiWord>&						rxDataRsp,
+			stream<net_axis<WIDTH> >&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
 			stream<appTxRsp>&					txDataRsp,
 #if RX_DDR_BYPASS
 			// Data counts for external FIFO
-			ap_uint<32>						axis_data_count,
-			ap_uint<32>						axis_max_data_count,
+			ap_uint<16>						axis_data_count,
+			ap_uint<16>						axis_max_data_count,
 #endif
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
 			//statistic
 			ap_uint<16>&							regSessionCount)
 {
-#pragma HLS DATAFLOW
-#pragma HLS INTERFACE ap_ctrl_none port=return
-//#pragma HLS PIPELINE II=1
-//#pragma HLS INLINE off
-
-	/*
-	 * PRAGMAs
-	 */
-	// Data & Memory interface
-	#pragma HLS resource core=AXI4Stream variable=ipRxData metadata="-bus_bundle s_axis_tcp_data"
-	#pragma HLS resource core=AXI4Stream variable=ipTxData metadata="-bus_bundle m_axis_tcp_data"
-
-	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteData metadata="-bus_bundle m_axis_rxwrite_data"
-	#pragma HLS resource core=AXI4Stream variable=rxBufferReadData metadata="-bus_bundle s_axis_rxread_data"
-
-	#pragma HLS resource core=AXI4Stream variable=txBufferWriteData metadata="-bus_bundle m_axis_txwrite_data"
-	#pragma HLS resource core=AXI4Stream variable=txBufferReadData metadata="-bus_bundle s_axis_txread_data"
-
-#if !(RX_DDR_BYPASS)
-	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteCmd metadata="-bus_bundle m_axis_rxwrite_cmd"
-	#pragma HLS resource core=AXI4Stream variable=rxBufferReadCmd metadata="-bus_bundle m_axis_rxread_cmd"
-	#pragma HLS DATA_PACK variable=rxBufferWriteCmd
-	#pragma HLS DATA_PACK variable=rxBufferReadCmd
-#endif
-	#pragma HLS resource core=AXI4Stream variable=txBufferWriteCmd metadata="-bus_bundle m_axis_txwrite_cmd"
-	#pragma HLS resource core=AXI4Stream variable=txBufferReadCmd metadata="-bus_bundle m_axis_txread_cmd"
-	#pragma HLS DATA_PACK variable=txBufferWriteCmd
-	#pragma HLS DATA_PACK variable=txBufferReadCmd
-
-
-
-#if !(RX_DDR_BYPASS)
-	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteStatus metadata="-bus_bundle s_axis_rxwrite_sts"
-	#pragma HLS DATA_PACK variable=rxBufferWriteStatus
-#endif
-	#pragma HLS resource core=AXI4Stream variable=txBufferWriteStatus metadata="-bus_bundle s_axis_txwrite_sts"
-	#pragma HLS DATA_PACK variable=txBufferWriteStatus
-
-	// SmartCam Interface
-	#pragma HLS resource core=AXI4Stream variable=sessionLookup_req metadata="-bus_bundle m_axis_session_lup_req"
-	#pragma HLS resource core=AXI4Stream variable=sessionLookup_rsp metadata="-bus_bundle s_axis_session_lup_rsp"
-	#pragma HLS resource core=AXI4Stream variable=sessionUpdate_req metadata="-bus_bundle m_axis_session_upd_req"
-	//#pragma HLS resource core=AXI4Stream variable=sessionInsert_req metadata="-bus_bundle m_axis_session_ins_req"
-	//#pragma HLS resource core=AXI4Stream variable=sessionDelete_req metadata="-bus_bundle m_axis_session_del_req"
-	#pragma HLS resource core=AXI4Stream variable=sessionUpdate_rsp metadata="-bus_bundle s_axis_session_upd_rsp"
-	#pragma HLS DATA_PACK variable=sessionLookup_req
-	#pragma HLS DATA_PACK variable=sessionLookup_rsp
-	#pragma HLS DATA_PACK variable=sessionUpdate_req
-	//#pragma HLS DATA_PACK variable=sessionInsert_req
-	//#pragma HLS DATA_PACK variable=sessionDelete_req
-	#pragma HLS DATA_PACK variable=sessionUpdate_rsp
-
-	// Application Interface
-	#pragma HLS resource core=AXI4Stream variable=listenPortRsp metadata="-bus_bundle m_axis_listen_port_rsp"
-	#pragma HLS resource core=AXI4Stream variable=listenPortReq metadata="-bus_bundle s_axis_listen_port_req"
-	//#pragma HLS resource core=AXI4Stream variable=appClosePortIn metadata="-bus_bundle s_axis_close_port"
-
-	#pragma HLS resource core=AXI4Stream variable=notification metadata="-bus_bundle m_axis_notification"
-	#pragma HLS resource core=AXI4Stream variable=rxDataReq metadata="-bus_bundle s_axis_rx_data_req"
-
-	#pragma HLS resource core=AXI4Stream variable=rxDataRspMeta metadata="-bus_bundle m_axis_rx_data_rsp_metadata"
-	#pragma HLS resource core=AXI4Stream variable=rxDataRsp metadata="-bus_bundle m_axis_rx_data_rsp"
-
-	#pragma HLS resource core=AXI4Stream variable=openConnReq metadata="-bus_bundle s_axis_open_conn_req"
-	#pragma HLS resource core=AXI4Stream variable=openConnRsp metadata="-bus_bundle m_axis_open_conn_rsp"
-	#pragma HLS resource core=AXI4Stream variable=closeConnReq metadata="-bus_bundle s_axis_close_conn_req"
-
-	#pragma HLS resource core=AXI4Stream variable=txDataReqMeta metadata="-bus_bundle s_axis_tx_data_req_metadata"
-	#pragma HLS resource core=AXI4Stream variable=txDataReq metadata="-bus_bundle s_axis_tx_data_req"
-	#pragma HLS resource core=AXI4Stream variable=txDataRsp metadata="-bus_bundle m_axis_tx_data_rsp"
-	#pragma HLS DATA_PACK variable=notification
-	#pragma HLS DATA_PACK variable=rxDataReq
-	#pragma HLS DATA_PACK variable=openConnReq
-	#pragma HLS DATA_PACK variable=openConnRsp
-	#pragma HLS DATA_PACK variable=txDataReqMeta
-	#pragma HLS DATA_PACK variable=txDataRsp
-
-#if RX_DDR_BYPASS
-	#pragma HLS INTERFACE ap_stable register port=axis_data_count
-	#pragma HLS INTERFACE ap_stable register port=axis_max_data_count
-#endif
-
-	#pragma HLS INTERFACE ap_stable register port=myIpAddress
-	#pragma HLS INTERFACE ap_vld port=regSessionCount
+	#pragma HLS INLINE
 
 	/*
 	 * FIFOs
@@ -682,7 +543,7 @@ void toe(	// Data & Memory Interface
 	static stream<rxSarAppd>			rxApp2rxSar_upd_req("rxApp2rxSar_upd_req");
 	static stream<rxSarAppd>			rxSar2rxApp_upd_rsp("rxSar2rxApp_upd_rsp");
 	static stream<ap_uint<16> >			txEng2rxSar_req("txEng2rxSar_req");
-	static stream<rxSarEntry>			rxSar2txEng_rsp("rxSar2txEng_rsp");
+	static stream<rxSarReply>			rxSar2txEng_rsp("rxSar2txEng_rsp");
 	#pragma HLS stream variable=rxEng2rxSar_upd_req		depth=2
 	#pragma HLS stream variable=rxSar2rxEng_upd_rsp		depth=2
 	#pragma HLS stream variable=rxApp2rxSar_upd_req		depth=2
@@ -789,8 +650,8 @@ void toe(	// Data & Memory Interface
 	#pragma HLS stream variable=portTable2txApp_port_rsp			depth=4
 	#pragma HLS stream variable=sLookup2portTable_releasePort		depth=4
 
-   static stream<axiWord>                 txApp2txEng_data_stream("txApp2txEng_data_stream");
-   #pragma HLS stream variable=txApp2txEng_data_stream   depth=2048
+   static stream<net_axis<WIDTH> >                 txApp2txEng_data_stream("txApp2txEng_data_stream");
+   #pragma HLS stream variable=txApp2txEng_data_stream   depth=1024
 	/*
 	 * Data Structures
 	 */
@@ -809,7 +670,8 @@ void toe(	// Data & Memory Interface
 								//sessionInsert_req,
 								//sessionDelete_req,
 								sessionUpdate_rsp,
-								regSessionCount);
+								regSessionCount,
+								myIpAddress);
 	// State Table
 	state_table(	rxEng2stateTable_upd_req,
 					txApp2stateTable_upd_req,
@@ -868,7 +730,7 @@ void toe(	// Data & Memory Interface
 	 * Engines
 	 */
 	// RX Engine
-	rx_engine(	ipRxData,
+	rx_engine<WIDTH>(	ipRxData,
 				sLookup2rxEng_rsp,
 				stateTable2rxEng_upd_rsp,
 				portTable2rxEng_check_rsp,
@@ -898,7 +760,7 @@ void toe(	// Data & Memory Interface
 #endif
 				);
 	// TX Engine
-	tx_engine(	eventEng2txEng_event,
+	tx_engine<WIDTH>(	eventEng2txEng_event,
 				rxSar2txEng_rsp,
 				txSar2txEng_upd_rsp,
 				txBufferReadData,
@@ -918,7 +780,7 @@ void toe(	// Data & Memory Interface
 	/*
 	 * Application Interfaces
 	 */
-	 rxAppWrapper(	rxDataReq,
+	 rxAppWrapper<WIDTH>(	rxDataReq,
 			 	 	rxSar2rxApp_upd_rsp,
 			 	 	listenPortReq,
 			 	 	portTable2rxApp_listen_rsp,
@@ -935,7 +797,7 @@ void toe(	// Data & Memory Interface
 			 	 	rxBufferReadData,
 					rxDataRsp);
 
-	tx_app_interface(	txDataReqMeta,
+	tx_app_interface<WIDTH>(	txDataReqMeta,
 						txDataReq,
 						stateTable2txApp_rsp,
 						//txSar2txApp_upd_rsp,
@@ -966,3 +828,175 @@ void toe(	// Data & Memory Interface
 
 }
 
+void toe_top(	// Data & Memory Interface
+			stream<net_axis<DATA_WIDTH> >&						ipRxData,
+#if !(RX_DDR_BYPASS)
+			stream<mmStatus>&						rxBufferWriteStatus,
+#endif
+			stream<mmStatus>&						txBufferWriteStatus,
+			stream<net_axis<DATA_WIDTH> >&						rxBufferReadData,
+			stream<net_axis<DATA_WIDTH> >&						txBufferReadData,
+			stream<net_axis<DATA_WIDTH> >&						ipTxData,
+#if !(RX_DDR_BYPASS)
+			stream<mmCmd>&							rxBufferWriteCmd,
+			stream<mmCmd>&							rxBufferReadCmd,
+#endif
+			stream<mmCmd>&							txBufferWriteCmd,
+			stream<mmCmd>&							txBufferReadCmd,
+			stream<net_axis<DATA_WIDTH> >&						rxBufferWriteData,
+			stream<net_axis<DATA_WIDTH> >&						txBufferWriteData,
+
+			// SmartCam Interface
+			stream<rtlSessionLookupReply>&			sessionLookup_rsp,
+			stream<rtlSessionUpdateReply>&			sessionUpdate_rsp,
+			stream<rtlSessionLookupRequest>&		sessionLookup_req,
+			stream<rtlSessionUpdateRequest>&		sessionUpdate_req,
+			// Application Interface
+			stream<ap_uint<16> >&					listenPortReq,
+			// This is disabled for the time being, due to complexity concerns
+			//stream<ap_uint<16> >&					appClosePortIn,
+			stream<appReadRequest>&					rxDataReq,
+			stream<ipTuple>&						openConnReq,
+			stream<ap_uint<16> >&					closeConnReq,
+			stream<appTxMeta>&					   txDataReqMeta,
+			stream<net_axis<DATA_WIDTH> >&						txDataReq,
+
+			stream<bool>&							listenPortRsp,
+			stream<appNotification>&				notification,
+			stream<ap_uint<16> >&					rxDataRspMeta,
+			stream<net_axis<DATA_WIDTH> >&						rxDataRsp,
+			stream<openStatus>&						openConnRsp,
+			stream<appTxRsp>&					txDataRsp,
+#if RX_DDR_BYPASS
+			// Data counts for external FIFO
+			ap_uint<16>						axis_data_count,
+			ap_uint<16>						axis_max_data_count,
+#endif
+			//IP Address Input
+			ap_uint<32>								myIpAddress,
+			//statistic
+			ap_uint<16>&							regSessionCount)
+{
+#pragma HLS DATAFLOW
+#pragma HLS INTERFACE ap_ctrl_none port=return
+
+	/*
+	 * PRAGMAs
+	 */
+	// Data & Memory interface
+	#pragma HLS resource core=AXI4Stream variable=ipRxData metadata="-bus_bundle s_axis_tcp_data"
+	#pragma HLS resource core=AXI4Stream variable=ipTxData metadata="-bus_bundle m_axis_tcp_data"
+
+	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteData metadata="-bus_bundle m_axis_rxwrite_data"
+	#pragma HLS resource core=AXI4Stream variable=rxBufferReadData metadata="-bus_bundle s_axis_rxread_data"
+
+	#pragma HLS resource core=AXI4Stream variable=txBufferWriteData metadata="-bus_bundle m_axis_txwrite_data"
+	#pragma HLS resource core=AXI4Stream variable=txBufferReadData metadata="-bus_bundle s_axis_txread_data"
+
+#if !(RX_DDR_BYPASS)
+	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteCmd metadata="-bus_bundle m_axis_rxwrite_cmd"
+	#pragma HLS resource core=AXI4Stream variable=rxBufferReadCmd metadata="-bus_bundle m_axis_rxread_cmd"
+	#pragma HLS DATA_PACK variable=rxBufferWriteCmd
+	#pragma HLS DATA_PACK variable=rxBufferReadCmd
+#endif
+	#pragma HLS resource core=AXI4Stream variable=txBufferWriteCmd metadata="-bus_bundle m_axis_txwrite_cmd"
+	#pragma HLS resource core=AXI4Stream variable=txBufferReadCmd metadata="-bus_bundle m_axis_txread_cmd"
+	#pragma HLS DATA_PACK variable=txBufferWriteCmd
+	#pragma HLS DATA_PACK variable=txBufferReadCmd
+
+
+
+#if !(RX_DDR_BYPASS)
+	#pragma HLS resource core=AXI4Stream variable=rxBufferWriteStatus metadata="-bus_bundle s_axis_rxwrite_sts"
+	#pragma HLS DATA_PACK variable=rxBufferWriteStatus
+#endif
+	#pragma HLS resource core=AXI4Stream variable=txBufferWriteStatus metadata="-bus_bundle s_axis_txwrite_sts"
+	#pragma HLS DATA_PACK variable=txBufferWriteStatus
+
+	// SmartCam Interface
+	#pragma HLS resource core=AXI4Stream variable=sessionLookup_req metadata="-bus_bundle m_axis_session_lup_req"
+	#pragma HLS resource core=AXI4Stream variable=sessionLookup_rsp metadata="-bus_bundle s_axis_session_lup_rsp"
+	#pragma HLS resource core=AXI4Stream variable=sessionUpdate_req metadata="-bus_bundle m_axis_session_upd_req"
+	//#pragma HLS resource core=AXI4Stream variable=sessionInsert_req metadata="-bus_bundle m_axis_session_ins_req"
+	//#pragma HLS resource core=AXI4Stream variable=sessionDelete_req metadata="-bus_bundle m_axis_session_del_req"
+	#pragma HLS resource core=AXI4Stream variable=sessionUpdate_rsp metadata="-bus_bundle s_axis_session_upd_rsp"
+	#pragma HLS DATA_PACK variable=sessionLookup_req
+	#pragma HLS DATA_PACK variable=sessionLookup_rsp
+	#pragma HLS DATA_PACK variable=sessionUpdate_req
+	//#pragma HLS DATA_PACK variable=sessionInsert_req
+	//#pragma HLS DATA_PACK variable=sessionDelete_req
+	#pragma HLS DATA_PACK variable=sessionUpdate_rsp
+
+	// Application Interface
+	#pragma HLS resource core=AXI4Stream variable=listenPortRsp metadata="-bus_bundle m_axis_listen_port_rsp"
+	#pragma HLS resource core=AXI4Stream variable=listenPortReq metadata="-bus_bundle s_axis_listen_port_req"
+	//#pragma HLS resource core=AXI4Stream variable=appClosePortIn metadata="-bus_bundle s_axis_close_port"
+
+	#pragma HLS resource core=AXI4Stream variable=notification metadata="-bus_bundle m_axis_notification"
+	#pragma HLS resource core=AXI4Stream variable=rxDataReq metadata="-bus_bundle s_axis_rx_data_req"
+
+	#pragma HLS resource core=AXI4Stream variable=rxDataRspMeta metadata="-bus_bundle m_axis_rx_data_rsp_metadata"
+	#pragma HLS resource core=AXI4Stream variable=rxDataRsp metadata="-bus_bundle m_axis_rx_data_rsp"
+
+	#pragma HLS resource core=AXI4Stream variable=openConnReq metadata="-bus_bundle s_axis_open_conn_req"
+	#pragma HLS resource core=AXI4Stream variable=openConnRsp metadata="-bus_bundle m_axis_open_conn_rsp"
+	#pragma HLS resource core=AXI4Stream variable=closeConnReq metadata="-bus_bundle s_axis_close_conn_req"
+
+	#pragma HLS resource core=AXI4Stream variable=txDataReqMeta metadata="-bus_bundle s_axis_tx_data_req_metadata"
+	#pragma HLS resource core=AXI4Stream variable=txDataReq metadata="-bus_bundle s_axis_tx_data_req"
+	#pragma HLS resource core=AXI4Stream variable=txDataRsp metadata="-bus_bundle m_axis_tx_data_rsp"
+	#pragma HLS DATA_PACK variable=notification
+	#pragma HLS DATA_PACK variable=rxDataReq
+	#pragma HLS DATA_PACK variable=openConnReq
+	#pragma HLS DATA_PACK variable=openConnRsp
+	#pragma HLS DATA_PACK variable=txDataReqMeta
+	#pragma HLS DATA_PACK variable=txDataRsp
+
+#if RX_DDR_BYPASS
+	#pragma HLS INTERFACE ap_stable register port=axis_data_count
+	#pragma HLS INTERFACE ap_stable register port=axis_max_data_count
+#endif
+
+	#pragma HLS INTERFACE ap_stable register port=myIpAddress
+	#pragma HLS INTERFACE ap_vld port=regSessionCount
+
+	toe<DATA_WIDTH>(ipRxData,
+#if !(RX_DDR_BYPASS)
+					rxBufferWriteStatus,
+#endif
+					txBufferWriteStatus,
+					rxBufferReadData,
+					txBufferReadData,
+					ipTxData,
+#if !(RX_DDR_BYPASS)
+					rxBufferWriteCmd,
+					rxBufferReadCmd,
+#endif
+					txBufferWriteCmd,
+					txBufferReadCmd,
+					rxBufferWriteData,
+					txBufferWriteData,
+					sessionLookup_rsp,
+					sessionUpdate_rsp,
+					sessionLookup_req,
+					sessionUpdate_req,
+					
+					listenPortReq,
+					rxDataReq,
+					openConnReq,
+					closeConnReq,
+					txDataReqMeta,
+					txDataReq,
+					listenPortRsp,
+					notification,
+					rxDataRspMeta,
+					rxDataRsp,
+					openConnRsp,
+					txDataRsp,
+#if (RX_DDR_BYPASS)
+					axis_data_count,
+					axis_max_data_count,
+#endif
+					myIpAddress,
+					regSessionCount);
+}

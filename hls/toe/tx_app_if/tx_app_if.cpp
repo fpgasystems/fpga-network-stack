@@ -87,7 +87,7 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 		appOpenConnReq.read(server_addr);
 		portTable2txApp_port_rsp.read(freePort);
 		// Implicit creationAllowed <= true
-		txApp2sLookup_req.write(fourTuple(myIpAddress, byteSwap32(server_addr.ip_address), byteSwap16(freePort), byteSwap16(server_addr.ip_port)));
+		txApp2sLookup_req.write(fourTuple(myIpAddress, reverse(server_addr.ip_address), reverse(freePort), reverse(server_addr.ip_port)));
 		//tai_waitFreePort = false;
 	}
 

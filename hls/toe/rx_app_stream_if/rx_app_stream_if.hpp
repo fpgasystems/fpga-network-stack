@@ -26,20 +26,18 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
-
 #include "../toe.hpp"
-
-using namespace hls;
+#include "../toe_internals.hpp"
 
 /** @defgroup rx_app_stream_if RX Application Stream Interface
  *  @ingroup app_if
  */
-void rx_app_stream_if(	stream<appReadRequest>&		appRxDataReq,
-						stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
-						stream<ap_uint<16> >&		appRxDataRspMetadata,
-						stream<rxSarAppd>&			rxApp2rxSar_upd_req,
+void rx_app_stream_if(	hls::stream<appReadRequest>&	appRxDataReq,
+						hls::stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
+						hls::stream<ap_uint<16> >&		appRxDataRspMetadata,
+						hls::stream<rxSarAppd>&			rxApp2rxSar_upd_req,
 #if !(RX_DDR_BYPASS)
-						stream<mmCmd>&				rxBufferReadCmd);
+						hls::stream<mmCmd>&				rxBufferReadCmd);
 #else
 						stream<ap_uint<1> >&		rxBufferReadCmd);
 #endif
