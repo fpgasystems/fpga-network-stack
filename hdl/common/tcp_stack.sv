@@ -149,7 +149,7 @@ assign m_axis_mem_read_cmd[ddrPortNetworkTx].length = {9'h00, axis_read_cmd_data
 
 
 
-toe_top_top toe_inst (
+toe_ip toe_inst (
 // Data output
 .m_axis_tcp_data_TVALID(m_axis_tx_data.valid),
 .m_axis_tcp_data_TREADY(m_axis_tx_data.ready),
