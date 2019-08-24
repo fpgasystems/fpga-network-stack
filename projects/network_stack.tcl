@@ -125,7 +125,7 @@ create_ip -name dhcp_client -vendor xilinx.labs -library hls -version 1.05 -modu
 generate_target {instantiation_template} [get_files $device_ip_dir/dhcp_client_ip/dhcp_client_ip.xci]
 update_compile_order -fileset sources_1
 
-create_ip -name rocev2 -vendor ethz.systems -library hls -version 0.82 -module_name rocev2_ip -dir $device_ip_dir
+create_ip -name rocev2 -vendor ethz.systems.fpga -library hls -version 0.82 -module_name rocev2_ip -dir $device_ip_dir
 generate_target {instantiation_template} [get_files $device_ip_dir/rocev2_ip/rocev2_ip.xci]
 update_compile_order -fileset sources_1
 
