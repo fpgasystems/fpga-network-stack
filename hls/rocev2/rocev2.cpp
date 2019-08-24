@@ -803,8 +803,6 @@ void rocev2_top(	//stream<ipUdpMeta>&	s_axis_rx_meta,
 	#pragma HLS INTERFACE axis register port=m_axis_mem_read_cmd
 	#pragma HLS INTERFACE axis register port=m_axis_mem_write_data
 	#pragma HLS INTERFACE axis register port=s_axis_mem_read_data
-	#pragma HLS DATA_PACK variable=m_axis_mem_write_cmd
-	#pragma HLS DATA_PACK variable=m_axis_mem_read_cmd
 
 	//CONTROL
 	#pragma HLS INTERFACE axis register port=s_axis_qp_interface

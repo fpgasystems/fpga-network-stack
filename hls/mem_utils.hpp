@@ -88,12 +88,13 @@ struct memCmd
 		:addr(addr), len(len) {}
 };
 
-struct routedMemCmd : memCmd
+struct routedMemCmd
 {
+	memCmd      data;
 	ap_uint<1>	dest;
 	routedMemCmd() {}
 	routedMemCmd(ap_uint<64> addr, ap_uint<32> len)
-		:memCmd(addr, len), dest(ROUTE_DMA) {}
+		:data(addr, len), dest(ROUTE_DMA) {}
 	routedMemCmd(ap_uint<64> addr, ap_uint<32> len, axiRoute route)
-		:memCmd(addr, len), dest(route) {}
+		:data(addr, len), dest(route) {}
 };
