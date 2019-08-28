@@ -24,6 +24,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cma
 set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
 set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
+set(TCP_STACK_MAX_SESSIONS 1000 CACHE STRING "Max number of entries")
 
 
 # Find Xilinx Vivado HLS

@@ -41,11 +41,11 @@ endif()
 
 # set bandwidth
 if (hasParent)
-   if (NETWORK_STACK_BW == 10)
+   if (NETWORK_STACK_BW STREQUAL "10")
       set(DATA_WIDTH 8)
       set(CLOCK_PERIOD 6.4)
    endif()
-   if (NETWORK_STACK_BW == 100)
+   if (NETWORK_STACK_BW STREQUAL "100")
       set(DATA_WIDTH 64)
       set(CLOCK_PERIOD 3.2)
       set(TCP_STACK_MSS 4096)
