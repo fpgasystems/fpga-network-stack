@@ -108,7 +108,7 @@ void generate_udp(	stream<udpMeta>& metaIn,
 		}
 		break;
 	case HEADER:
-		if (header.consumeWord(currWord.data) < WIDTH)
+		if (header.consumeWord(currWord.data) < (WIDTH/8))
 		{
 			state = PARTIAL_HEADER;
 		}

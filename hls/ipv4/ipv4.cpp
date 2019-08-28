@@ -250,7 +250,7 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 		}
 		break;
 	case HEADER:
-		if (header.consumeWord(currWord.data) < WIDTH)
+		if (header.consumeWord(currWord.data) < (WIDTH/8))
 		{
 			/*currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
 			currWord.last = 0;
