@@ -49,11 +49,17 @@ void process_udp(	stream<net_axis<WIDTH> >& input,
 		std::cout << std::endl;*/
 
 		pu_header.parseWord( currWord.data);
+
+		if (metaWritten && pu_header.getDstPort() == regListenPort && WIDTH <= UDP_HEADER_SIZE)
+		{
+			output.write(currWord);
+		}
+
 		if (pu_header.isReady())
 		{
 			//Check Dst Port
 			ap_uint<16> dstPort = pu_header.getDstPort();
-			if (dstPort == regListenPort)
+			if (dstPort == regListenPort && WIDTH > UDP_HEADER_SIZE)
 			{
 				output.write(currWord);
 			}
