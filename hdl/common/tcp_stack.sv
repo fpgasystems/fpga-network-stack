@@ -48,13 +48,9 @@ module tcp_stack #(
     axis_meta.master    m_axis_tx_status,
 
 
-   input wire[127:0]    local_ip_address,
-   output logic      session_count_valid,
+   input wire[31:0]     local_ip_address,
+   output logic         session_count_valid,
    output logic[15:0]   session_count_data
-   //output logic      psn_drop_pkg_count_valid,
-   //output logic[31:0]   psn_drop_pkg_count_data
-
-
  );
 
 localparam ddrPortNetworkRx = 1;
