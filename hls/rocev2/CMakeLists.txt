@@ -24,7 +24,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cma
 set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
 set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
-
+# RoCE parameters
+set(ROCE_STACK_MAX_QPS 500 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
 
 # Find Xilinx Vivado HLS
 find_package(VivadoHLS REQUIRED)

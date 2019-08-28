@@ -4,23 +4,6 @@
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
 
-static const ap_uint<16> MSS=4096; //1460; //536
-
-static const uint16_t MAX_SESSIONS = 1000;
-
-// TCP_NODELAY flag, to disable Nagle's Algorithm
-#define TCP_NODELAY 1
-
-// RX_DDR_BYPASS flag, to enable DDR bypass on RX path
-#define RX_DDR_BYPASS 1
-
-#define FAST_RETRANSMIT 1
-
-#define noOfTxSessions 1 // Number of Tx Sessions to open for testing
-extern uint32_t packetCounter;
-extern uint32_t cycleCounter;
-extern unsigned int	simCycleCounter;
-
 #ifndef __SYNTHESIS__
 static const ap_uint<32> TIME_64us		= 1;
 static const ap_uint<32> TIME_128us		= 1;

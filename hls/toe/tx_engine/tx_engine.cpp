@@ -1066,7 +1066,7 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			// MSS negotiation is only used in SYN packets
 			sendWord.data(263, 256) = 0x02; // Option Kind
 			sendWord.data(271, 264) = 0x04; // Option length
-			sendWord.data(287, 272) = reverse(MSS); //0xB405; // 0x05B4 = 1460
+			sendWord.data(287, 272) = reverse((ap_uint<16>)MSS); //0xB405; // 0x05B4 = 1460
 #ifndef __SYNTHESIS__
 			sendWord.data(511, 288) = 0;
 #endif
@@ -1119,7 +1119,7 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 		// MSS negotiation is only used in SYN packets
 		sendWord.data(7, 0) = 0x02; // Option Kind
 		sendWord.data(15, 8) = 0x04; // Option length
-		sendWord.data(31, 16) = reverse(MSS); //0xB405; // 0x05B4 = 1460
+		sendWord.data(31, 16) = reverse((ap_uint<16>)MSS); //0xB405; // 0x05B4 = 1460
 		sendWord.keep = 0x0F;
 #ifndef __SYNTHESIS__
 		sendWord.data(63, 32) = 0;
