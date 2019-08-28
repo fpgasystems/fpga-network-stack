@@ -129,3 +129,7 @@ create_ip -name rocev2 -vendor ethz.systems.fpga -library hls -version 0.82 -mod
 generate_target {instantiation_template} [get_files $device_ip_dir/rocev2_ip/rocev2_ip.xci]
 update_compile_order -fileset sources_1
 
+create_ip -name hash_table -vendor ethz.systems.fpga -library hls -version 1.0 -module_name hash_table_ip -dir $device_ip_dir
+generate_target {instantiation_template} [get_files $device_ip_dir/hash_table_ip/hash_table_ip.xci]
+update_compile_order -fileset sources_1
+

@@ -118,11 +118,10 @@ struct rtlSessionLookupRequest
  */
 struct rtlSessionUpdateRequest
 {
-	ap_uint<16>			value;
-	threeTupleInternal	key;
 	lookupOp			op;
+	threeTupleInternal	key;
+	ap_uint<16>			value;
 	lookupSource		source;
-
 	rtlSessionUpdateRequest() {}
 	rtlSessionUpdateRequest(threeTupleInternal key, ap_uint<16> value, lookupOp op, lookupSource src)
 			:key(key), value(value), op(op), source(src) {}
@@ -149,12 +148,11 @@ struct rtlSessionLookupReply
  */
 struct rtlSessionUpdateReply
 {
-	ap_uint<16>			sessionID;
-	threeTupleInternal	key;
 	lookupOp			op;
-	lookupSource		source;
+	threeTupleInternal	key;
+	ap_uint<16>			sessionID;
 	bool				success;
-
+	lookupSource		source;
 	rtlSessionUpdateReply() {}
 	rtlSessionUpdateReply(lookupOp op, lookupSource src)
 			:op(op), source(src) {}

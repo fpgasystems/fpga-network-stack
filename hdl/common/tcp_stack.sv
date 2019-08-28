@@ -84,22 +84,13 @@ wire[97:0]  lup_req_TDATA; //should be 96, also wrong in SmartCam
 wire        lup_rsp_TVALID;
 wire        lup_rsp_TREADY;
 wire[15:0]  lup_rsp_TDATA;*/
-// CuckooCam signals
-wire        upd_req_TVALID;
-wire        upd_req_TREADY;
-wire[87:0]  upd_req_TDATA;
-wire        upd_rsp_TVALID;
-wire        upd_rsp_TREADY;
-wire[87:0]  upd_rsp_TDATA;
+// Hash Table signals
+axis_meta #(.WIDTH(72))     axis_ht_lup_req();
+axis_meta #(.WIDTH(88))     axis_ht_lup_rsp();
+axis_meta #(.WIDTH(88))     axis_ht_upd_req();
+axis_meta #(.WIDTH(88))     axis_ht_upd_rsp();
 
-wire        lup_req_TVALID;
-wire        lup_req_TREADY;
-wire[71:0]  lup_req_TDATA;
-wire        lup_rsp_TVALID;
-wire        lup_rsp_TREADY;
-wire[87:0]  lup_rsp_TDATA;
-
-
+// Signals for registering
 axi_stream #(.WIDTH(WIDTH) )   axis_rxwrite_data();
 axi_stream #(.WIDTH(WIDTH) )   axis_rxread_data();
 axi_stream #(.WIDTH(WIDTH) )   axis_txwrite_data();
@@ -368,26 +359,26 @@ end
 .debug()
 );*/
 
-logic[31:0] cuckoo_cam_free_slots;
-logic[31:0] cuckoo_cam_free_stash;
+logic       ht_insert_failure_count_valid;
+logic[15:0] ht_insert_failure_count;
 
-cuckoo_cam_ip cuckoo_cam_inst (
-  .ap_clk(net_clk),                                        // input wire ap_clk
-  .ap_rst_n(net_aresetn),                                    // input wire ap_rst_n
-  .s_lookup_request_V_TVALID(lup_req_TVALID),  // input wire s_lookup_request_V_TVALID
-  .s_lookup_request_V_TREADY(lup_req_TREADY),  // output wire s_lookup_request_V_TREADY
-  .s_lookup_request_V_TDATA(lup_req_TDATA),    // input wire [71 : 0] s_lookup_request_V_TDATA
-  .m_lookup_reply_V_TVALID(lup_rsp_TVALID),      // output wire m_lookup_reply_V_TVALID
-  .m_lookup_reply_V_TREADY(lup_rsp_TREADY),      // input wire m_lookup_reply_V_TREADY
-  .m_lookup_reply_V_TDATA(lup_rsp_TDATA),        // output wire [87 : 0] m_lookup_reply_V_TDATA
-  .s_update_request_V_TVALID(upd_req_TVALID),  // input wire s_update_request_V_TVALID
-  .s_update_request_V_TREADY(upd_req_TREADY),  // output wire s_update_request_V_TREADY
-  .s_update_request_V_TDATA(upd_req_TDATA),    // input wire [87 : 0] s_update_request_V_TDATA
-  .m_update_replay_V_TVALID(upd_rsp_TVALID),    // output wire m_update_replay_V_TVALID
-  .m_update_replay_V_TREADY(upd_rsp_TREADY),    // input wire m_update_replay_V_TREADY
-  .m_update_replay_V_TDATA(upd_rsp_TDATA),      // output wire [87 : 0] m_update_replay_V_TDATA
-  .free_slots_V(cuckoo_cam_free_slots),                            // output wire [31 : 0] free_slots_V
-  .free_stash_V(cuckoo_cam_free_stash)                            // output wire [31 : 0] free_stash_V
+hash_table_ip hash_table_inst (
+  .ap_clk(net_clk),
+  .ap_rst_n(net_aresetn),
+  .s_axis_lup_req_V_TVALID(axis_ht_lup_req.valid),
+  .s_axis_lup_req_V_TREADY(axis_ht_lup_req.ready),
+  .s_axis_lup_req_V_TDATA(axis_ht_lup_req.data),
+  .m_axis_lup_rsp_V_TVALID(axis_ht_lup_rsp.valid),
+  .m_axis_lup_rsp_V_TREADY(axis_ht_lup_rsp.ready),
+  .m_axis_lup_rsp_V_TDATA(axis_ht_lup_rsp.data),
+  .s_axis_upd_req_V_TVALID(axis_ht_upd_req.valid),
+  .s_axis_upd_req_V_TREADY(axis_ht_upd_req.ready),
+  .s_axis_upd_req_V_TDATA(axis_ht_upd_req.data),
+  .m_axis_upd_replay_V_TVALID(axis_ht_upd_rsp.valid),
+  .m_axis_upd_replay_V_TREADY(axis_ht_upd_rsp.ready),
+  .m_axis_upd_replay_V_TDATA(axis_ht_upd_rsp.data),
+  .regInsertFailureCount_V_ap_vld(ht_insert_failure_count_valid),
+  .regInsertFailureCount_V(ht_insert_failure_count)
 );
 
 if (WIDTH==64) begin
