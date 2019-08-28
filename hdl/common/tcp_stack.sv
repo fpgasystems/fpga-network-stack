@@ -226,20 +226,20 @@ toe_ip toe_inst (
 .m_axis_txwrite_data_TKEEP(axis_txwrite_data.keep),
 .m_axis_txwrite_data_TLAST(axis_txwrite_data.last),
 /// SmartCAM I/F ///
-.m_axis_session_upd_req_V_TVALID(upd_req_TVALID),
-.m_axis_session_upd_req_V_TREADY(upd_req_TREADY),
-.m_axis_session_upd_req_V_TDATA(upd_req_TDATA),
+.m_axis_session_upd_req_V_TVALID(axis_ht_upd_req.valid),
+.m_axis_session_upd_req_V_TREADY(axis_ht_upd_req.ready),
+.m_axis_session_upd_req_V_TDATA(axis_ht_upd_req.data),
 
-.s_axis_session_upd_rsp_V_TVALID(upd_rsp_TVALID),
-.s_axis_session_upd_rsp_V_TREADY(upd_rsp_TREADY),
-.s_axis_session_upd_rsp_V_TDATA(upd_rsp_TDATA),
+.s_axis_session_upd_rsp_V_TVALID(axis_ht_upd_rsp.valid),
+.s_axis_session_upd_rsp_V_TREADY(axis_ht_upd_rsp.ready),
+.s_axis_session_upd_rsp_V_TDATA(axis_ht_upd_rsp.data),
 
-.m_axis_session_lup_req_V_TVALID(lup_req_TVALID),
-.m_axis_session_lup_req_V_TREADY(lup_req_TREADY),
-.m_axis_session_lup_req_V_TDATA(lup_req_TDATA),
-.s_axis_session_lup_rsp_V_TVALID(lup_rsp_TVALID),
-.s_axis_session_lup_rsp_V_TREADY(lup_rsp_TREADY),
-.s_axis_session_lup_rsp_V_TDATA(lup_rsp_TDATA),
+.m_axis_session_lup_req_V_TVALID(axis_ht_lup_req.valid),
+.m_axis_session_lup_req_V_TREADY(axis_ht_lup_req.ready),
+.m_axis_session_lup_req_V_TDATA(axis_ht_lup_req.data),
+.s_axis_session_lup_rsp_V_TVALID(axis_ht_lup_rsp.valid),
+.s_axis_session_lup_rsp_V_TREADY(axis_ht_lup_rsp.ready),
+.s_axis_session_lup_rsp_V_TDATA(axis_ht_lup_rsp.data),
 
 /* Application Interface */
 // listen&close port
