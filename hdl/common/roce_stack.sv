@@ -37,10 +37,10 @@ module roce_stack #(
     axis_meta.slave  s_axis_qp_conn_interface,
 
 
-   input wire[127:0]    local_ip_address,
-   output logic      crc_drop_pkg_count_valid,
+   input wire[31:0]     local_ip_address,
+   output logic         crc_drop_pkg_count_valid,
    output logic[31:0]   crc_drop_pkg_count_data,
-   output logic      psn_drop_pkg_count_valid,
+   output logic         psn_drop_pkg_count_valid,
    output logic[31:0]   psn_drop_pkg_count_data
 
 
@@ -136,7 +136,7 @@ rocev2_ip rocev2_inst(
     .s_axis_qp_conn_interface_V_TDATA(s_axis_qp_conn_interface.data),
     
     //.local_ip_address_V(link_local_ipv6_address), // Use IPv6 addr
-    .local_ip_address_V(local_ip_address), //Use IPv4 addr
+    .local_ip_address_V({local_ip_address,local_ip_address,local_ip_address,local_ip_address}), //Use IPv4 addr
     .regCrcDropPkgCount_V(crc_drop_pkg_count_data),
     .regCrcDropPkgCount_V_ap_vld(crc_drop_pkg_count_valid),
     .regInvalidPsnDropCount_V(psn_drop_pkg_count_data),
