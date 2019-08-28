@@ -105,10 +105,6 @@ axis_meta #(.WIDTH(32))     axis_read_package();
 axis_meta #(.WIDTH(32))     axis_tx_metadata();
 
 
- //TODO
-//logic[15:0] regSessionCount_V;
-//logic       regSessionCount_V_ap_vld;
-
 //TODO fix generate
 //generate
 //if (RX_DDR_BYPASS_EN == 1) begin
@@ -306,8 +302,8 @@ toe_ip toe_inst (
 
 `ifdef RX_DDR_BYPASS
 //RX BUFFER FIFO
-//TODO buffer depends on WIDTH
-axis_data_fifo_512_d2048 rx_buffer_fifo (
+if (WIDTH==64) begin
+axis_data_fifo_64_d1024 rx_buffer_fifo (
   .s_axis_aresetn(net_aresetn),          // input wire s_axis_aresetn
   .s_axis_aclk(net_clk),                // input wire s_axis_aclk
   .s_axis_tvalid(axis_tcp2rxbuffer.valid),
@@ -320,10 +316,64 @@ axis_data_fifo_512_d2048 rx_buffer_fifo (
   .m_axis_tdata(axis_rxbuffer2app.data),
   .m_axis_tkeep(axis_rxbuffer2app.keep),
   .m_axis_tlast(axis_rxbuffer2app.last),
-  .axis_wr_data_count(rx_buffer_data_count[11:0]),
+  .axis_wr_data_count(rx_buffer_data_count),
   .axis_rd_data_count()
 );
-assign rx_buffer_data_count[15:12] = 4'h0;
+end
+if (WIDTH==128) begin
+axis_data_fifo_128_d1024 rx_buffer_fifo (
+  .s_axis_aresetn(net_aresetn),          // input wire s_axis_aresetn
+  .s_axis_aclk(net_clk),                // input wire s_axis_aclk
+  .s_axis_tvalid(axis_tcp2rxbuffer.valid),
+  .s_axis_tready(axis_tcp2rxbuffer.ready),
+  .s_axis_tdata(axis_tcp2rxbuffer.data),
+  .s_axis_tkeep(axis_tcp2rxbuffer.keep),
+  .s_axis_tlast(axis_tcp2rxbuffer.last),
+  .m_axis_tvalid(axis_rxbuffer2app.valid),
+  .m_axis_tready(axis_rxbuffer2app.ready),
+  .m_axis_tdata(axis_rxbuffer2app.data),
+  .m_axis_tkeep(axis_rxbuffer2app.keep),
+  .m_axis_tlast(axis_rxbuffer2app.last),
+  .axis_wr_data_count(rx_buffer_data_count),
+  .axis_rd_data_count()
+);
+end
+if (WIDTH==256) begin
+axis_data_fifo_256_d1024 rx_buffer_fifo (
+  .s_axis_aresetn(net_aresetn),          // input wire s_axis_aresetn
+  .s_axis_aclk(net_clk),                // input wire s_axis_aclk
+  .s_axis_tvalid(axis_tcp2rxbuffer.valid),
+  .s_axis_tready(axis_tcp2rxbuffer.ready),
+  .s_axis_tdata(axis_tcp2rxbuffer.data),
+  .s_axis_tkeep(axis_tcp2rxbuffer.keep),
+  .s_axis_tlast(axis_tcp2rxbuffer.last),
+  .m_axis_tvalid(axis_rxbuffer2app.valid),
+  .m_axis_tready(axis_rxbuffer2app.ready),
+  .m_axis_tdata(axis_rxbuffer2app.data),
+  .m_axis_tkeep(axis_rxbuffer2app.keep),
+  .m_axis_tlast(axis_rxbuffer2app.last),
+  .axis_wr_data_count(rx_buffer_data_count),
+  .axis_rd_data_count()
+);
+end
+if (WIDTH==512) begin
+axis_data_fifo_512_d1024 rx_buffer_fifo (
+  .s_axis_aresetn(net_aresetn),          // input wire s_axis_aresetn
+  .s_axis_aclk(net_clk),                // input wire s_axis_aclk
+  .s_axis_tvalid(axis_tcp2rxbuffer.valid),
+  .s_axis_tready(axis_tcp2rxbuffer.ready),
+  .s_axis_tdata(axis_tcp2rxbuffer.data),
+  .s_axis_tkeep(axis_tcp2rxbuffer.keep),
+  .s_axis_tlast(axis_tcp2rxbuffer.last),
+  .m_axis_tvalid(axis_rxbuffer2app.valid),
+  .m_axis_tready(axis_rxbuffer2app.ready),
+  .m_axis_tdata(axis_rxbuffer2app.data),
+  .m_axis_tkeep(axis_rxbuffer2app.keep),
+  .m_axis_tlast(axis_rxbuffer2app.last),
+  .axis_wr_data_count(rx_buffer_data_count),
+  .axis_rd_data_count()
+);
+end
 
 //register data_count
 always @(posedge net_clk) begin

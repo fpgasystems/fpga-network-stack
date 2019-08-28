@@ -5,7 +5,7 @@ open_solution "solution1"
 set_part ${FPGA_PART}
 create_clock -period ${CLOCK_PERIOD} -name default
 
-set_top ${PROJECT_NAME}
+set_top ${PROJECT_NAME}_top
 
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/../axi_utils.cpp
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/ack_delay/ack_delay.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
@@ -30,8 +30,6 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/toe.cpp -cflags "-I${CMAKE_CURRENT_BINARY_
 
 #add_files -tb test_toe.cpp
 
-
-config_rtl -disable_start_propagation
 
 #Check which command
 set command [lindex $argv 2]
