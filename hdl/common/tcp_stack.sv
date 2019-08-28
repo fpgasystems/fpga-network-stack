@@ -424,9 +424,9 @@ hash_table_ip hash_table_inst (
   .s_axis_upd_req_V_TVALID(axis_ht_upd_req.valid),
   .s_axis_upd_req_V_TREADY(axis_ht_upd_req.ready),
   .s_axis_upd_req_V_TDATA(axis_ht_upd_req.data),
-  .m_axis_upd_replay_V_TVALID(axis_ht_upd_rsp.valid),
-  .m_axis_upd_replay_V_TREADY(axis_ht_upd_rsp.ready),
-  .m_axis_upd_replay_V_TDATA(axis_ht_upd_rsp.data),
+  .m_axis_upd_rsp_V_TVALID(axis_ht_upd_rsp.valid),
+  .m_axis_upd_rsp_V_TREADY(axis_ht_upd_rsp.ready),
+  .m_axis_upd_rsp_V_TDATA(axis_ht_upd_rsp.data),
   .regInsertFailureCount_V_ap_vld(ht_insert_failure_count_valid),
   .regInsertFailureCount_V(ht_insert_failure_count)
 );
