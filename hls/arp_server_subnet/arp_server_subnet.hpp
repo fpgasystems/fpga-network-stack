@@ -165,7 +165,9 @@ void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
 				        hls::stream<net_axis<WIDTH> >&          arpDataOut,
 				        hls::stream<arpTableReply>&    macIpEncode_rsp,
 				        hls::stream<arpTableReply>&    hostIpEncode_rsp,
-				        ap_uint<48> myMacAddress,
-				        ap_uint<32> myIpAddress);
+							ap_uint<48> myMacAddress,
+							ap_uint<32> myIpAddress,
+							ap_uint<16>&			regRequestCount,
+							ap_uint<16>&			regReplyCount);
 
 #endif

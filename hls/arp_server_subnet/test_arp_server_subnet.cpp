@@ -26,25 +26,23 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
-
+#include <arp_server_subnet_config.hpp>
 #include "arp_server_subnet.hpp"
 
-int main()
+int main(int argc, char* argv[])
 {
 	hls::stream<net_axis<64> >          arpDataIn64("arpDataIn64");
-	hls::stream<net_axis<128> >          arpDataIn128("arpDataIn128");
-	hls::stream<net_axis<256> >          arpDataIn256("arpDataIn256");
-	hls::stream<axiWord>          arpDataIn("arpDataIn");
+	hls::stream<net_axis<DATA_WIDTH> >  arpDataIn("arpDataIn");
 
 	hls::stream<ap_uint<32> >     macIpEncode_req("macIpEncode_req");
 	hls::stream<ap_uint<32> >     hostIpEncode_req("hostIpEncode_req");
 
 	hls::stream<net_axis<64> >          arpDataOut64("arpDataOut64");
-	hls::stream<net_axis<128> >          arpDataOut128("arpDataOut128");
-	hls::stream<net_axis<256> >          arpDataOut256("arpDataOut256");
-	hls::stream<axiWord>          arpDataOut("arpDataOut");
+	hls::stream<net_axis<DATA_WIDTH> >          arpDataOut("arpDataOut");
 	hls::stream<arpTableReply>    macIpEncode_rsp("macIpEncode_rsp");
 	hls::stream<arpTableReply>    hostIpEncode_rsp("hostIpEncode_rsp");
+	ap_uint<16>			regRequestCount;
+	ap_uint<16>			regReplyCount;
 
 	std::ifstream inputFile;
 	std::ofstream outputFile;
@@ -52,14 +50,22 @@ int main()
 	static ap_uint<32> ipAddress = 0x01010101;
 	static ap_uint<48> macAddress = 0xE59D02350A00;
 
-	inputFile.open("../../../../in.dat");
+	std::cout << "Running test for " << DATA_WIDTH << "bit width" << std::endl;
+
+	if (argc != 3)
+	{
+		std::cout << "Not input and output file specified as argument\n";
+		return -1;
+	}
+
+	inputFile.open(argv[1]);//"../../../../in.dat");
 	//inputFile.open("../../../../queryReply.dat");
 	if (!inputFile)
 	{
 		std::cout << "Error: could not open test input file." << std::endl;
 	}
 
-	outputFile.open("../../../../out.dat");
+	outputFile.open(argv[2]);//"../../../../out.dat");
 	if (!outputFile)
 	{
 		std::cout << "Error: could not open test output file." << std::endl;
@@ -81,34 +87,23 @@ int main()
 	int count = 0;
 	while (count < 250)
 	{
-		arp_server_subnet(	arpDataIn,
+		arp_server_subnet<DATA_WIDTH>(	arpDataIn,
 							macIpEncode_req,
 							hostIpEncode_req,
 							arpDataOut,
 							macIpEncode_rsp,
 							hostIpEncode_rsp,
 							macAddress,
-							ipAddress);
+							ipAddress,
+							regRequestCount,
+							regReplyCount);
 
 		if (count == 50) {
 			macIpEncode_req.write(0x0a010101);
 		}
 
-#if (AXI_WIDTH == 512)
-	convertStreamToDoubleWidth(arpDataIn64, arpDataIn128);
-	convertStreamToDoubleWidth(arpDataIn128, arpDataIn256);
-	convertStreamToDoubleWidth(arpDataIn256, arpDataIn);
-	convertStreamToHalfWidth<512, 951>(arpDataOut, arpDataOut256);
-	convertStreamToHalfWidth<256, 952>(arpDataOut256, arpDataOut128);
-	convertStreamToHalfWidth<128, 953>(arpDataOut128, arpDataOut64);
-#else
-	if (!arpDataIn64.empty()) {
-		arpDataIn.write(arpDataIn64.read());
-	}
-	if (!arpDataOut.empty()) {
-		arpDataOut64.write(arpDataOut.read());
-	}
-#endif
+		convertStreamWidth<64, 941>(arpDataIn64, arpDataIn);
+		convertStreamWidth<DATA_WIDTH, 951>(arpDataOut, arpDataOut64);
 
 		count++;
 	}
