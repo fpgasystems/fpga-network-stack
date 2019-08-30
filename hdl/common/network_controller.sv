@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Systems Group, ETH Zurich
+ * Copyright (c) 2019, Systems Group, ETH Zurich
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,7 +24,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- `timescale 1ns / 1ps
+`timescale 1ns / 1ps
 `default_nettype none
 
 module network_controller
