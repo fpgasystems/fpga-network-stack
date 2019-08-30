@@ -803,6 +803,38 @@ axis_register_slice_64 axis_register_AXI_S (
   .m_axis_tlast(axis_slice_to_ibh.last)    // output wire m_axis_tlast
 );
 end
+if (WIDTH==128) begin
+axis_register_slice_128 axis_register_AXI_S (
+  .aclk(net_clk),                    // input wire aclk
+  .aresetn(net_aresetn),              // input wire aresetn
+  .s_axis_tvalid(s_axis_net.valid),  // input wire s_axis_tvalid
+  .s_axis_tready(s_axis_net.ready),  // output wire s_axis_tready
+  .s_axis_tdata(s_axis_net.data),    // input wire [63 : 0] s_axis_tdata
+  .s_axis_tkeep(s_axis_net.keep),    // input wire [7 : 0] s_axis_tkeep
+  .s_axis_tlast(s_axis_net.last),    // input wire s_axis_tlast
+  .m_axis_tvalid(axis_slice_to_ibh.valid),  // output wire m_axis_tvalid
+  .m_axis_tready(axis_slice_to_ibh.ready),  // input wire m_axis_tready
+  .m_axis_tdata(axis_slice_to_ibh.data),    // output wire [63 : 0] m_axis_tdata
+  .m_axis_tkeep(axis_slice_to_ibh.keep),    // output wire [7 : 0] m_axis_tkeep
+  .m_axis_tlast(axis_slice_to_ibh.last)    // output wire m_axis_tlast
+);
+end
+if (WIDTH==256) begin
+axis_register_slice_256 axis_register_AXI_S (
+  .aclk(net_clk),                    // input wire aclk
+  .aresetn(net_aresetn),              // input wire aresetn
+  .s_axis_tvalid(s_axis_net.valid),  // input wire s_axis_tvalid
+  .s_axis_tready(s_axis_net.ready),  // output wire s_axis_tready
+  .s_axis_tdata(s_axis_net.data),    // input wire [63 : 0] s_axis_tdata
+  .s_axis_tkeep(s_axis_net.keep),    // input wire [7 : 0] s_axis_tkeep
+  .s_axis_tlast(s_axis_net.last),    // input wire s_axis_tlast
+  .m_axis_tvalid(axis_slice_to_ibh.valid),  // output wire m_axis_tvalid
+  .m_axis_tready(axis_slice_to_ibh.ready),  // input wire m_axis_tready
+  .m_axis_tdata(axis_slice_to_ibh.data),    // output wire [63 : 0] m_axis_tdata
+  .m_axis_tkeep(axis_slice_to_ibh.keep),    // output wire [7 : 0] m_axis_tkeep
+  .m_axis_tlast(axis_slice_to_ibh.last)    // output wire m_axis_tlast
+);
+end
 if (WIDTH==512) begin
 axis_register_slice_512 axis_register_AXI_S (
   .aclk(net_clk),                    // input wire aclk
@@ -998,6 +1030,222 @@ axis_interconnect_4to1 ip_merger (
 
 // merges ip and arp
 axis_interconnect_2to1 mac_merger (
+  .ACLK(net_clk), // input ACLK
+  .ARESETN(net_aresetn), // input ARESETN
+  .S00_AXIS_ACLK(net_clk), // input S00_AXIS_ACLK
+  .S01_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
+  //.S02_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
+  .S00_AXIS_ARESETN(net_aresetn), // input S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
+  //.S02_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
+  .S00_AXIS_TVALID(axis_arp_to_arp_slice.valid), // input S00_AXIS_TVALID
+  .S00_AXIS_TREADY(axis_arp_to_arp_slice.ready), // output S00_AXIS_TREADY
+  .S00_AXIS_TDATA(axis_arp_to_arp_slice.data), // input [63 : 0] S00_AXIS_TDATA
+  .S00_AXIS_TKEEP(axis_arp_to_arp_slice.keep), // input [7 : 0] S00_AXIS_TKEEP
+  .S00_AXIS_TLAST(axis_arp_to_arp_slice.last), // input S00_AXIS_TLAST
+  
+  .S01_AXIS_TVALID(axis_mie_to_intercon.valid), // input S01_AXIS_TVALID
+  .S01_AXIS_TREADY(axis_mie_to_intercon.ready), // output S01_AXIS_TREADY
+  .S01_AXIS_TDATA(axis_mie_to_intercon.data), // input [63 : 0] S01_AXIS_TDATA
+  .S01_AXIS_TKEEP(axis_mie_to_intercon.keep), // input [7 : 0] S01_AXIS_TKEEP
+  .S01_AXIS_TLAST(axis_mie_to_intercon.last), // input S01_AXIS_TLAST
+  
+  /*.S02_AXIS_TVALID(axis_ethencode_to_intercon.valid), // input S01_AXIS_TVALID
+  .S02_AXIS_TREADY(axis_ethencode_to_intercon.ready), // output S01_AXIS_TREADY
+  .S02_AXIS_TDATA(axis_ethencode_to_intercon.data), // input [63 : 0] S01_AXIS_TDATA
+  .S02_AXIS_TKEEP(axis_ethencode_to_intercon.keep), // input [7 : 0] S01_AXIS_TKEEP
+  .S02_AXIS_TLAST(axis_ethencode_to_intercon.last), // input S01_AXIS_TLAST*/
+  
+  .M00_AXIS_ACLK(net_clk), // input M00_AXIS_ACLK
+  .M00_AXIS_ARESETN(net_aresetn), // input M00_AXIS_ARESETN
+  .M00_AXIS_TVALID(m_axis_net.valid), // output M00_AXIS_TVALID
+  .M00_AXIS_TREADY(m_axis_net.ready), // input M00_AXIS_TREADY
+  .M00_AXIS_TDATA(m_axis_net.data), // output [63 : 0] M00_AXIS_TDATA
+  .M00_AXIS_TKEEP(m_axis_net.keep), // output [7 : 0] M00_AXIS_TKEEP
+  .M00_AXIS_TLAST(m_axis_net.last), // output M00_AXIS_TLAST
+  .S00_ARB_REQ_SUPPRESS(1'b0), // input S00_ARB_REQ_SUPPRESS
+  .S01_ARB_REQ_SUPPRESS(1'b0) // input S01_ARB_REQ_SUPPRESS
+  //.S02_ARB_REQ_SUPPRESS(1'b0) // input S01_ARB_REQ_SUPPRESS
+);
+end
+if (WIDTH==128) begin
+axi_stream #(.WIDTH(128))    axis_icmp_slice_to_merge();
+axis_64_to_128_converter icmp_out_data_converter (
+  .aclk(net_clk),
+  .aresetn(net_aresetn),
+  .s_axis_tvalid(axis_icmp_to_icmp_slice.valid),
+  .s_axis_tready(axis_icmp_to_icmp_slice.ready),
+  .s_axis_tdata(axis_icmp_to_icmp_slice.data),
+  .s_axis_tkeep(axis_icmp_to_icmp_slice.keep),
+  .s_axis_tlast(axis_icmp_to_icmp_slice.last),
+  .s_axis_tdest(0),
+  .m_axis_tvalid(axis_icmp_slice_to_merge.valid),
+  .m_axis_tready(axis_icmp_slice_to_merge.ready),
+  .m_axis_tdata(axis_icmp_slice_to_merge.data),
+  .m_axis_tkeep(axis_icmp_slice_to_merge.keep),
+  .m_axis_tlast(axis_icmp_slice_to_merge.last),
+  .m_axis_tdest()
+);
+// merges icmp and tcp
+axis_interconnect_128_4to1 ip_merger (
+  .ACLK(net_clk),                                  // input wire ACLK
+  .ARESETN(net_aresetn),                            // input wire ARESETN
+  .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
+  .S01_AXIS_ACLK(net_clk),                // input wire S01_AXIS_ACLK
+  .S02_AXIS_ACLK(net_clk),                // input wire S02_AXIS_ACLK
+  .S03_AXIS_ACLK(net_clk),                // input wire S03_AXIS_ACLK
+  .S00_AXIS_ARESETN(net_aresetn),          // input wire S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn),          // input wire S01_AXIS_ARESETN
+  .S02_AXIS_ARESETN(net_aresetn),          // input wire S02_AXIS_ARESETN
+  .S03_AXIS_ARESETN(net_aresetn),          // input wire S03_AXIS_ARESETN
+  
+  .S00_AXIS_TVALID(axis_icmp_slice_to_merge.valid),            // input wire S00_AXIS_TVALID
+  .S00_AXIS_TREADY(axis_icmp_slice_to_merge.ready),            // output wire S00_AXIS_TREADY
+  .S00_AXIS_TDATA(axis_icmp_slice_to_merge.data),              // input wire [63 : 0] S00_AXIS_TDATA
+  .S00_AXIS_TKEEP(axis_icmp_slice_to_merge.keep),              // input wire [7 : 0] S00_AXIS_TKEEP
+  .S00_AXIS_TLAST(axis_icmp_slice_to_merge.last),              // input wire S00_AXIS_TLAST
+
+  .S01_AXIS_TVALID(axis_udp_slice_to_merge.valid),            // input wire S01_AXIS_TVALID
+  .S01_AXIS_TREADY(axis_udp_slice_to_merge.ready),            // output wire S01_AXIS_TREADY
+  .S01_AXIS_TDATA(axis_udp_slice_to_merge.data),              // input wire [63 : 0] S01_AXIS_TDATA
+  .S01_AXIS_TKEEP(axis_udp_slice_to_merge.keep),              // input wire [7 : 0] S01_AXIS_TKEEP
+  .S01_AXIS_TLAST(axis_udp_slice_to_merge.last),              // input wire S01_AXIS_TLAST
+
+  .S02_AXIS_TVALID(axis_toe_to_toe_slice.valid),            // input wire S02_AXIS_TVALID
+  .S02_AXIS_TREADY(axis_toe_to_toe_slice.ready),            // output wire S02_AXIS_TREADY
+  .S02_AXIS_TDATA(axis_toe_to_toe_slice.data),              // input wire [63 : 0] S02_AXIS_TDATA
+  .S02_AXIS_TKEEP(axis_toe_to_toe_slice.keep),              // input wire [7 : 0] S02_AXIS_TKEEP
+  .S02_AXIS_TLAST(axis_toe_to_toe_slice.last),              // input wire S02_AXIS_TLAST
+
+  .S03_AXIS_TVALID(axis_roce_slice_to_merge.valid),            // input wire S01_AXIS_TVALID
+  .S03_AXIS_TREADY(axis_roce_slice_to_merge.ready),            // output wire S01_AXIS_TREADY
+  .S03_AXIS_TDATA(axis_roce_slice_to_merge.data),              // input wire [63 : 0] S01_AXIS_TDATA
+  .S03_AXIS_TKEEP(axis_roce_slice_to_merge.keep),              // input wire [7 : 0] S01_AXIS_TKEEP
+  .S03_AXIS_TLAST(axis_roce_slice_to_merge.last),              // input wire S01_AXIS_TLAST
+
+  .M00_AXIS_ACLK(net_clk),                // input wire M00_AXIS_ACLK
+  .M00_AXIS_ARESETN(net_aresetn),          // input wire M00_AXIS_ARESETN
+  .M00_AXIS_TVALID(axis_intercon_to_mie.valid),            // output wire M00_AXIS_TVALID
+  .M00_AXIS_TREADY(axis_intercon_to_mie.ready),            // input wire M00_AXIS_TREADY
+  .M00_AXIS_TDATA(axis_intercon_to_mie.data),              // output wire [63 : 0] M00_AXIS_TDATA
+  .M00_AXIS_TKEEP(axis_intercon_to_mie.keep),              // output wire [7 : 0] M00_AXIS_TKEEP
+  .M00_AXIS_TLAST(axis_intercon_to_mie.last),              // output wire M00_AXIS_TLAST
+  .S00_ARB_REQ_SUPPRESS(1'b0),  // input wire S00_ARB_REQ_SUPPRESS
+  .S01_ARB_REQ_SUPPRESS(1'b0),  // input wire S01_ARB_REQ_SUPPRESS
+  .S02_ARB_REQ_SUPPRESS(1'b0),  // input wire S02_ARB_REQ_SUPPRESS
+  .S03_ARB_REQ_SUPPRESS(1'b0)  // input wire S02_ARB_REQ_SUPPRESS
+);
+
+// merges ip and arp
+axis_interconnect_128_2to1 mac_merger (
+  .ACLK(net_clk), // input ACLK
+  .ARESETN(net_aresetn), // input ARESETN
+  .S00_AXIS_ACLK(net_clk), // input S00_AXIS_ACLK
+  .S01_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
+  //.S02_AXIS_ACLK(net_clk), // input S01_AXIS_ACLK
+  .S00_AXIS_ARESETN(net_aresetn), // input S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
+  //.S02_AXIS_ARESETN(net_aresetn), // input S01_AXIS_ARESETN
+  .S00_AXIS_TVALID(axis_arp_to_arp_slice.valid), // input S00_AXIS_TVALID
+  .S00_AXIS_TREADY(axis_arp_to_arp_slice.ready), // output S00_AXIS_TREADY
+  .S00_AXIS_TDATA(axis_arp_to_arp_slice.data), // input [63 : 0] S00_AXIS_TDATA
+  .S00_AXIS_TKEEP(axis_arp_to_arp_slice.keep), // input [7 : 0] S00_AXIS_TKEEP
+  .S00_AXIS_TLAST(axis_arp_to_arp_slice.last), // input S00_AXIS_TLAST
+  
+  .S01_AXIS_TVALID(axis_mie_to_intercon.valid), // input S01_AXIS_TVALID
+  .S01_AXIS_TREADY(axis_mie_to_intercon.ready), // output S01_AXIS_TREADY
+  .S01_AXIS_TDATA(axis_mie_to_intercon.data), // input [63 : 0] S01_AXIS_TDATA
+  .S01_AXIS_TKEEP(axis_mie_to_intercon.keep), // input [7 : 0] S01_AXIS_TKEEP
+  .S01_AXIS_TLAST(axis_mie_to_intercon.last), // input S01_AXIS_TLAST
+  
+  /*.S02_AXIS_TVALID(axis_ethencode_to_intercon.valid), // input S01_AXIS_TVALID
+  .S02_AXIS_TREADY(axis_ethencode_to_intercon.ready), // output S01_AXIS_TREADY
+  .S02_AXIS_TDATA(axis_ethencode_to_intercon.data), // input [63 : 0] S01_AXIS_TDATA
+  .S02_AXIS_TKEEP(axis_ethencode_to_intercon.keep), // input [7 : 0] S01_AXIS_TKEEP
+  .S02_AXIS_TLAST(axis_ethencode_to_intercon.last), // input S01_AXIS_TLAST*/
+  
+  .M00_AXIS_ACLK(net_clk), // input M00_AXIS_ACLK
+  .M00_AXIS_ARESETN(net_aresetn), // input M00_AXIS_ARESETN
+  .M00_AXIS_TVALID(m_axis_net.valid), // output M00_AXIS_TVALID
+  .M00_AXIS_TREADY(m_axis_net.ready), // input M00_AXIS_TREADY
+  .M00_AXIS_TDATA(m_axis_net.data), // output [63 : 0] M00_AXIS_TDATA
+  .M00_AXIS_TKEEP(m_axis_net.keep), // output [7 : 0] M00_AXIS_TKEEP
+  .M00_AXIS_TLAST(m_axis_net.last), // output M00_AXIS_TLAST
+  .S00_ARB_REQ_SUPPRESS(1'b0), // input S00_ARB_REQ_SUPPRESS
+  .S01_ARB_REQ_SUPPRESS(1'b0) // input S01_ARB_REQ_SUPPRESS
+  //.S02_ARB_REQ_SUPPRESS(1'b0) // input S01_ARB_REQ_SUPPRESS
+);
+end
+if (WIDTH==256) begin
+axi_stream #(.WIDTH(256))    axis_icmp_slice_to_merge();
+axis_64_to_256_converter icmp_out_data_converter (
+  .aclk(net_clk),
+  .aresetn(net_aresetn),
+  .s_axis_tvalid(axis_icmp_to_icmp_slice.valid),
+  .s_axis_tready(axis_icmp_to_icmp_slice.ready),
+  .s_axis_tdata(axis_icmp_to_icmp_slice.data),
+  .s_axis_tkeep(axis_icmp_to_icmp_slice.keep),
+  .s_axis_tlast(axis_icmp_to_icmp_slice.last),
+  .s_axis_tdest(0),
+  .m_axis_tvalid(axis_icmp_slice_to_merge.valid),
+  .m_axis_tready(axis_icmp_slice_to_merge.ready),
+  .m_axis_tdata(axis_icmp_slice_to_merge.data),
+  .m_axis_tkeep(axis_icmp_slice_to_merge.keep),
+  .m_axis_tlast(axis_icmp_slice_to_merge.last),
+  .m_axis_tdest()
+);
+// merges icmp and tcp
+axis_interconnect_256_4to1 ip_merger (
+  .ACLK(net_clk),                                  // input wire ACLK
+  .ARESETN(net_aresetn),                            // input wire ARESETN
+  .S00_AXIS_ACLK(net_clk),                // input wire S00_AXIS_ACLK
+  .S01_AXIS_ACLK(net_clk),                // input wire S01_AXIS_ACLK
+  .S02_AXIS_ACLK(net_clk),                // input wire S02_AXIS_ACLK
+  .S03_AXIS_ACLK(net_clk),                // input wire S03_AXIS_ACLK
+  .S00_AXIS_ARESETN(net_aresetn),          // input wire S00_AXIS_ARESETN
+  .S01_AXIS_ARESETN(net_aresetn),          // input wire S01_AXIS_ARESETN
+  .S02_AXIS_ARESETN(net_aresetn),          // input wire S02_AXIS_ARESETN
+  .S03_AXIS_ARESETN(net_aresetn),          // input wire S03_AXIS_ARESETN
+  
+  .S00_AXIS_TVALID(axis_icmp_slice_to_merge.valid),            // input wire S00_AXIS_TVALID
+  .S00_AXIS_TREADY(axis_icmp_slice_to_merge.ready),            // output wire S00_AXIS_TREADY
+  .S00_AXIS_TDATA(axis_icmp_slice_to_merge.data),              // input wire [63 : 0] S00_AXIS_TDATA
+  .S00_AXIS_TKEEP(axis_icmp_slice_to_merge.keep),              // input wire [7 : 0] S00_AXIS_TKEEP
+  .S00_AXIS_TLAST(axis_icmp_slice_to_merge.last),              // input wire S00_AXIS_TLAST
+
+  .S01_AXIS_TVALID(axis_udp_slice_to_merge.valid),            // input wire S01_AXIS_TVALID
+  .S01_AXIS_TREADY(axis_udp_slice_to_merge.ready),            // output wire S01_AXIS_TREADY
+  .S01_AXIS_TDATA(axis_udp_slice_to_merge.data),              // input wire [63 : 0] S01_AXIS_TDATA
+  .S01_AXIS_TKEEP(axis_udp_slice_to_merge.keep),              // input wire [7 : 0] S01_AXIS_TKEEP
+  .S01_AXIS_TLAST(axis_udp_slice_to_merge.last),              // input wire S01_AXIS_TLAST
+
+  .S02_AXIS_TVALID(axis_toe_to_toe_slice.valid),            // input wire S02_AXIS_TVALID
+  .S02_AXIS_TREADY(axis_toe_to_toe_slice.ready),            // output wire S02_AXIS_TREADY
+  .S02_AXIS_TDATA(axis_toe_to_toe_slice.data),              // input wire [63 : 0] S02_AXIS_TDATA
+  .S02_AXIS_TKEEP(axis_toe_to_toe_slice.keep),              // input wire [7 : 0] S02_AXIS_TKEEP
+  .S02_AXIS_TLAST(axis_toe_to_toe_slice.last),              // input wire S02_AXIS_TLAST
+
+  .S03_AXIS_TVALID(axis_roce_slice_to_merge.valid),            // input wire S01_AXIS_TVALID
+  .S03_AXIS_TREADY(axis_roce_slice_to_merge.ready),            // output wire S01_AXIS_TREADY
+  .S03_AXIS_TDATA(axis_roce_slice_to_merge.data),              // input wire [63 : 0] S01_AXIS_TDATA
+  .S03_AXIS_TKEEP(axis_roce_slice_to_merge.keep),              // input wire [7 : 0] S01_AXIS_TKEEP
+  .S03_AXIS_TLAST(axis_roce_slice_to_merge.last),              // input wire S01_AXIS_TLAST
+
+  .M00_AXIS_ACLK(net_clk),                // input wire M00_AXIS_ACLK
+  .M00_AXIS_ARESETN(net_aresetn),          // input wire M00_AXIS_ARESETN
+  .M00_AXIS_TVALID(axis_intercon_to_mie.valid),            // output wire M00_AXIS_TVALID
+  .M00_AXIS_TREADY(axis_intercon_to_mie.ready),            // input wire M00_AXIS_TREADY
+  .M00_AXIS_TDATA(axis_intercon_to_mie.data),              // output wire [63 : 0] M00_AXIS_TDATA
+  .M00_AXIS_TKEEP(axis_intercon_to_mie.keep),              // output wire [7 : 0] M00_AXIS_TKEEP
+  .M00_AXIS_TLAST(axis_intercon_to_mie.last),              // output wire M00_AXIS_TLAST
+  .S00_ARB_REQ_SUPPRESS(1'b0),  // input wire S00_ARB_REQ_SUPPRESS
+  .S01_ARB_REQ_SUPPRESS(1'b0),  // input wire S01_ARB_REQ_SUPPRESS
+  .S02_ARB_REQ_SUPPRESS(1'b0),  // input wire S02_ARB_REQ_SUPPRESS
+  .S03_ARB_REQ_SUPPRESS(1'b0)  // input wire S02_ARB_REQ_SUPPRESS
+);
+
+// merges ip and arp
+axis_interconnect_256_2to1 mac_merger (
   .ACLK(net_clk), // input ACLK
   .ARESETN(net_aresetn), // input ARESETN
   .S00_AXIS_ACLK(net_clk), // input S00_AXIS_ACLK
