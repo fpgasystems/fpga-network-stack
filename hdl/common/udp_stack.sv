@@ -46,13 +46,7 @@ module udp_stack #(
     axis_meta.slave         s_axis_udp_tx_metadata,
     axi_stream.slave        s_axis_udp_tx_data,
 
-
-   //Config
-    //axis_meta.slave  s_axis_qp_interface,
-    //axis_meta.slave  s_axis_qp_conn_interface,
-
-
-   input wire[127:0]        local_ip_address,
+   input wire[31:0]        local_ip_address,
    input wire[15:0]         listen_port
    
  );
@@ -68,80 +62,81 @@ axi_stream #(.WIDTH(WIDTH))       axis_udp_to_ip_data();
  
  
 ipv4_ip ipv4_inst (
-   .local_ipv4_address_V(local_ip_address[31:0]),    // input wire [31 : 0] local_ipv4_address_V
+   .local_ipv4_address_V(local_ip_address),
    .protocol_V(8'h11), //UDP_PROTOCOL
    //RX
-   .s_axis_rx_data_TVALID(axis_udp_slice_to_udp.valid),  // input wire s_axis_rx_data_TVALID
-   .s_axis_rx_data_TREADY(axis_udp_slice_to_udp.ready),  // output wire s_axis_rx_data_TREADY
-   .s_axis_rx_data_TDATA(axis_udp_slice_to_udp.data),    // input wire [63 : 0] s_axis_rx_data_TDATA
-   .s_axis_rx_data_TKEEP(axis_udp_slice_to_udp.keep),    // input wire [7 : 0] s_axis_rx_data_TKEEP
-   .s_axis_rx_data_TLAST(axis_udp_slice_to_udp.last),    // input wire [0 : 0] s_axis_rx_data_TLAST
-   .m_axis_rx_meta_TVALID(axis_ip_to_udp_meta.valid),  // output wire m_axis_rx_meta_TVALID
-   .m_axis_rx_meta_TREADY(axis_ip_to_udp_meta.ready),  // input wire m_axis_rx_meta_TREADY
-   .m_axis_rx_meta_TDATA(axis_ip_to_udp_meta.data),    // output wire [47 : 0] m_axis_rx_meta_TDATA
-   .m_axis_rx_data_TVALID(axis_ip_to_udp_data.valid),  // output wire m_axis_rx_data_TVALID
-   .m_axis_rx_data_TREADY(axis_ip_to_udp_data.ready),  // input wire m_axis_rx_data_TREADY
-   .m_axis_rx_data_TDATA(axis_ip_to_udp_data.data),    // output wire [63 : 0] m_axis_rx_data_TDATA
-   .m_axis_rx_data_TKEEP(axis_ip_to_udp_data.keep),    // output wire [7 : 0] m_axis_rx_data_TKEEP
-   .m_axis_rx_data_TLAST(axis_ip_to_udp_data.last),    // output wire [0 : 0] m_axis_rx_data_TLAST
+   .s_axis_rx_data_TVALID(s_axis_rx_data.valid),
+   .s_axis_rx_data_TREADY(s_axis_rx_data.ready),
+   .s_axis_rx_data_TDATA(s_axis_rx_data.data),
+   .s_axis_rx_data_TKEEP(s_axis_rx_data.keep),
+   .s_axis_rx_data_TLAST(s_axis_rx_data.last),
+   .m_axis_rx_meta_V_TVALID(axis_ip_to_udp_meta.valid),
+   .m_axis_rx_meta_V_TREADY(axis_ip_to_udp_meta.ready),
+   .m_axis_rx_meta_V_TDATA(axis_ip_to_udp_meta.data),
+   .m_axis_rx_data_TVALID(axis_ip_to_udp_data.valid),
+   .m_axis_rx_data_TREADY(axis_ip_to_udp_data.ready),
+   .m_axis_rx_data_TDATA(axis_ip_to_udp_data.data),
+   .m_axis_rx_data_TKEEP(axis_ip_to_udp_data.keep),
+   .m_axis_rx_data_TLAST(axis_ip_to_udp_data.last),
    //TX
-   .s_axis_tx_meta_TVALID(axis_udp_to_ip_meta.valid),  // input wire s_axis_tx_meta_TVALID
-   .s_axis_tx_meta_TREADY(axis_udp_to_ip_meta.ready),  // output wire s_axis_tx_meta_TREADY
-   .s_axis_tx_meta_TDATA(axis_udp_to_ip_meta.data),    // input wire [47 : 0] s_axis_tx_meta_TDATA
-   .s_axis_tx_data_TVALID(axis_udp_to_ip_data.valid),  // input wire s_axis_tx_data_TVALID
-   .s_axis_tx_data_TREADY(axis_udp_to_ip_data.ready),  // output wire s_axis_tx_data_TREADY
-   .s_axis_tx_data_TDATA(axis_udp_to_ip_data.data),    // input wire [63 : 0] s_axis_tx_data_TDATA
-   .s_axis_tx_data_TKEEP(axis_udp_to_ip_data.keep),    // input wire [7 : 0] s_axis_tx_data_TKEEP
-   .s_axis_tx_data_TLAST(axis_udp_to_ip_data.last),    // input wire [0 : 0] s_axis_tx_data_TLAST
-   .m_axis_tx_data_TVALID(axis_udp_to_udp_slice.valid),  // output wire m_axis_tx_data_TVALID
-   .m_axis_tx_data_TREADY(axis_udp_to_udp_slice.ready),  // input wire m_axis_tx_data_TREADY
-   .m_axis_tx_data_TDATA(axis_udp_to_udp_slice.data),    // output wire [63 : 0] m_axis_tx_data_TDATA
-   .m_axis_tx_data_TKEEP(axis_udp_to_udp_slice.keep),    // output wire [7 : 0] m_axis_tx_data_TKEEP
-   .m_axis_tx_data_TLAST(axis_udp_to_udp_slice.last),    // output wire [0 : 0] m_axis_tx_data_TLAST
+   .s_axis_tx_meta_V_TVALID(axis_udp_to_ip_meta.valid),
+   .s_axis_tx_meta_V_TREADY(axis_udp_to_ip_meta.ready),
+   .s_axis_tx_meta_V_TDATA(axis_udp_to_ip_meta.data),
+   .s_axis_tx_data_TVALID(axis_udp_to_ip_data.valid),
+   .s_axis_tx_data_TREADY(axis_udp_to_ip_data.ready),
+   .s_axis_tx_data_TDATA(axis_udp_to_ip_data.data),
+   .s_axis_tx_data_TKEEP(axis_udp_to_ip_data.keep),
+   .s_axis_tx_data_TLAST(axis_udp_to_ip_data.last),
+   .m_axis_tx_data_TVALID(m_axis_tx_data.valid),
+   .m_axis_tx_data_TREADY(m_axis_tx_data.ready),
+   .m_axis_tx_data_TDATA(m_axis_tx_data.data),
+   .m_axis_tx_data_TKEEP(m_axis_tx_data.keep),
+   .m_axis_tx_data_TLAST(m_axis_tx_data.last),
  
-   .aclk(net_clk),                                    // input wire aclk
-   .aresetn(net_aresetn)                              // input wire aresetn
+   .ap_clk(net_clk),
+   .ap_rst_n(net_aresetn)
  );
  
  udp_ip udp_inst (
    .reg_listen_port_V(listen_port),
+   .reg_ip_address_V({local_ip_address,local_ip_address,local_ip_address,local_ip_address}),
    //RX
-   .s_axis_rx_meta_TVALID(axis_ip_to_udp_meta.valid),
-   .s_axis_rx_meta_TREADY(axis_ip_to_udp_meta.ready),
-   .s_axis_rx_meta_TDATA(axis_ip_to_udp_meta.data),
-   .s_axis_rx_data_TVALID(axis_ip_to_udp_data.valid),        // input wire s_axis_rx_data_TVALID
-   .s_axis_rx_data_TREADY(axis_ip_to_udp_data.ready),        // output wire s_axis_rx_data_TREADY
-   .s_axis_rx_data_TDATA(axis_ip_to_udp_data.data),          // input wire [63 : 0] s_axis_rx_data_TDATA
-   .s_axis_rx_data_TKEEP(axis_ip_to_udp_data.keep),          // input wire [7 : 0] s_axis_rx_data_TKEEP
-   .s_axis_rx_data_TLAST(axis_ip_to_udp_data.last),          // input wire [0 : 0] s_axis_rx_data_TLAST
-   .m_axis_rx_meta_TVALID(m_axis_udp_rx_metadata.valid),        // output wire m_axis_rx_meta_TVALID
-   .m_axis_rx_meta_TREADY(m_axis_udp_rx_metadata.ready),        // input wire m_axis_rx_meta_TREADY
-   .m_axis_rx_meta_TDATA(m_axis_udp_rx_metadata.data),          // output wire [159 : 0] m_axis_rx_meta_TDATA
-   .m_axis_rx_data_TVALID(m_axis_udp_rx_data.valid),        // output wire m_axis_rx_data_TVALID
-   .m_axis_rx_data_TREADY(m_axis_udp_rx_data.ready),        // input wire m_axis_rx_data_TREADY
-   .m_axis_rx_data_TDATA(m_axis_udp_rx_data.data),          // output wire [63 : 0] m_axis_rx_data_TDATA
-   .m_axis_rx_data_TKEEP(m_axis_udp_rx_data.keep),          // output wire [7 : 0] m_axis_rx_data_TKEEP
-   .m_axis_rx_data_TLAST(m_axis_udp_rx_data.last),          // output wire [0 : 0] m_axis_rx_data_TLAST
+   .s_axis_rx_meta_V_TVALID(axis_ip_to_udp_meta.valid),
+   .s_axis_rx_meta_V_TREADY(axis_ip_to_udp_meta.ready),
+   .s_axis_rx_meta_V_TDATA(axis_ip_to_udp_meta.data),
+   .s_axis_rx_data_TVALID(axis_ip_to_udp_data.valid),
+   .s_axis_rx_data_TREADY(axis_ip_to_udp_data.ready),
+   .s_axis_rx_data_TDATA(axis_ip_to_udp_data.data),
+   .s_axis_rx_data_TKEEP(axis_ip_to_udp_data.keep),
+   .s_axis_rx_data_TLAST(axis_ip_to_udp_data.last),
+   .m_axis_rx_meta_V_TVALID(m_axis_udp_rx_metadata.valid),
+   .m_axis_rx_meta_V_TREADY(m_axis_udp_rx_metadata.ready),
+   .m_axis_rx_meta_V_TDATA(m_axis_udp_rx_metadata.data),
+   .m_axis_rx_data_TVALID(m_axis_udp_rx_data.valid),
+   .m_axis_rx_data_TREADY(m_axis_udp_rx_data.ready),
+   .m_axis_rx_data_TDATA(m_axis_udp_rx_data.data),
+   .m_axis_rx_data_TKEEP(m_axis_udp_rx_data.keep),
+   .m_axis_rx_data_TLAST(m_axis_udp_rx_data.last),
    //TX
-   .s_axis_tx_meta_TVALID(s_axis_udp_tx_metadata.valid),
-   .s_axis_tx_meta_TREADY(s_axis_udp_tx_metadata.ready),
-   .s_axis_tx_meta_TDATA(s_axis_udp_tx_metadata.data),
-   .s_axis_tx_data_TVALID(s_axis_udp_tx_data.valid),        // input wire s_axis_tx_data_TVALID
-   .s_axis_tx_data_TREADY(s_axis_udp_tx_data.ready),        // output wire s_axis_tx_data_TREADY
-   .s_axis_tx_data_TDATA(s_axis_udp_tx_data.data),          // input wire [63 : 0] s_axis_tx_data_TDATA
-   .s_axis_tx_data_TKEEP(s_axis_udp_tx_data.keep),          // input wire [7 : 0] s_axis_tx_data_TKEEP
-   .s_axis_tx_data_TLAST(s_axis_udp_tx_data.last),          // input wire [0 : 0] s_axis_tx_data_TLAST
-   .m_axis_tx_meta_TVALID(axis_udp_to_ip_meta.valid),        // input wire m_axis_tx_meta_TVALID
-   .m_axis_tx_meta_TREADY(axis_udp_to_ip_meta.ready),        // output wire m_axis_tx_meta_TREADY
-   .m_axis_tx_meta_TDATA(axis_udp_to_ip_meta.data),          // input wire [159 : 0] m_axis_tx_meta_TDATA
-   .m_axis_tx_data_TVALID(axis_udp_to_ip_data.valid),        // output wire m_axis_tx_data_TVALID
-   .m_axis_tx_data_TREADY(axis_udp_to_ip_data.ready),        // input wire m_axis_tx_data_TREADY
-   .m_axis_tx_data_TDATA(axis_udp_to_ip_data.data),          // output wire [63 : 0] m_axis_tx_data_TDATA
-   .m_axis_tx_data_TKEEP(axis_udp_to_ip_data.keep),          // output wire [7 : 0] m_axis_tx_data_TKEEP
-   .m_axis_tx_data_TLAST(axis_udp_to_ip_data.last),          // output wire [0 : 0] m_axis_tx_data_TLAST
+   .s_axis_tx_meta_V_TVALID(s_axis_udp_tx_metadata.valid),
+   .s_axis_tx_meta_V_TREADY(s_axis_udp_tx_metadata.ready),
+   .s_axis_tx_meta_V_TDATA(s_axis_udp_tx_metadata.data),
+   .s_axis_tx_data_TVALID(s_axis_udp_tx_data.valid),
+   .s_axis_tx_data_TREADY(s_axis_udp_tx_data.ready),
+   .s_axis_tx_data_TDATA(s_axis_udp_tx_data.data),
+   .s_axis_tx_data_TKEEP(s_axis_udp_tx_data.keep),
+   .s_axis_tx_data_TLAST(s_axis_udp_tx_data.last),
+   .m_axis_tx_meta_V_TVALID(axis_udp_to_ip_meta.valid),
+   .m_axis_tx_meta_V_TREADY(axis_udp_to_ip_meta.ready),
+   .m_axis_tx_meta_V_TDATA(axis_udp_to_ip_meta.data),
+   .m_axis_tx_data_TVALID(axis_udp_to_ip_data.valid),
+   .m_axis_tx_data_TREADY(axis_udp_to_ip_data.ready),
+   .m_axis_tx_data_TDATA(axis_udp_to_ip_data.data),
+   .m_axis_tx_data_TKEEP(axis_udp_to_ip_data.keep),
+   .m_axis_tx_data_TLAST(axis_udp_to_ip_data.last),
  
-   .aclk(net_clk),                                          // input wire aclk
-   .aresetn(net_aresetn)                                    // input wire aresetn
+   .ap_clk(net_clk),
+   .ap_rst_n(net_aresetn)
  );
 end
 else begin
