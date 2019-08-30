@@ -118,9 +118,19 @@ set_property -dict [list CONFIG.S_TDATA_NUM_BYTES {8} CONFIG.M_TDATA_NUM_BYTES {
 generate_target {instantiation_template} [get_files $device_ip_dir/axis_64_to_128_converter/axis_64_to_128_converter.xci]
 update_compile_order -fileset sources_1
 
+create_ip -name axis_dwidth_converter -vendor xilinx.com -library ip -version 1.1 -module_name axis_128_to_64_converter -dir $device_ip_dir
+set_property -dict [list CONFIG.S_TDATA_NUM_BYTES {16} CONFIG.M_TDATA_NUM_BYTES {8} CONFIG.HAS_TLAST {1} CONFIG.HAS_TKEEP {1} CONFIG.HAS_MI_TKEEP {1} CONFIG.Component_Name {axis_128_to_64_converter}] [get_ips axis_128_to_64_converter]
+generate_target {instantiation_template} [get_files $device_ip_dir/axis_128_to_64_converter/axis_128_to_64_converter.xci]
+update_compile_order -fileset sources_1
+
 create_ip -name axis_dwidth_converter -vendor xilinx.com -library ip -version 1.1 -module_name axis_64_to_256_converter -dir $device_ip_dir
 set_property -dict [list CONFIG.S_TDATA_NUM_BYTES {8} CONFIG.M_TDATA_NUM_BYTES {32} CONFIG.HAS_TLAST {1} CONFIG.HAS_TKEEP {1} CONFIG.HAS_MI_TKEEP {1} CONFIG.TDEST_WIDTH {1} CONFIG.Component_Name {axis_64_to_256_converter}] [get_ips axis_64_to_256_converter]
 generate_target {instantiation_template} [get_files $device_ip_dir/axis_64_to_256_converter/axis_64_to_256_converter.xci]
+update_compile_order -fileset sources_1
+
+create_ip -name axis_dwidth_converter -vendor xilinx.com -library ip -version 1.1 -module_name axis_256_to_64_converter -dir $device_ip_dir
+set_property -dict [list CONFIG.S_TDATA_NUM_BYTES {32} CONFIG.M_TDATA_NUM_BYTES {8} CONFIG.HAS_TLAST {1} CONFIG.HAS_TKEEP {1} CONFIG.HAS_MI_TKEEP {1} CONFIG.Component_Name {axis_256to_64_converter}] [get_ips axis_256_to_64_converter]
+generate_target {instantiation_template} [get_files $device_ip_dir/axis_256_to_64_converter/axis_256_to_64_converter.xci]
 update_compile_order -fileset sources_1
 
 #HLS IP cores

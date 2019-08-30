@@ -1600,13 +1600,6 @@ register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_arp_in_slice(
  .s_axis(axis_iph_to_arp_slice),
  .m_axis(axis_arp_slice_to_arp)
 );
- // ICMP Input Slice
-register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_icmp_in_slice(
-  .aclk(net_clk),
-  .aresetn(net_aresetn),
-  .s_axis(axis_iph_to_icmp_slice),
-  .m_axis(axis_icmp_slice_to_icmp)
-);
  // UDP Input Slice
 register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_upd_in_slice(
 .aclk(net_clk),
@@ -1642,6 +1635,72 @@ register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_roce_out_slice(
 .s_axis(axis_roce_to_roce_slice),
 .m_axis(axis_roce_slice_to_merge)
 );
+generate
+if (WIDTH==64) begin
+// ICMP Input Slice
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_icmp_in_slice(
+  .aclk(net_clk),
+  .aresetn(net_aresetn),
+  .s_axis(axis_iph_to_icmp_slice),
+  .m_axis(axis_icmp_slice_to_icmp)
+);
+end
+if (WIDTH==128) begin
+// ICMP Input Slice
+//axis_register_slice_512 axis_register_icmp_in_slice(
+axis_128_to_64_converter icmp_in_data_converter (
+  .aclk(net_clk),
+  .aresetn(net_aresetn),
+  .s_axis_tvalid(axis_iph_to_icmp_slice.valid),
+  .s_axis_tready(axis_iph_to_icmp_slice.ready),
+  .s_axis_tdata(axis_iph_to_icmp_slice.data),
+  .s_axis_tkeep(axis_iph_to_icmp_slice.keep),
+  .s_axis_tlast(axis_iph_to_icmp_slice.last),
+  .m_axis_tvalid(axis_icmp_slice_to_icmp.valid),
+  .m_axis_tready(axis_icmp_slice_to_icmp.ready),
+  .m_axis_tdata(axis_icmp_slice_to_icmp.data),
+  .m_axis_tkeep(axis_icmp_slice_to_icmp.keep),
+  .m_axis_tlast(axis_icmp_slice_to_icmp.last)
+);
+end
+if (WIDTH==256) begin
+// ICMP Input Slice
+//axis_register_slice_512 axis_register_icmp_in_slice(
+axis_256_to_64_converter icmp_in_data_converter (
+  .aclk(net_clk),
+  .aresetn(net_aresetn),
+  .s_axis_tvalid(axis_iph_to_icmp_slice.valid),
+  .s_axis_tready(axis_iph_to_icmp_slice.ready),
+  .s_axis_tdata(axis_iph_to_icmp_slice.data),
+  .s_axis_tkeep(axis_iph_to_icmp_slice.keep),
+  .s_axis_tlast(axis_iph_to_icmp_slice.last),
+  .m_axis_tvalid(axis_icmp_slice_to_icmp.valid),
+  .m_axis_tready(axis_icmp_slice_to_icmp.ready),
+  .m_axis_tdata(axis_icmp_slice_to_icmp.data),
+  .m_axis_tkeep(axis_icmp_slice_to_icmp.keep),
+  .m_axis_tlast(axis_icmp_slice_to_icmp.last)
+);
+end
+if (WIDTH==512) begin
+// ICMP Input Slice
+//axis_register_slice_512 axis_register_icmp_in_slice(
+axis_512_to_64_converter icmp_in_data_converter (
+  .aclk(net_clk),
+  .aresetn(net_aresetn),
+  .s_axis_tvalid(axis_iph_to_icmp_slice.valid),
+  .s_axis_tready(axis_iph_to_icmp_slice.ready),
+  .s_axis_tdata(axis_iph_to_icmp_slice.data),
+  .s_axis_tkeep(axis_iph_to_icmp_slice.keep),
+  .s_axis_tlast(axis_iph_to_icmp_slice.last),
+  .m_axis_tvalid(axis_icmp_slice_to_icmp.valid),
+  .m_axis_tready(axis_icmp_slice_to_icmp.ready),
+  .m_axis_tdata(axis_icmp_slice_to_icmp.data),
+  .m_axis_tkeep(axis_icmp_slice_to_icmp.keep),
+  .m_axis_tlast(axis_icmp_slice_to_icmp.last)
+);
+end
+endgenerate
+
 
 /*
  * Network Controller
