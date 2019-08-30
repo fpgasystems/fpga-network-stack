@@ -307,15 +307,17 @@ void reduceStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W/
 				temp.keep = currWord.keep(((W/D)/8)-1, 0);
 				temp.last = (currWord.keep[(W/8)/D] == 0); //(currWord.keep((W/8)-1, (W/8)/2) == 0);
 				output.write(temp);
-				//shift word
-				currWord.data(W-(W/D)-1, 0) = currWord.data(W-1, W/D);
-				currWord.keep((W/8)-((W/8)/D)-1, 0) = currWord.keep((W/8)-1, (W/8)/D);
 
 				if (currWord.keep[(W/8)/D])
 				{
 					count = 1;
 					fsmState = SECOND;
 				}
+
+				//shift word
+				currWord.data(W-(W/D)-1, 0) = currWord.data(W-1, W/D);
+				currWord.keep((W/8)-((W/8)/D)-1, 0) = currWord.keep((W/8)-1, (W/8)/D);
+				currWord.keep((W/8)-1, (W/8)-((W/8)/D)) = 0;
 			}
 			break;
 		case SECOND:
@@ -333,6 +335,8 @@ void reduceStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W/
 			//shift word
 			currWord.data(W-(W/D)-1, 0) = currWord.data(W-1, W/D);
 			currWord.keep((W/8)-((W/8)/D)-1, 0) = currWord.keep((W/8)-1, (W/8)/D);
+			currWord.keep((W/8)-1, (W/8)-((W/8)/D)) = 0;
+
 
 			count++;
 			if (count == D || temp.last)
