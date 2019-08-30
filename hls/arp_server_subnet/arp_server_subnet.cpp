@@ -129,7 +129,7 @@ void generate_arp_pkg(	hls::stream<arpReplyMeta>&     arpReplyMetaFifo,
 
       if (WIDTH > ARP_HEADER_SIZE)
       {
-		   sendWord.keep = lenToKeep(ARP_HEADER_SIZE);
+		   sendWord.keep = lenToKeep((ARP_HEADER_SIZE/8));
 		   sendWord.last = 1;
 			gap_state = IDLE;
       }
