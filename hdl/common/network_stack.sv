@@ -1587,222 +1587,54 @@ icmpv6_server_ip icmpv6_server_inst (
  * Slices
  */
  // ARP Input Slice
-generate
-if (WIDTH==64) begin
-axis_register_slice_64 axis_register_arp_in_slice(
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_arp_in_slice(
  .aclk(net_clk),
  .aresetn(net_aresetn),
- .s_axis_tvalid(axis_iph_to_arp_slice.valid),
- .s_axis_tready(axis_iph_to_arp_slice.ready),
- .s_axis_tdata(axis_iph_to_arp_slice.data),
- .s_axis_tkeep(axis_iph_to_arp_slice.keep),
- .s_axis_tlast(axis_iph_to_arp_slice.last),
- .m_axis_tvalid(axis_arp_slice_to_arp.valid),
- .m_axis_tready(axis_arp_slice_to_arp.ready),
- .m_axis_tdata(axis_arp_slice_to_arp.data),
- .m_axis_tkeep(axis_arp_slice_to_arp.keep),
- .m_axis_tlast(axis_arp_slice_to_arp.last)
+ .s_axis(axis_iph_to_arp_slice),
+ .m_axis(axis_arp_slice_to_arp)
 );
  // ICMP Input Slice
-axis_register_slice_64 axis_register_icmp_in_slice(
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_icmp_in_slice(
   .aclk(net_clk),
   .aresetn(net_aresetn),
-  .s_axis_tvalid(axis_iph_to_icmp_slice.valid),
-  .s_axis_tready(axis_iph_to_icmp_slice.ready),
-  .s_axis_tdata(axis_iph_to_icmp_slice.data),
-  .s_axis_tkeep(axis_iph_to_icmp_slice.keep),
-  .s_axis_tlast(axis_iph_to_icmp_slice.last),
-  .m_axis_tvalid(axis_icmp_slice_to_icmp.valid),
-  .m_axis_tready(axis_icmp_slice_to_icmp.ready),
-  .m_axis_tdata(axis_icmp_slice_to_icmp.data),
-  .m_axis_tkeep(axis_icmp_slice_to_icmp.keep),
-  .m_axis_tlast(axis_icmp_slice_to_icmp.last)
+  .s_axis(axis_iph_to_icmp_slice),
+  .m_axis(axis_icmp_slice_to_icmp)
 );
  // UDP Input Slice
-axis_register_slice_64 axis_register_upd_in_slice(
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_upd_in_slice(
 .aclk(net_clk),
 .aresetn(net_aresetn),
-.s_axis_tvalid(axis_iph_to_udp_slice.valid),
-.s_axis_tready(axis_iph_to_udp_slice.ready),
-.s_axis_tdata(axis_iph_to_udp_slice.data),
-.s_axis_tkeep(axis_iph_to_udp_slice.keep),
-.s_axis_tlast(axis_iph_to_udp_slice.last),
-.m_axis_tvalid(axis_udp_slice_to_udp.valid),
-.m_axis_tready(axis_udp_slice_to_udp.ready),
-.m_axis_tdata(axis_udp_slice_to_udp.data),
-.m_axis_tkeep(axis_udp_slice_to_udp.keep),
-.m_axis_tlast(axis_udp_slice_to_udp.last)
+.s_axis(axis_iph_to_udp_slice),
+.m_axis(axis_udp_slice_to_udp)
 );
  // UDP Output Slice
-axis_register_slice_64 axis_register_upd_out_slice(
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_upd_out_slice(
 .aclk(net_clk),
 .aresetn(net_aresetn),
-.s_axis_tvalid(axis_udp_to_udp_slice.valid),
-.s_axis_tready(axis_udp_to_udp_slice.ready),
-.s_axis_tdata(axis_udp_to_udp_slice.data),
-.s_axis_tkeep(axis_udp_to_udp_slice.keep),
-.s_axis_tlast(axis_udp_to_udp_slice.last),
-.m_axis_tvalid(axis_udp_slice_to_merge.valid),
-.m_axis_tready(axis_udp_slice_to_merge.ready),
-.m_axis_tdata(axis_udp_slice_to_merge.data),
-.m_axis_tkeep(axis_udp_slice_to_merge.keep),
-.m_axis_tlast(axis_udp_slice_to_merge.last)
+.s_axis(axis_udp_to_udp_slice),
+.m_axis(axis_udp_slice_to_merge)
 );
  // TOE Input Slice
-axis_register_slice_64 axis_register_toe_in_slice(
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_toe_in_slice(
 .aclk(net_clk),
 .aresetn(net_aresetn),
-.s_axis_tvalid(axis_iph_to_toe_slice.valid),
-.s_axis_tready(axis_iph_to_toe_slice.ready),
-.s_axis_tdata(axis_iph_to_toe_slice.data),
-.s_axis_tkeep(axis_iph_to_toe_slice.keep),
-.s_axis_tlast(axis_iph_to_toe_slice.last),
-.m_axis_tvalid(axis_toe_slice_to_toe.valid),
-.m_axis_tready(axis_toe_slice_to_toe.ready),
-.m_axis_tdata(axis_toe_slice_to_toe.data),
-.m_axis_tkeep(axis_toe_slice_to_toe.keep),
-.m_axis_tlast(axis_toe_slice_to_toe.last)
+.s_axis(axis_iph_to_toe_slice),
+.m_axis(axis_toe_slice_to_toe)
 );
  // ROCE Input Slice
-axis_register_slice_64 axis_register_roce_in_slice(
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_roce_in_slice(
 .aclk(net_clk),
 .aresetn(net_aresetn),
-.s_axis_tvalid(axis_iph_to_roce_slice.valid),
-.s_axis_tready(axis_iph_to_roce_slice.ready),
-.s_axis_tdata(axis_iph_to_roce_slice.data),
-.s_axis_tkeep(axis_iph_to_roce_slice.keep),
-.s_axis_tlast(axis_iph_to_roce_slice.last),
-.m_axis_tvalid(axis_roce_slice_to_roce.valid),
-.m_axis_tready(axis_roce_slice_to_roce.ready),
-.m_axis_tdata(axis_roce_slice_to_roce.data),
-.m_axis_tkeep(axis_roce_slice_to_roce.keep),
-.m_axis_tlast(axis_roce_slice_to_roce.last)
+.s_axis(axis_iph_to_roce_slice),
+.m_axis(axis_roce_slice_to_roce)
 );
 // ROCE Output Slice
-axis_register_slice_64 axis_register_roce_out_slice(
+register_slice_wrapper #(.WIDTH(WIDTH)) axis_register_roce_out_slice(
 .aclk(net_clk),
 .aresetn(net_aresetn),
-.s_axis_tvalid(axis_roce_to_roce_slice.valid),
-.s_axis_tready(axis_roce_to_roce_slice.ready),
-.s_axis_tdata(axis_roce_to_roce_slice.data),
-.s_axis_tkeep(axis_roce_to_roce_slice.keep),
-.s_axis_tlast(axis_roce_to_roce_slice.last),
-.m_axis_tvalid(axis_roce_slice_to_merge.valid),
-.m_axis_tready(axis_roce_slice_to_merge.ready),
-.m_axis_tdata(axis_roce_slice_to_merge.data),
-.m_axis_tkeep(axis_roce_slice_to_merge.keep),
-.m_axis_tlast(axis_roce_slice_to_merge.last)
+.s_axis(axis_roce_to_roce_slice),
+.m_axis(axis_roce_slice_to_merge)
 );
-end
-if (WIDTH==512) begin
-axis_register_slice_512 axis_register_arp_in_slice(
- .aclk(net_clk),
- .aresetn(net_aresetn),
- .s_axis_tvalid(axis_iph_to_arp_slice.valid),
- .s_axis_tready(axis_iph_to_arp_slice.ready),
- .s_axis_tdata(axis_iph_to_arp_slice.data),
- .s_axis_tkeep(axis_iph_to_arp_slice.keep),
- .s_axis_tlast(axis_iph_to_arp_slice.last),
- .m_axis_tvalid(axis_arp_slice_to_arp.valid),
- .m_axis_tready(axis_arp_slice_to_arp.ready),
- .m_axis_tdata(axis_arp_slice_to_arp.data),
- .m_axis_tkeep(axis_arp_slice_to_arp.keep),
- .m_axis_tlast(axis_arp_slice_to_arp.last)
-);
- // ICMP Input Slice
-//axis_register_slice_512 axis_register_icmp_in_slice(
-axis_512_to_64_converter icmp_in_data_converter (
-  .aclk(net_clk),
-  .aresetn(net_aresetn),
-  .s_axis_tvalid(axis_iph_to_icmp_slice.valid),
-  .s_axis_tready(axis_iph_to_icmp_slice.ready),
-  .s_axis_tdata(axis_iph_to_icmp_slice.data),
-  .s_axis_tkeep(axis_iph_to_icmp_slice.keep),
-  .s_axis_tlast(axis_iph_to_icmp_slice.last),
-  .m_axis_tvalid(axis_icmp_slice_to_icmp.valid),
-  .m_axis_tready(axis_icmp_slice_to_icmp.ready),
-  .m_axis_tdata(axis_icmp_slice_to_icmp.data),
-  .m_axis_tkeep(axis_icmp_slice_to_icmp.keep),
-  .m_axis_tlast(axis_icmp_slice_to_icmp.last)
-);
- // UDP Input Slice
-axis_register_slice_512 axis_register_upd_in_slice(
-.aclk(net_clk),
-.aresetn(net_aresetn),
-.s_axis_tvalid(axis_iph_to_udp_slice.valid),
-.s_axis_tready(axis_iph_to_udp_slice.ready),
-.s_axis_tdata(axis_iph_to_udp_slice.data),
-.s_axis_tkeep(axis_iph_to_udp_slice.keep),
-.s_axis_tlast(axis_iph_to_udp_slice.last),
-.m_axis_tvalid(axis_udp_slice_to_udp.valid),
-.m_axis_tready(axis_udp_slice_to_udp.ready),
-.m_axis_tdata(axis_udp_slice_to_udp.data),
-.m_axis_tkeep(axis_udp_slice_to_udp.keep),
-.m_axis_tlast(axis_udp_slice_to_udp.last)
-);
- // UDP Output Slice
-axis_register_slice_512 axis_register_upd_out_slice(
-.aclk(net_clk),
-.aresetn(net_aresetn),
-.s_axis_tvalid(axis_udp_to_udp_slice.valid),
-.s_axis_tready(axis_udp_to_udp_slice.ready),
-.s_axis_tdata(axis_udp_to_udp_slice.data),
-.s_axis_tkeep(axis_udp_to_udp_slice.keep),
-.s_axis_tlast(axis_udp_to_udp_slice.last),
-.m_axis_tvalid(axis_udp_slice_to_merge.valid),
-.m_axis_tready(axis_udp_slice_to_merge.ready),
-.m_axis_tdata(axis_udp_slice_to_merge.data),
-.m_axis_tkeep(axis_udp_slice_to_merge.keep),
-.m_axis_tlast(axis_udp_slice_to_merge.last)
-);
- // TOE Input Slice
-axis_register_slice_512 axis_register_toe_in_slice(
-.aclk(net_clk),
-.aresetn(net_aresetn),
-.s_axis_tvalid(axis_iph_to_toe_slice.valid),
-.s_axis_tready(axis_iph_to_toe_slice.ready),
-.s_axis_tdata(axis_iph_to_toe_slice.data),
-.s_axis_tkeep(axis_iph_to_toe_slice.keep),
-.s_axis_tlast(axis_iph_to_toe_slice.last),
-.m_axis_tvalid(axis_toe_slice_to_toe.valid),
-.m_axis_tready(axis_toe_slice_to_toe.ready),
-.m_axis_tdata(axis_toe_slice_to_toe.data),
-.m_axis_tkeep(axis_toe_slice_to_toe.keep),
-.m_axis_tlast(axis_toe_slice_to_toe.last)
-);
-// ROCE Input Slice
-axis_register_slice_512 axis_register_roce_in_slice(
-.aclk(net_clk),
-.aresetn(net_aresetn),
-.s_axis_tvalid(axis_iph_to_roce_slice.valid),
-.s_axis_tready(axis_iph_to_roce_slice.ready),
-.s_axis_tdata(axis_iph_to_roce_slice.data),
-.s_axis_tkeep(axis_iph_to_roce_slice.keep),
-.s_axis_tlast(axis_iph_to_roce_slice.last),
-.m_axis_tvalid(axis_roce_slice_to_roce.valid),
-.m_axis_tready(axis_roce_slice_to_roce.ready),
-.m_axis_tdata(axis_roce_slice_to_roce.data),
-.m_axis_tkeep(axis_roce_slice_to_roce.keep),
-.m_axis_tlast(axis_roce_slice_to_roce.last)
-);
-// ROCE Output Slice
-axis_register_slice_512 axis_register_roce_out_slice(
-.aclk(net_clk),
-.aresetn(net_aresetn),
-.s_axis_tvalid(axis_roce_to_roce_slice.valid),
-.s_axis_tready(axis_roce_to_roce_slice.ready),
-.s_axis_tdata(axis_roce_to_roce_slice.data),
-.s_axis_tkeep(axis_roce_to_roce_slice.keep),
-.s_axis_tlast(axis_roce_to_roce_slice.last),
-.m_axis_tvalid(axis_roce_slice_to_merge.valid),
-.m_axis_tready(axis_roce_slice_to_merge.ready),
-.m_axis_tdata(axis_roce_slice_to_merge.data),
-.m_axis_tkeep(axis_roce_slice_to_merge.keep),
-.m_axis_tlast(axis_roce_slice_to_merge.last)
-);
-end
-endgenerate
-
 
 /*
  * Network Controller
