@@ -48,7 +48,7 @@ private:
 	int readLen;
 	ap_uint<16> writeAddr; //<8>
 	ap_uint<16> writeId;
-	//ap_uint<16> writeLen;
+	ap_uint<16> writeLen;
 	std::map<ap_uint<16>, ap_uint<8>*> storage;
 	std::map<ap_uint<16>, ap_uint<8>*>::iterator readStorageIt;
 	std::map<ap_uint<16>, ap_uint<8>*>::iterator writeStorageIt;
@@ -71,6 +71,9 @@ void dummyMemory<WIDTH>::setWriteCmd(mmCmd cmd)
 //	writeAddr = cmd.saddr(7, 0);
 	writeAddr = cmd.saddr(15, 0);
 	writeId = cmd.saddr(31, 16);
+	uint16_t tempLen = (uint16_t) cmd.bbt(15, 0);
+	writeLen = (int) tempLen;
+	//std::cout << "WRITE command: " << std::hex << cmd.saddr(15, 0) << " " << std::dec << cmd.bbt << std::endl;
 }
 
 template <int WIDTH>
@@ -119,11 +122,16 @@ void dummyMemory<WIDTH>::writeWord(net_axis<WIDTH>& word)
 		{
 			(writeStorageIt->second)[writeAddr] = word.data((i*8)+7, i*8);
 			writeAddr++;
+			writeLen--;
 		}
 		else
 		{
 			break;
 		}
+	}
+	if (word.last)
+	{
+		assert(writeLen == 0);
 	}
 }
 

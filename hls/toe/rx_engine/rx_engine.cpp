@@ -79,7 +79,7 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 //align remove options??
 //USE code from ipv4.hpp
 template <int WIDTH>
-void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
+void drop_optional_ip_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 							stream<net_axis<WIDTH> >&	process2dropFifo,
 							stream<net_axis<WIDTH> >&	dataOut)
 {
@@ -706,7 +706,6 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 				state = 0;
 				if (dataOffset != 0 && (dataOffset*4 < WIDTH/8) && currWord.keep[dataOffset*4] != 0)
 				{
-					std::cout << "s0 -> s2" << std::endl;
 					state = 2;
 				}
 			}
@@ -734,24 +733,23 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 			else if (dataOffset == 0)
 			{
 				sendWord = currWord;
+				dataOut.write(sendWord);
 			}
 			else //if (dataOffset == 1)
 			{
-				std::cout << "AA" << std::endl;
 				sendWord.data(WIDTH - (dataOffset*32) -1, 0) = prevWord.data(WIDTH-1, dataOffset*32);
 				sendWord.keep((WIDTH/8) - (dataOffset*4) -1, 0) = prevWord.keep(WIDTH/8-1, dataOffset*4);
 				sendWord.data(WIDTH-1, WIDTH - (dataOffset*32)) = currWord.data(dataOffset*32-1, 0);
 				sendWord.keep(WIDTH/8-1, (WIDTH/8) - (dataOffset*4)) = currWord.keep(dataOffset*4-1, 0);
 				sendWord.last = (currWord.keep[dataOffset*4] == 0);
-				std::cout << "BB" << std::endl;
+				dataOut.write(sendWord);
 			}
 
-			dataOut.write(sendWord);
 			prevWord = currWord;
 			if (currWord.last)
 			{
 				state = 0;
-				if (!sendWord.last)
+				if (currWord.keep[dataOffset*4] != 0 && dataOffset != 0)
 				{
 					state = 2;
 				}
@@ -761,14 +759,12 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 	case 2:
 	{
 		net_axis<WIDTH> sendWord;
-		std::cout << "CC" << std::endl;
 		sendWord.data(WIDTH - (dataOffset*32) -1, 0) = prevWord.data(WIDTH-1, dataOffset*32);
 		sendWord.keep((WIDTH/8) - (dataOffset*4) -1, 0) = prevWord.keep(WIDTH/8-1, dataOffset*4);
 		sendWord.data(WIDTH-1, WIDTH - (dataOffset*32)) = 0;
 		sendWord.keep(WIDTH/8-1, (WIDTH/8) - (dataOffset*4)) = 0;
 		sendWord.last = 1;
 		dataOut.write(sendWord);
-		std::cout << "DD" << std::endl;
 		state = 0;
 		break;
 	}
@@ -1701,7 +1697,7 @@ void rxEngMemWrite(	hls::stream<net_axis<WIDTH> >& 	dataIn,
 			{
 				lengthFirstPkg = BUFFER_SIZE - cmd.saddr;
 				remainingLength = lengthFirstPkg;
-				offset = lengthFirstPkg(5, 0); //TODO use lengthFirstPkg(log2(WIDTH/8), 0)
+				offset = lengthFirstPkg(DATA_KEEP_BITS - 1, 0);
 
 				doubleAccess.write(true);
 				cmdOut.write(mmCmd(cmd.saddr, lengthFirstPkg));
@@ -1879,7 +1875,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	#pragma HLS stream variable=rxEng_dataBuffer0 depth=8
 	#pragma HLS stream variable=rxEng_dataBuffer1 depth=8
 	#pragma HLS stream variable=rxEng_dataBuffer2 depth=256 //critical, tcp checksum computation
-	#pragma HLS stream variable=rxEng_dataBuffer3 depth=8
+	#pragma HLS stream variable=rxEng_dataBuffer3 depth=32
 	#pragma HLS stream variable=rxEng_dataBuffer3a depth=8
 	#pragma HLS stream variable=rxEng_dataBuffer3b depth=8
 	#pragma HLS DATA_PACK variable=rxEng_dataBuffer0
@@ -1946,7 +1942,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 
 
 	process_ipv4<WIDTH>(ipRxData, rx_process2dropLengthFifo, rxEng_ipMetaFifo, rxEng_dataBuffer0);
-	drop_optional_header<WIDTH>(rx_process2dropLengthFifo, rxEng_dataBuffer0, rxEng_dataBuffer4);
+	drop_optional_ip_header<WIDTH>(rx_process2dropLengthFifo, rxEng_dataBuffer0, rxEng_dataBuffer4);
 	//align
 	lshiftWordByOctet<WIDTH, 2>(((TCP_PSEUDO_HEADER_SIZE%WIDTH)/8), rxEng_dataBuffer4, rxEng_dataBuffer5);
 	//rxTcpLengthExtract(ipRxData, rxEng_dataBuffer0, rxEng_tcpLenFifo);

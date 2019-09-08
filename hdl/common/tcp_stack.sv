@@ -122,8 +122,11 @@ axis_meta #(.WIDTH(16))     axis_listen_port();
 axis_meta #(.WIDTH(8))      axis_listen_port_status();
 axis_meta #(.WIDTH(48))     axis_open_connection();
 axis_meta #(.WIDTH(24))     axis_open_status();
+axis_meta #(.WIDTH(16))     axis_close_connection();
 
+axis_meta #(.WIDTH(88))     axis_notifications();
 axis_meta #(.WIDTH(32))     axis_read_package();
+axis_meta #(.WIDTH(16))     axis_rx_metadata();
 axis_meta #(.WIDTH(32))     axis_tx_metadata();
 
 
@@ -269,9 +272,9 @@ toe_ip toe_inst (
 .m_axis_listen_port_rsp_V_TDATA(axis_listen_port_status.data),
 
 // notification & read request
-.m_axis_notification_V_TVALID(m_axis_notifications.valid),
-.m_axis_notification_V_TREADY(m_axis_notifications.ready),
-.m_axis_notification_V_TDATA(m_axis_notifications.data),
+.m_axis_notification_V_TVALID(axis_notifications.valid),
+.m_axis_notification_V_TREADY(axis_notifications.ready),
+.m_axis_notification_V_TDATA(axis_notifications.data),
 .s_axis_rx_data_req_V_TVALID(axis_read_package.valid),
 .s_axis_rx_data_req_V_TREADY(axis_read_package.ready),
 .s_axis_rx_data_req_V_TDATA(axis_read_package.data),
@@ -283,14 +286,14 @@ toe_ip toe_inst (
 .m_axis_open_conn_rsp_V_TVALID(axis_open_status.valid),
 .m_axis_open_conn_rsp_V_TREADY(axis_open_status.ready),
 .m_axis_open_conn_rsp_V_TDATA(axis_open_status.data),
-.s_axis_close_conn_req_V_V_TVALID(s_axis_close_connection.valid),
-.s_axis_close_conn_req_V_V_TREADY(s_axis_close_connection.ready),
-.s_axis_close_conn_req_V_V_TDATA(s_axis_close_connection.data),
+.s_axis_close_conn_req_V_V_TVALID(axis_close_connection.valid),
+.s_axis_close_conn_req_V_V_TREADY(axis_close_connection.ready),
+.s_axis_close_conn_req_V_V_TDATA(axis_close_connection.data),
 
 // rx data
-.m_axis_rx_data_rsp_metadata_V_V_TVALID(m_axis_rx_metadata.valid),
-.m_axis_rx_data_rsp_metadata_V_V_TREADY(m_axis_rx_metadata.ready),
-.m_axis_rx_data_rsp_metadata_V_V_TDATA(m_axis_rx_metadata.data),
+.m_axis_rx_data_rsp_metadata_V_V_TVALID(axis_rx_metadata.valid),
+.m_axis_rx_data_rsp_metadata_V_V_TREADY(axis_rx_metadata.ready),
+.m_axis_rx_data_rsp_metadata_V_V_TDATA(axis_rx_metadata.data),
 .m_axis_rx_data_rsp_TVALID(m_axis_rx_data.valid),
 .m_axis_rx_data_rsp_TREADY(m_axis_rx_data.ready),
 .m_axis_rx_data_rsp_TDATA(m_axis_rx_data.data),
@@ -685,7 +688,7 @@ end
 
 
 
-// Register slices to avoid combinatorial loops created by HLS
+// Register slices to avoid combinatorial loops created by HLS due to the new axis INTERFACE (enforced since 19.1)
 
 axis_register_slice_16 listen_port_slice (
   .aclk(net_clk),                    // input wire aclk
@@ -731,6 +734,28 @@ axis_register_slice_24 open_status_slice (
   .m_axis_tdata(m_axis_open_status.data)    // output wire [7 : 0] m_axis_tdata
 );
 
+axis_register_slice_16 close_connection_slice (
+  .aclk(net_clk),                    // input wire aclk
+  .aresetn(net_aresetn),              // input wire aresetn
+  .s_axis_tvalid(s_axis_close_connection.valid),  // input wire s_axis_tvalid
+  .s_axis_tready(s_axis_close_connection.ready),  // output wire s_axis_tready
+  .s_axis_tdata(s_axis_close_connection.data),    // input wire [7 : 0] s_axis_tdata
+  .m_axis_tvalid(axis_close_connection.valid),  // output wire m_axis_tvalid
+  .m_axis_tready(axis_close_connection.ready),  // input wire m_axis_tready
+  .m_axis_tdata(axis_close_connection.data)    // output wire [7 : 0] m_axis_tdata
+);
+
+axis_register_slice_88 notification_slice (
+  .aclk(net_clk),                    // input wire aclk
+  .aresetn(net_aresetn),              // input wire aresetn
+  .s_axis_tvalid(axis_notifications.valid),  // input wire s_axis_tvalid
+  .s_axis_tready(axis_notifications.ready),  // output wire s_axis_tready
+  .s_axis_tdata(axis_notifications.data),    // input wire [7 : 0] s_axis_tdata
+  .m_axis_tvalid(m_axis_notifications.valid),  // output wire m_axis_tvalid
+  .m_axis_tready(m_axis_notifications.ready),  // input wire m_axis_tready
+  .m_axis_tdata(m_axis_notifications.data)    // output wire [7 : 0] m_axis_tdata
+);
+
 axis_register_slice_32 read_package_slice (
   .aclk(net_clk),                    // input wire aclk
   .aresetn(net_aresetn),              // input wire aresetn
@@ -742,6 +767,16 @@ axis_register_slice_32 read_package_slice (
   .m_axis_tdata(axis_read_package.data)    // output wire [7 : 0] m_axis_tdata
 );
 
+axis_register_slice_16 axis_rx_metadata_slice (
+  .aclk(net_clk),                    // input wire aclk
+  .aresetn(net_aresetn),              // input wire aresetn
+  .s_axis_tvalid(axis_rx_metadata.valid),  // input wire s_axis_tvalid
+  .s_axis_tready(axis_rx_metadata.ready),  // output wire s_axis_tready
+  .s_axis_tdata(axis_rx_metadata.data),    // input wire [7 : 0] s_axis_tdata
+  .m_axis_tvalid(m_axis_rx_metadata.valid),  // output wire m_axis_tvalid
+  .m_axis_tready(m_axis_rx_metadata.ready),  // input wire m_axis_tready
+  .m_axis_tdata(m_axis_rx_metadata.data)    // output wire [7 : 0] m_axis_tdata
+);
 axis_register_slice_32 axis_tx_metadata_slice (
   .aclk(net_clk),                    // input wire aclk
   .aresetn(net_aresetn),              // input wire aresetn
@@ -770,28 +805,6 @@ always @(posedge net_clk) begin
         end
     end
 end
-
-/*ila_mixed tco_debug (
-	.clk(net_clk), // input wire clk
-
-	.probe0(s_axis_mem_read_data[ddrPortNetworkTx].valid), // input wire [0:0]  probe0  
-	.probe1(s_axis_mem_read_data[ddrPortNetworkTx].ready), // input wire [0:0]  probe1 
-	.probe2(m_axis_tx_data.valid), // input wire [0:0]  probe2 
-	.probe3(m_axis_tx_data.ready), // input wire [0:0]  probe3 
-	.probe4(m_axis_mem_read_cmd[ddrPortNetworkTx].valid), // input wire [0:0]  probe4 
-	.probe5(m_axis_mem_read_cmd[ddrPortNetworkTx].ready), // input wire [0:0]  probe5 
-	.probe6(m_axis_rx_metadata.valid), // input wire [0:0]  probe6 
-	.probe7(s_axis_mem_read_data[ddrPortNetworkTx].last), // input wire [0:0]  probe7 
-	.probe8(read_cmd_counter), // input wire [15:0]  probe8 
-	.probe9(read_pkg_counter), // input wire [15:0]  probe9 
-	.probe10(s_axis_mem_read_data[ddrPortNetworkTx].keep[31:16]), // input wire [15:0]  probe10 
-	.probe11(m_axis_mem_read_cmd[ddrPortNetworkTx].address[20:16]),// input wire [15:0]  probe11 
-	.probe12(s_axis_mem_read_data[ddrPortNetworkTx].keep[15:0]),
-	//.probe12({s_axis_tx_data.ready, s_axis_tx_data.valid, s_axis_tx_metadata.ready, s_axis_tx_metadata.valid, m_axis_open_status.ready, m_axis_open_status.valid, m_axis_rx_data.last, m_axis_rx_data.ready, m_axis_rx_data.valid, m_axis_rx_metadata.ready, m_axis_rx_metadata.valid, s_axis_read_package.ready, s_axis_read_package.valid, m_axis_notifications.ready, m_axis_notifications.valid, s_axis_rx_data.last, m_axis_tx_data.last}), // input wire [15:0]  probe12 
-	.probe13({m_axis_tx_data.last, m_axis_mem_write_data[ddrPortNetworkTx].last, m_axis_mem_write_data[ddrPortNetworkTx].ready, m_axis_mem_write_data[ddrPortNetworkTx].valid, s_axis_mem_read_sts[ddrPortNetworkTx].ready, s_axis_mem_read_sts[ddrPortNetworkTx].valid, s_axis_mem_write_sts[ddrPortNetworkTx].ready, s_axis_mem_write_sts[ddrPortNetworkTx].valid, axis_rxwrite_data.last, axis_rxwrite_data.ready, axis_rxwrite_data.valid, axis_rxread_data.last, axis_rxread_data.ready, axis_rxread_data.valid, m_axis_mem_write_cmd[ddrPortNetworkTx].ready, m_axis_mem_write_cmd[ddrPortNetworkTx].valid, m_axis_mem_read_cmd[ddrPortNetworkTx].ready, m_axis_mem_read_cmd[ddrPortNetworkTx].valid}), // input wire [15:0]  probe13 
-	.probe14(m_axis_mem_read_cmd[ddrPortNetworkTx].address[15:0]), // input wire [15:0]  probe14 
-	.probe15(m_axis_mem_read_cmd[ddrPortNetworkTx].length[15:0]) // input wire [15:0]  probe15
-);*/
 
 end
 else begin

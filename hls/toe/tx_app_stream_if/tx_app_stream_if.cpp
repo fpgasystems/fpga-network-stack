@@ -156,7 +156,7 @@ void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
 			{
 				lengthFirstPkg = BUFFER_SIZE - cmd.saddr;
 				remainingLength = lengthFirstPkg;
-				offset = lengthFirstPkg(5, 0); //TODO use lengthFirstPkg(log2(WIDTH/8), 0)
+				offset = lengthFirstPkg(DATA_KEEP_BITS - 1, 0);
 
 				txBufferWriteCmd.write(mmCmd(cmd.saddr, lengthFirstPkg));
 				tasiPkgPushState = CUT_FIRST;
@@ -228,10 +228,6 @@ void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
 			net_axis<WIDTH> currWord = appTxDataIn.read();
 			net_axis<WIDTH> sendWord;
 			sendWord = alignWords<WIDTH>(offset, prevWord, currWord);
-			/*sendWord.data(WIDTH-1, WIDTH - (offset*8)) = currWord.data(offset*8-1, 0);
-			sendWord.data(WIDTH - (offset*8) -1, 0) = prevWord.data(WIDTH-1, offset*8);
-			sendWord.keep(WIDTH/8-1, WIDTH/8 - (offset)) = currWord.keep(offset-1, 0);
-			sendWord.keep(WIDTH/8 - (offset) -1, 0) = prevWord.keep(WIDTH/8-1, offset);*/
 			sendWord.last = (currWord.keep[offset] == 0);
 
 			txBufferWriteData.write(sendWord);
@@ -254,9 +250,6 @@ void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
 #endif
 		net_axis<WIDTH> emptyWord;
 		sendWord = alignWords<WIDTH>(offset, prevWord, emptyWord);
-		/*sendWord.data(WIDTH - (offset*8) -1, 0) = prevWord.data(WIDTH-1, offset*8);
-		sendWord.keep(WIDTH/8-1, WIDTH/8 - (offset)) = 0;
-		sendWord.keep(WIDTH/8 - (offset) -1, 0) = prevWord.keep(WIDTH/8-1, offset);*/
 		sendWord.last = 1;
 		txBufferWriteData.write(sendWord);
 		tasiPkgPushState = IDLE;

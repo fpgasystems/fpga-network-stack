@@ -454,7 +454,7 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 	#pragma HLS STREAM variable=ipDataCheckFifo depth=64 //8, must hold IP header for checksum checking, max. 15 x 32bit
 	#pragma HLS STREAM variable=ipDataDropFifo depth=2
 	#pragma HLS STREAM variable=ipDataCutFifo depth=2
-	#pragma HLS STREAM variable=udpDataFifo depth=1
+	#pragma HLS STREAM variable=udpDataFifo depth=2
 	#pragma HLS STREAM variable=iph_subSumsFifoOut depth=2
 	#pragma HLS STREAM variable=validChecksumFifo depth=4
 	#pragma HLS STREAM variable=validIpAddressFifo depth=32

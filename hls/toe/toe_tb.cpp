@@ -33,6 +33,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 #include <map>
 #include <string>
 
+#define noOfTxSessions 0 // Number of Tx Sessions to open for testing
 #define totalSimCycles 2500000
 
 using namespace std;
@@ -320,25 +321,15 @@ string decodeApUint8(ap_uint<8> inputNumber) {
 
 ap_uint<64> encodeApUint64(string dataString){
 	ap_uint<64> tempOutput = 0;
-	unsigned short int	tempValue = 16;
-	static const char* const	lut = "0123456789ABCDEF";
 
-	for (unsigned short int i = 0; i<dataString.size();++i) {
-		for (unsigned short int j = 0;j<16;++j) {
-			if (lut[j] == dataString[i]) {
-				tempValue = j;
-				break;
-			}
-		}
-		if (tempValue != 16) {
-			for (short int k = 3;k>=0;--k) {
-				if (tempValue >= pow(2.0, k)) {
-					tempOutput.bit(63-(4*i+(3-k))) = 1;
-					tempValue -= static_cast <unsigned short int>(pow(2.0, k));
-				}
-			}
-		}
+	for (int i = 0; i < 64/8; i++)
+	{
+		uint16_t temp;
+		std::stringstream parser(dataString.substr(i*2, 2));
+		parser >> std::hex >> temp;
+		tempOutput(63-(i*8), 56-(i*8)) = temp;
 	}
+
 	return tempOutput;
 }
 
@@ -472,7 +463,7 @@ bool parseOutputPacket(deque<net_axis<64> > &outputPacketizer, map<fourTuple, ap
 		outputPacketizer[4].data.bit(12) = 1;												// Set the ACK bit
 		ap_uint<16> tempChecksum = recalculateChecksum(outputPacketizer);
 		outputPacketizer[4].data.range(47, 32) = (tempChecksum.range(7, 0), tempChecksum(15, 8));
-		inputPacketizer.push_back(outputPacketizer[4]);
+		//inputPacketizer.push_back(outputPacketizer[4]);
 		/*cerr << hex << outputPacketizer[0].data << endl;
 		cerr << hex << outputPacketizer[1].data << endl;
 		cerr << hex << outputPacketizer[2].data << endl;

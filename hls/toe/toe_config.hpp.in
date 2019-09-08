@@ -1,10 +1,16 @@
 #pragma once
 #include <stdint.h>
 
+//Copied from hlslib by Johannes de Fine Licht https://github.com/definelicht/hlslib/blob/master/include/hlslib/xilinx/Utility.h
+constexpr unsigned long ConstLog2(unsigned long val) {
+  return val == 1 ? 0 : 1 + ConstLog2(val >> 1);
+}
 
 const uint16_t MSS = ${TCP_STACK_MSS};
 const uint16_t MAX_SESSIONS = ${TCP_STACK_MAX_SESSIONS};
 const unsigned DATA_WIDTH = ${DATA_WIDTH} * 8;
+const unsigned DATA_WIDTH_BITS = ConstLog2(DATA_WIDTH);
+const unsigned DATA_KEEP_BITS = ConstLog2(DATA_WIDTH/8);
 
 // TCP_NODELAY flag, to disable Nagle's Algorithm
 #define TCP_NODELAY ${TCP_STACK_NODELAY_EN}

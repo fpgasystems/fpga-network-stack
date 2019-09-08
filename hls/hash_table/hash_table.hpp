@@ -32,8 +32,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 
 //Copied from hlslib by Johannes de Fine Licht https://github.com/definelicht/hlslib/blob/master/include/hlslib/xilinx/Utility.h
-constexpr unsigned char ConstLog2(unsigned long val) {
-  return val == 0 ? 0 : 1 + ConstLog2(val >> 1);
+constexpr unsigned long ConstLog2(unsigned long val) {
+  return val == 1 ? 0 : 1 + ConstLog2(val >> 1);
 }
 
 const uint32_t MAX_KEY_SIZE = 64;
