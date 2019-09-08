@@ -23,7 +23,7 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/../ib_transport_protocol/msn_table.cpp -cf
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/rocev2.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
 
-add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_rocev2.cpp
+add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_rocev2.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
 
 config_rtl -disable_start_propagation

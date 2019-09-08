@@ -1,3 +1,29 @@
+/*
+ * Copyright (c) 2019, Systems Group, ETH Zurich
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software
+ * without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 #include "rocev2.hpp"
 #include <fstream>
 #include <vector>
@@ -13,111 +39,8 @@
 #include "rocev2_config.hpp"
 
 using namespace hls;
+#include "newFakeDram.hpp"
 
-
-class newFakeDRAM {
-	struct MemChunk {
-		uint64_t size;
-		unsigned char* data;
-	};
-
-public:
-	newFakeDRAM() :numChunks(0) {}
-	~newFakeDRAM()
-	{
-		for (int i = 0; i < numChunks; ++i)
-		{
-			delete chunks[i]->data;
-			delete chunks[i];
-		}
-	}
-
-	unsigned char* createChunk(uint64_t size)
-	{
-		MemChunk* chunk = new MemChunk();
-		chunk->size = size;
-		chunk->data = (unsigned char*) malloc(size);
-		chunks.push_back(chunk);
-		numChunks++;
-		return chunk->data;
-	}
-
-	template <int WIDTH>
-	void processWrite(memCmd cmd, stream<routed_net_axis<WIDTH> >& dataIn)
-	{
-		std::cout << "Write command, address: " << cmd.addr << ", length: " << cmd.len << std::endl;
-		/*MemChunk* chunk = getChunk(cmd.addr);
-		if (chunk == NULL)
-		{
-			std::cerr << "Invalid memory region.";
-			return;
-		}*/
-
-		routed_net_axis<WIDTH> currWord;
-		//uint64_t offset = cmd.addr - chunk->baseAddr;
-		//uint64_t* memPtr = (uint64_t*)(uint64_t) cmd.addr;//(uint64_t*) (chunk->data + offset);
-		do
-		{
-			dataIn.read(currWord);
-			/*std::cout << "writing to memory: ";
-			printLE(std::cout, currWord);
-			std::cout << std::endl;*/
-			//*memPtr = currWord.data;
-			//memPtr++;
-
-		} while(!currWord.last);
-	}
-
-	template <int WIDTH>
-	void processRead(memCmd cmd, stream<net_axis<DATA_WIDTH> >& dataOut)
-	{
-		/*MemChunk* chunk = getChunk(cmd.addr);
-		if (chunk == NULL)
-		{
-			std::cerr << "Invalid memory region.";
-			return;
-		}*/
-
-		//uint64_t offset = cmd.addr - chunk->baseAddr;
-		uint64_t* memPtr = (uint64_t*)(uint64_t) cmd.addr; //(uint64_t*) (chunk->data + offset);
-		uint32_t lengthCount = 0;
-		net_axis<DATA_WIDTH> currWord;
-		currWord.keep = 0;
-		currWord.last = 0;
-		uint32_t idx = 0;
-		do
-		{
-			lengthCount += 8;
-			currWord.data(idx*64+63, idx*64) = *memPtr;
-			currWord.keep(idx*8+7, idx*8) = 0xFF;
-			idx++;
-			if (lengthCount == cmd.len || idx == (WIDTH/64))
-			{
-				currWord.last = (lengthCount == cmd.len);
-				dataOut.write(currWord);
-				currWord.keep = 0x0;
-				idx = 0;
-			}
-			memPtr++;
-
-		} while(lengthCount != cmd.len);
-		std::cout << "total data read: " << std::dec << lengthCount << std::endl;
-	}
-private:
-	/*MemChunk* getChunk(uint64_t addr)
-	{
-		for (int i = 0; i < numChunks; ++i)
-		{
-			if (chunks[i]->baseAddr <= addr && addr < chunks[i]->baseAddr+chunks[i]->size)
-			{
-				return chunks[i];
-			}
-		}
-		return NULL;
-	}*/
-	int numChunks;
-	std::vector<MemChunk*>	chunks;
-};
 
 class fakeDRAM {
 public:
@@ -192,8 +115,8 @@ public:
 				if (!cmdIn.empty())
 				{
 					cmdIn.read(cmd);
-					writeAddr = cmd.addr(15, 0);
-					uint16_t tempLen = (uint16_t) cmd.len(15, 0);
+					writeAddr = cmd.data.addr(15, 0);
+					uint16_t tempLen = (uint16_t) cmd.data.len(15, 0);
 					writeLen = (int) tempLen;
 					std::cout << "MEMORY WRITE, total length: " << std::dec << writeLen << std::endl;
 					writeState = DATA;
@@ -313,8 +236,8 @@ public:
 				if (!cmdIn.empty())
 				{
 					cmdIn.read(cmd);
-					readAddr = cmd.addr(15, 0);
-					uint16_t tempLen = (uint16_t) cmd.len(15, 0);
+					readAddr = cmd.data.addr(15, 0);
+					uint16_t tempLen = (uint16_t) cmd.data.len(15, 0);
 					readLen = (int) tempLen;
 					std::cout << "MEMORY READ, addr: " << readAddr << ", length" << readLen << std::endl;
 					readState = DATA;
@@ -950,7 +873,7 @@ int test_tx_latency(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint
 	connInfo.remote_udp_port = 0x4853;
 	s_axis_qp_conn_interface.write(connInfo);
 
-	newFakeDRAM memory;
+	newFakeDRAM<DATA_WIDTH> memory;
 
 
 
@@ -1056,9 +979,9 @@ int test_tx_latency(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
 		{
-			memory.processWrite<DATA_WIDTH>(writeCmd, m_axis_mem_write_data);
+			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;
 		}
 		//handle reads
@@ -1066,7 +989,7 @@ int test_tx_latency(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint
 		{
 			std::cout << "read cmd: counter" << readCmdCounter << std::endl;
 			m_axis_mem_read_cmd.read(readCmd);
-			memory.processRead<DATA_WIDTH>(readCmd, s_axis_mem_read_data);
+			memory.processRead(readCmd, s_axis_mem_read_data);
 			readCmdCounter++;
 		}
 		count++;
@@ -1142,7 +1065,7 @@ int test_tx_nak(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<128
 	connInfo.remote_udp_port = 0x4853;
 	s_axis_qp_conn_interface.write(connInfo);
 
-	newFakeDRAM memory;
+	newFakeDRAM<DATA_WIDTH> memory;
 
 
 
@@ -1247,9 +1170,9 @@ int test_tx_nak(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<128
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
 		{
-			memory.processWrite<DATA_WIDTH>(writeCmd, m_axis_mem_write_data);
+			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;
 		}
 		//handle reads
@@ -1257,7 +1180,7 @@ int test_tx_nak(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<128
 		{
 			std::cout << "read cmd: counter" << readCmdCounter << std::endl;
 			m_axis_mem_read_cmd.read(readCmd);
-			memory.processRead<DATA_WIDTH>(readCmd, s_axis_mem_read_data);
+			memory.processRead(readCmd, s_axis_mem_read_data);
 			readCmdCounter++;
 		}
 		count++;
@@ -1484,7 +1407,7 @@ int test_tx_debug(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<1
 	connInfo.remote_udp_port = 0x4853;
 	s_axis_qp_conn_interface.write(connInfo);
 
-	newFakeDRAM memory;
+	newFakeDRAM<DATA_WIDTH> memory;
 
 
 
@@ -1603,9 +1526,9 @@ int test_tx_debug(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<1
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
 		{
-			memory.processWrite<DATA_WIDTH>(writeCmd, m_axis_mem_write_data);
+			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;
 		}
 		//handle reads
@@ -1613,7 +1536,7 @@ int test_tx_debug(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<1
 		{
 			std::cout << "read cmd: counter" << readCmdCounter << std::endl;
 			m_axis_mem_read_cmd.read(readCmd);
-			memory.processRead<DATA_WIDTH>(readCmd, s_axis_mem_read_data);
+			memory.processRead(readCmd, s_axis_mem_read_data);
 			readCmdCounter++;
 		}
 		count++;
@@ -1687,7 +1610,7 @@ int test_tx_read(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<12
 	connInfo.remote_udp_port = 0x4853;
 	s_axis_qp_conn_interface.write(connInfo);
 
-	newFakeDRAM memory;
+	newFakeDRAM<DATA_WIDTH> memory;
 
 
 
@@ -1782,9 +1705,9 @@ int test_tx_read(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<12
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
 		{
-			memory.processWrite<DATA_WIDTH>(writeCmd, m_axis_mem_write_data);
+			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;
 		}
 		//handle reads
@@ -1792,7 +1715,7 @@ int test_tx_read(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<12
 		{
 			std::cout << "read cmd: counter" << readCmdCounter << std::endl;
 			m_axis_mem_read_cmd.read(readCmd);
-			memory.processRead<DATA_WIDTH>(readCmd, s_axis_mem_read_data);
+			memory.processRead(readCmd, s_axis_mem_read_data);
 			readCmdCounter++;
 		}
 		count++;
