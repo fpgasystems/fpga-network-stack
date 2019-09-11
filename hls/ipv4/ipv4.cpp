@@ -70,145 +70,6 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 }
 
 template <int WIDTH>
-void drop_optional_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
-							stream<net_axis<WIDTH> >&	process2dropFifo,
-							stream<net_axis<WIDTH> >&	dataOut)
-{
-#pragma HLS INLINE off
-#pragma HLS pipeline II=1
-
-	enum fsmStateType {META, DROP, BODY, SHIFT, LAST, SHIFT_FIVE, LAST_FIVE};
-	static fsmStateType doh_state = META;
-	static ap_uint<4> length;
-
-	static net_axis<WIDTH> prevWord;
-	net_axis<WIDTH> currWord;
-	net_axis<WIDTH> sendWord;
-
-	//TODO length deduction depends on WIDTH
-	switch (doh_state)
-	{
-	case META:
-		if (!process2dropLengthFifo.empty() && !process2dropFifo.empty())
-		{
-			process2dropLengthFifo.read(length);
-			//Handle differently depending on AXI bus width. TODO 128, 256
-			if (WIDTH == 64)
-			{
-				if (length > 1)
-				{
-					doh_state = DROP;
-				}
-				else
-				{
-					process2dropFifo.read(prevWord);
-					doh_state = SHIFT;
-				}
-			}
-			if (WIDTH == 512)
-			{
-				if (length == 5)
-				{
-					process2dropFifo.read(prevWord);
-					doh_state = SHIFT_FIVE;
-					if (prevWord.last)
-					{
-						doh_state = LAST_FIVE;
-					}
-				}
-			}
-		}
-		break;
-	case DROP:
-		if (!process2dropFifo.empty())
-		{
-			process2dropFifo.read(prevWord);
-			length -= 2;
-			if (length == 1)
-			{
-				doh_state = SHIFT;
-			} else if (length == 0)
-			{
-				doh_state = BODY;
-			}
-		}
-		break;
-	case BODY:
-		if (!process2dropFifo.empty())
-		{
-			process2dropFifo.read(currWord);
-			dataOut.write(currWord);
-			if (currWord.last)
-			{
-				doh_state = META;
-			}
-		}
-		break;
-	case SHIFT:
-		if (!process2dropFifo.empty())
-		{
-			process2dropFifo.read(currWord);
-			sendWord.data(WIDTH-32-1, 0) = prevWord.data(WIDTH-1, 32);
-			sendWord.keep((WIDTH/8)-4-1, 0) = prevWord.keep((WIDTH/8)-1, 4);
-			sendWord.data(WIDTH-1, WIDTH-32) = currWord.data(31, 0);
-			sendWord.keep((WIDTH/8)-1, (WIDTH/8)-4) = currWord.keep(3, 0);
-			sendWord.last = (currWord.keep[4] == 0);
-			dataOut.write(sendWord);
-			prevWord = currWord;
-			if (sendWord.last)
-			{
-				doh_state = META;
-			}
-			else if (currWord.last)
-			{
-				doh_state = LAST;
-			}
-		}
-		break;
-	case SHIFT_FIVE:
-		if (!process2dropFifo.empty())
-		{
-			process2dropFifo.read(currWord);
-			sendWord.data(WIDTH-160-1, 0) = prevWord.data(WIDTH-1, 160);
-			sendWord.keep((WIDTH/8)-20-1, 0) = prevWord.keep((WIDTH/8)-1, 20);
-			sendWord.data(WIDTH-1, WIDTH-160) = currWord.data(160-1, 0);
-			sendWord.keep((WIDTH/8)-1, (WIDTH/8)-20) = currWord.keep(20-1, 0);
-			sendWord.last = (currWord.keep[20] == 0);
-			dataOut.write(sendWord);
-			prevWord = currWord;
-
-			if (sendWord.last)
-			{
-				doh_state = META;
-			}
-			else if (currWord.last)
-			{
-				doh_state = LAST_FIVE;
-			}
-		}
-		break;
-	case LAST:
-		sendWord.data(WIDTH-32-1, 0) = prevWord.data(WIDTH-1, 32);
-		sendWord.keep((WIDTH/8)-4-1, 0) = prevWord.keep((WIDTH/8)-1, 4);
-		sendWord.data(WIDTH-1, WIDTH-32) = 0;
-		sendWord.keep((WIDTH/8)-1, (WIDTH/8)-4) = 0x0;
-		sendWord.last = 0x1;
-		dataOut.write(sendWord);
-		doh_state = META;
-		break;
-		case LAST_FIVE:
-		sendWord.data(WIDTH-160-1, 0) = prevWord.data(WIDTH-1, 160);
-		sendWord.keep((WIDTH/8)-20-1, 0) = prevWord.keep((WIDTH/8)-1, 20);
-		sendWord.data(WIDTH-1, WIDTH-160) = 0;
-		sendWord.keep((WIDTH/8)-1, (WIDTH/8)-20) = 0x0;
-		sendWord.last = 0x1;
-		dataOut.write(sendWord);
-		doh_state = META;
-		break;
-	} //switch
-}
-
-template <int WIDTH>
 void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 					stream<net_axis<WIDTH> >&	tx_shift2ipv4Fifo,
 					stream<net_axis<WIDTH> >&	m_axis_tx_data,
@@ -321,8 +182,8 @@ void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	 * RX PATH
 	 */
 	process_ipv4(s_axis_rx_data, rx_process2dropLengthFifo, m_axis_rx_meta, rx_process2dropFifo);
-	//TODO maybe assume no optional header fields!
-	drop_optional_header(rx_process2dropLengthFifo, rx_process2dropFifo, m_axis_rx_data);
+	//Assumes for WIDTH > 64 no optional fields
+	drop_optional_ip_header(rx_process2dropLengthFifo, rx_process2dropFifo, m_axis_rx_data);
 
 	/*
 	 * TX PATH
