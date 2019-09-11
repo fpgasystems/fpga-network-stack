@@ -102,7 +102,8 @@ void drop_optional_ip_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 			process2dropLengthFifo.read(length);
 			std::cout << "(Optional) Header length: " << length << std::endl;
 
-			if (WIDTH == 64)
+			//TODO for WIDTH == 128 this only works if no IP options
+			if (WIDTH == 64 || WIDTH == 128)
 			{
 				if (length > 1)
 				{
@@ -114,9 +115,9 @@ void drop_optional_ip_header(	stream<ap_uint<4> >&	process2dropLengthFifo,
 					doh_state = SHIFT;
 				}
 			}
-			if (WIDTH == 512)
+			if (WIDTH == 256 || WIDTH == 512)
 			{
-				//TODO this is hack and works for AXI_WIDTH ==  512bit
+				//TODO this is a hack and only works if there are no IP options
 				if (length == 5)
 				{
 					process2dropFifo.read(prevWord);
