@@ -14,7 +14,7 @@ Supported boards (out of the box)
 
 ## Compiling (all) HLS modules and install them to your IP repository
 
-0. Otionally specify the location of your IP repository:
+0. Optionally specify the location of your IP repository:
 ```
 export $IPREPO_DIR=/home/myname/iprepo
 ```
@@ -117,4 +117,10 @@ If you use the TCP/IP stack in your project please cite one of the following pap
 	copyright = {In Copyright - Non-Commercial Use Permitted},
 	title = {In-Network Data Processing using FPGAs},
 }
+
+## Contributors
+- [David Sidler](http://github.com/dsidler), [Systems Group] (http://systems.ethz.ch), ETH Zurich
+- [Mario Ruiz](https://github.com/mariodruiz), HPCN Group of UAM, Spain
+- [Kimon Karras] (http://github.com/kimonk), former Researcher at Xilinx Research, Dublin
+- [Lisa Liu](http://github.com/lisaliu1), Xilinx Research, Dublin
 ```
