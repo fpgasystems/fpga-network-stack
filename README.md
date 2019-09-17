@@ -36,7 +36,9 @@ cmake .. -DDEVICE_NAME=vcu118
 ```
 
 All cmake  options:
+
 | Name                        | Values                | Desription                                                              |
+| --------------------------- | --------------------- | ----------------------------------------------------------------------- |
 | DEVICE_NAME                 | <vc709,vcu118,adm7v3> | Supported devices                                                       |
 | NETWORK_BANDWIDTH           | <10,100>              | Bandwidth of the Ethernet interface in Gbit/s, default depends on board |
 | FPGA_PART                   | <name>                | Name of the FPGA part, e.g. xc7vx690tffg1761-2                          |
@@ -82,7 +84,7 @@ $ make synthesis
 $ make ip
 ```
 
-5. Instal HLS IP core into the IP repository
+5. Install HLS IP core into the IP repository
 ```
 $ make installip
 ```
