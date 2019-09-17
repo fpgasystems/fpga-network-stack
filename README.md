@@ -55,7 +55,7 @@ make installip
 ``` 
 
 
-For an example project including the TCP/IP stack or the RoCEv2 stack with DMA to host memory checkout our Distributed Accelerator OS (DavOS).
+For an example project including the TCP/IP stack or the RoCEv2 stack with DMA to host memory checkout our Distributed Accelerator OS [DavOS](https://github.com/fpgasystems/davos).
 
 
 ## Working with individual HLS modules
@@ -119,10 +119,10 @@ If you use the TCP/IP stack in your project please cite one of the following pap
 	copyright = {In Copyright - Non-Commercial Use Permitted},
 	title = {In-Network Data Processing using FPGAs},
 }
+```
 
 ## Contributors
 - [David Sidler](http://github.com/dsidler), [Systems Group] (http://systems.ethz.ch), ETH Zurich
 - [Mario Ruiz](https://github.com/mariodruiz), HPCN Group of UAM, Spain
 - [Kimon Karras] (http://github.com/kimonk), former Researcher at Xilinx Research, Dublin
 - [Lisa Liu](http://github.com/lisaliu1), Xilinx Research, Dublin
-```
