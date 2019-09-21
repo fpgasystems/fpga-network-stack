@@ -84,26 +84,3 @@ add_subdirectory(hls/hash_table)
 if (NOT hasParent)
    add_subdirectory(hls/ethernet_frame_padding)
 endif()
-
-#Vivado Project (create only if no parent)
-if (NOT hasParent)
-
-   # Find Xilinx Vivado
-   find_package(Vivado REQUIRED)
-   if (NOT VIVADO_FOUND)
-      message(FATAL_ERROR "Vivado not found.")
-   endif()
-
-   configure_file(${CMAKE_SOURCE_DIR}/projects/create_project.tcl.in create_project.tcl)
-
-   set (PROJECT_DEPENDS
-        ${CMAKE_SOURCE_DIR}/rtl/common/network_stack.v
-        ${CMAKE_SOURCE_DIR}/projects/create_project.tcl.in
-        ${CMAKE_SOURCE_DIR}/projects/network_stack.tcl)
-
-   add_custom_target(project
-     COMMAND ${VIVADO_BINARY} -mode batch -source create_project.tcl
-     DEPENDS ${PROJECT_DEPENDS})
-endif()
-
-# add_dependencies(project ip)
