@@ -1,80 +1,97 @@
-# TCP/IP Stack Design Using Vivado HLS
+# Scalable Network Stack supporting TCP/IP, RoCEv2, UDP/IP at 10-100Gbit/s
 
 ## Getting Started
 
 ### Prerequisites
-- Xilinx Vivado 2018.1
-- License for Xilinx 10G MAC IP
-- Linux OS
+- Xilinx Vivado 2019.1
+- cmake 3.0 or higher
 
 Supported boards (out of the box)
 - Xilinx VC709
 - Xilinx VCU118
 - Alpha Data ADM-PCIE-7V3
 
-### Installation
 
-Make sure that Vivado and Vivado HLS are in your PATH. Use version 2018.1
+## Compiling (all) HLS modules and install them to your IP repository
 
-Navigate to the _hls_ directory:
+0. Optionally specify the location of your IP repository:
+```
+export $IPREPO_DIR=/home/myname/iprepo
+```
 
-    cd hls
+1. Create a build directory
+```
+mkdir build
+cd build
+```
 
-Execute the script generate the HLS IP cores for your board:
+2.a) Configure build
+```    
+cmake .. -DDATA_WIDTH=64 -DCLOCK_PERIOD=3.1 -DFPGA_PART=xcvu9p-flga2104-2L-e -DFPGA_FAMILY=ultraplus -DVIVADO_HLS_ROOT_DIR=/opt/Xilinx/Vivado//2019.1/bin/
+```
 
-    ./generate_hls vc709
+2.b)Alternatively you can use one the board name ot configure your build
+```
+cmake .. -DDEVICE_NAME=vcu118
+```
 
-For the VCU118 run
+All cmake  options:
 
-    ./generate_hls vcu118
+| Name                        | Values                | Desription                                                              |
+| --------------------------- | --------------------- | ----------------------------------------------------------------------- |
+| DEVICE_NAME                 | <vc709,vcu118,adm7v3> | Supported devices                                                       |
+| NETWORK_BANDWIDTH           | <10,100>              | Bandwidth of the Ethernet interface in Gbit/s, default depends on board |
+| FPGA_PART                   | <name>                | Name of the FPGA part, e.g. xc7vx690tffg1761-2                          |
+| FPGA_FAMILY                 | <7series,ultraplus>   | Name of the FPGA part family                                            |
+| DATA_WIDTH                  | <8,16,32,64>          | Data width of the network stack in bytes                                |
+| CLOCK_PERIOD                | <nanoseconds>         | Clock period in nanoseconds, e.g. 3.1 for 100G, 6.4 for 10G             |
+| TCP_STACK_MSS               | <value>               | Maximum segment size of the TCP/IP stack                                |
+| TCP_STACK_WINDOW_SCALING_EN | <0,1>                 | Enalbing TCP Window scaling option           |
+| VIVADO_HLS_ROOT_DIR         | <path>                | Path to Vivado HLS directory, e.g. /opt/Xilinx/Vivado/2019.1            |
 
-
-Navigate to the _projects_ directory:
-
-    cd ../projects
-
-Create the example project for your board.
-
-For the Xilinx VC709:
-
-    vivado -mode batch -source create_vc709_proj.tcl
-
-For the Alpha DATA ADM-PCIE-7V3:
-
-    vivado -mode batch -source reate_adm7v3_proj.tcl
-
-For the Xilinx VCU118:
-
-    vivado -mode batch -source create_vcu118_proj.tcl
-
-
-After the previous command executed, a Vivado project will be created and the Vivado GUI is started.
-
-Click "Generate Bitstream" to generate a bitstream for the FPGA.
-
-## Testing the example project
-
-The default configuration deploys a TCP echo server and a UDP iperf client. The default IP address the board is 10.1.212.209. Make sure the testing machine conencted to the FPGA board is in the same subnet 10.1.212.*
-
-As an intial connectivity test ping the FPGA board by running 
-
-    ping 10.1.212.209
-
-After reprogramming the FPGA the first ping message is lost due to a missing ARP entry in the ARP table. However, the FPGA should reply to all following ping messages.
-
-  
-For the TCP echo server you can use netcat:
-
-    echo 'hello world' | netcat -q 1 11.1.212.209 7
-
-Alternatively, you can use the _echoping_ linux commandline tool.
-
-For the TCP and UDP iperf test, see [here](http://github.com/dsidler/fpga-network-stack/wiki/iPerf-Benchmark). 
+3. Build HLS IP cores and install them into IP repository
+```
+make installip
+``` 
 
 
-## Configuration
+For an example project including the TCP/IP stack or the RoCEv2 stack with DMA to host memory checkout our Distributed Accelerator OS [DavOS](https://github.com/fpgasystems/davos).
 
-Coming soon
+
+## Working with individual HLS modules
+
+1. Setup build directory, e.g. for the TCP module
+
+```
+$ cd hls/toe
+$ mkdir build
+$ cd build
+$ cmake .. -DFPGA_PART=xcvu9p-flga2104-2L-e -DDATA_WIDTH=8 -DCLOCK_PERIOD=3.1
+```
+
+2. Run c-simulation
+```
+$ make csim
+```
+
+3. Run c-synthesis
+```
+$ make synthesis
+```
+
+4. Generate HLS IP core
+```
+$ make ip
+```
+
+5. Install HLS IP core into the IP repository
+```
+$ make installip
+```
+
+## Benchmarks
+
+
 
 ## Publications
 - D. Sidler, G. Alonso, M. Blott, K. Karras et al., *Scalable 10Gbps
@@ -95,6 +112,17 @@ If you use the TCP/IP stack in your project please cite one of the following pap
 	booktitle={FPL'16}, 
 	title={{Low-Latency TCP/IP Stack for Data Center Applications}}, 
 }
+@PHDTHESIS{sidler2019innetworkdataprocessing,
+	author = {Sidler, David},
+	publisher = {ETH Zurich},
+	year = {2019-09},
+	copyright = {In Copyright - Non-Commercial Use Permitted},
+	title = {In-Network Data Processing using FPGAs},
+}
 ```
 
-For more information please visit the [wiki](http://github.com/dsidler/fpga-network-stack/wiki)
+## Contributors
+- [David Sidler](http://github.com/dsidler), [Systems Group] (http://systems.ethz.ch), ETH Zurich
+- [Mario Ruiz](https://github.com/mariodruiz), HPCN Group of UAM, Spain
+- [Kimon Karras] (http://github.com/kimonk), former Researcher at Xilinx Research, Dublin
+- [Lisa Liu](http://github.com/lisaliu1), Xilinx Research, Dublin
