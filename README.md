@@ -89,8 +89,130 @@ $ make ip
 $ make installip
 ```
 
-## Benchmarks
+## Interfaces
+All interfaces are using the AXI4-Stream protocol. For AXI4-Streams carrying network/data packets, we use the following definition in HLS:
+```
+template <int D>
+struct net_axis
+{
+	ap_uint<D>    data;
+	ap_uint<D/8>  keep;
+	ap_uint<1>    last;
+};
+```
 
+### TCP/IP
+
+#### Open Connection
+To open a connection the destination IP address and TCP port have to provided through the `s_axis_open_conn_req` interface. The TCP stack provides an answer to this request through the `m_axis_open_conn_rsp` interface which provides the sessionID and a boolean indicating if the connection was openend successfully.
+
+Interface definition in HLS:
+```
+struct ipTuple
+{
+	ap_uint<32>	ip_address;
+	ap_uint<16>	ip_port;
+};
+struct openStatus
+{
+	ap_uint<16>	sessionID;
+	bool		success;
+};
+
+void toe(...
+	hls::stream<ipTuple>& openConnReq,
+	hls::stream<openStatus>& openConnRsp,
+	...);
+```
+
+
+
+
+#### Close Connection
+To close a connection the sessionID has to be provided to the `s_axis_close_conn_req` interface. The TCP/IP stack does not provide a notification upon completion of this request, however it is guranteeed that the connection is closed eventually.
+
+Interface definition in HLS:
+```
+hls::stream<ap_uint<16> >& closeConnReq,
+
+```
+
+#### Open a TCP port to listen on
+To open a port to listen on (e.g. as a server), the port number has to be provided to `s_axis_listen_port_req`. The port number has to be in range of active ports: 0 - 32767. The TCP stack will respond through the `m_axis_listen_port_rsp` interface indicating if the port was set to the listen state succesfully.
+
+Interface definition in HLS:
+```
+hls::stream<ap_uint<16> >& listenPortReq,
+hls::stream<bool>& listenPortRsp,
+```
+
+#### Receiving notifications from the TCP stack
+The application using the TCP stack can receive notifications through the `m_axis_notification` interface. The notifications either indicate that new data is available or that a connection was closed.
+
+Interface definition in HLS:
+```
+struct appNotification
+{
+	ap_uint<16>			sessionID;
+	ap_uint<16>			length;
+	ap_uint<32>			ipAddress;
+	ap_uint<16>			dstPort;
+	bool				closed;
+};
+
+hls::stream<appNotification>& notification,
+```
+
+#### Receiving data
+If data is available on a TCP/IP session, i.e. a notification was received. Then this data can be requested through the `s_axis_rx_data_req` interface. The data as well as the sessionID are then received through the `m_axis_rx_data_rsp_metadata` and `m_axis_rx_data_rsp` interface.
+
+Interface definition in HLS:
+```
+struct appReadRequest
+{
+	ap_uint<16> sessionID;
+	ap_uint<16> length;
+};
+
+hls::stream<appReadRequest>& rxDataReq,
+hls::stream<ap_uint<16> >& rxDataRspMeta,
+hls::stream<net_axis<WIDTH> >& rxDataRsp,
+```
+
+Waveform of receiving a (data) notification, requesting data, and receiving the data:
+
+![signal tcp-rx-handshake](https://svg.wavedrom.com/github/fpgasystems/fpga-network-stack/master/waveforms/tcp-rx-handshake.json5)
+
+
+#### Transmitting data
+When an application wants to transmit data on a TCP connection, it first has to check if enough buffer space is available. This check/request is done through the `s_axis_tx_data_req_metadata` interface. If the response through the `m_axis_tx_data_rsp` interface from the TCP stack is positive. The application can send the data through the `s_axis_tx_data_req` interface. If the response from the TCP stack is negative the application can retry by sending another request on the `s_axis_tx_data_req_metadata` interface.
+
+Interface definition in HLS:
+```
+struct appTxMeta
+{
+	ap_uint<16> sessionID;
+	ap_uint<16> length;
+};
+struct appTxRsp
+{
+	ap_uint<16> sessionID;
+	ap_uint<16> length;
+	ap_uint<30> remaining_space;
+	ap_uint<2>  error;
+};
+
+hls::stream<appTxMeta>& txDataReqMeta,
+hls::stream<appTxRsp>& txDataRsp,
+hls::stream<net_axis<WIDTH> >& txDataReq,
+```
+
+Waveform of requesting a data transmit and transmitting the data. 
+![signal tcp-tx-handshake](https://svg.wavedrom.com/github/fpgasystems/fpga-network-stack/master/waveforms/tcp-tx-handshake.json5)
+
+
+## Benchmarks
+(Coming soon)
 
 
 ## Publications
@@ -122,7 +244,8 @@ If you use the TCP/IP stack in your project please cite one of the following pap
 ```
 
 ## Contributors
-- [David Sidler](http://github.com/dsidler), [Systems Group] (http://systems.ethz.ch), ETH Zurich
+- [David Sidler](http://github.com/dsidler), [Systems Group](http://systems.ethz.ch), ETH Zurich
+- [Monica Chiosa](http://github.com/chipet), [Systems Group](http://systems.ethz.ch), ETH Zurich
 - [Mario Ruiz](https://github.com/mariodruiz), HPCN Group of UAM, Spain
-- [Kimon Karras] (http://github.com/kimonk), former Researcher at Xilinx Research, Dublin
+- [Kimon Karras](http://github.com/kimonk), former Researcher at Xilinx Research, Dublin
 - [Lisa Liu](http://github.com/lisaliu1), Xilinx Research, Dublin
