@@ -1,5 +1,18 @@
 # Scalable Network Stack supporting TCP/IP, RoCEv2, UDP/IP at 10-100Gbit/s
 
+#### Table of contents
+1. [Getting Started](#gettingstarted)
+2. [Compiling HLS modules](#compiling)
+3.	[Interfaces](#interfaces)
+	1.	[TCP/IP](#tcp-interface)
+	2. [ROCE](#roce-interface)
+4. [Benchmarks](#benchmarks)
+5.	[Publications](#publications)
+6. [Citation](#citation)
+7. [Contributors](#contributors)
+
+
+<a name="gettingstarted"></a>
 ## Getting Started
 
 ### Prerequisites
@@ -11,7 +24,7 @@ Supported boards (out of the box)
 - Xilinx VCU118
 - Alpha Data ADM-PCIE-7V3
 
-
+<a name="compiling"></a>
 ## Compiling (all) HLS modules and install them to your IP repository
 
 0. Optionally specify the location of your IP repository:
@@ -89,6 +102,7 @@ $ make ip
 $ make installip
 ```
 
+<a name="interfaces"></a>
 ## Interfaces
 All interfaces are using the AXI4-Stream protocol. For AXI4-Streams carrying network/data packets, we use the following definition in HLS:
 ```
@@ -101,6 +115,7 @@ struct net_axis
 };
 ```
 
+<a name="tcp-interface"></a>
 ### TCP/IP
 
 #### Open Connection
@@ -211,16 +226,77 @@ Waveform of requesting a data transmit and transmitting the data.
 ![signal tcp-tx-handshake](https://svg.wavedrom.com/github/fpgasystems/fpga-network-stack/master/waveforms/tcp-tx-handshake.json5)
 
 
+<a name="roce-interface"></a>
+### RoCE (RDMA over Converged Ethernet)
+
+#### Load Queue Pair (QP)
+Before any RDMA operations can be executed the Queue Pairs have to established out-of-band (e.g. over TCP/IP) by the hosts. The host can the load the QP into the RoCE stack through the `s_axis_qp_interface` and `s_axis_qp_conn_interface` interface.
+
+Interface definition in HLS:
+```
+typedef enum {RESET, INIT, READY_RECV, READY_SEND, SQ_ERROR, ERROR} qpState;
+
+struct qpContext
+{
+	qpState		newState;
+	ap_uint<24> qp_num;
+	ap_uint<24> remote_psn;
+	ap_uint<24> local_psn;
+	ap_uint<16> r_key;
+	ap_uint<48> virtual_address;
+};
+struct ifConnReq
+{
+	ap_uint<16> qpn;
+	ap_uint<24> remote_qpn;
+	ap_uint<128> remote_ip_address;
+	ap_uint<16> remote_udp_port;
+};
+
+hls::stream<qpContext>&	s_axis_qp_interface,
+hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
+```
+
+#### Issue RDMA commands
+RDMA commands can be issued to RoCE stack through the `s_axis_tx_meta` interface. In case the commands transmits data. This data can be either originate from the host memory as specified by the `local_vaddr` or can originate from the application on the FPGA. In the latter case the `local_vaddr` is set to 0 and the data is provided through the `s_axis_tx_data` interface.
+
+Interface definition in HLS:
+```
+typedef enum {APP_READ, APP_WRITE, APP_PART, APP_POINTER, APP_READ_CONSISTENT} appOpCode;
+
+struct txMeta
+{
+	appOpCode 	op_code;
+	ap_uint<24> qpn;
+	ap_uint<48> local_vaddr;
+	ap_uint<48> remote_vaddr;
+	ap_uint<32> length;
+};
+hls::stream<txMeta>& s_axis_tx_meta,
+hls::stream<net_axis<WIDTH> >& s_axis_tx_data,
+```
+Waveform of issuing a RDMA read request:
+![signal roce-read-handshake](https://svg.wavedrom.com/github/fpgasystems/fpga-network-stack/master/waveforms/roce-read-handshake.json5)
+
+Waveform of issuing an RDMA write request where data on the FPGA is transmitted:
+![signal roce-write-handshake](https://svg.wavedrom.com/github/fpgasystems/fpga-network-stack/master/waveforms/roce-write-handshake.json5)
+
+
+
+<a name="interfaces"></a>
 ## Benchmarks
 (Coming soon)
 
 
+<a name="publications"></a>
 ## Publications
 - D. Sidler, G. Alonso, M. Blott, K. Karras et al., *Scalable 10Gbps
 TCP/IP Stack Architecture for Reconfigurable Hardware,* in FCCM’15, [Paper](http://davidsidler.ch/files/fccm2015-tcpip.pdf), [Slides](http://fccm.org/2015/pdfs/M2_P1.pdf)
 
 - D. Sidler, Z. Istvan, G. Alonso, *Low-Latency TCP/IP Stack for Data Center Applications,* in FPL'16, [Paper](http://davidsidler.ch/files/fpl16-lowlatencytcpip.pdf)
 
+
+<a name="citation"></a>
 ## Citation
 If you use the TCP/IP stack in your project please cite one of the following papers and/or link to the github project:
 ```
@@ -243,6 +319,7 @@ If you use the TCP/IP stack in your project please cite one of the following pap
 }
 ```
 
+<a name="contributors"></a>
 ## Contributors
 - [David Sidler](http://github.com/dsidler), [Systems Group](http://systems.ethz.ch), ETH Zurich
 - [Monica Chiosa](http://github.com/chipet), [Systems Group](http://systems.ethz.ch), ETH Zurich
