@@ -392,7 +392,8 @@ assign axis_ipv6_to_intercon.last = 1'b0;
 
 
 roce_stack #(
-    .ROCE_EN(ROCE_EN)
+    .ROCE_EN(ROCE_EN),
+    .WIDTH(WIDTH)
 ) rocev2_stack_inst(
     .net_clk(net_clk), // input aclk
     .net_aresetn(net_aresetn), // input aresetn
@@ -407,7 +408,7 @@ roce_stack #(
     
    //TX
     .s_axis_tx_meta(axis_tx_metadata),
-    .s_axis_tx_data(axis_tx_data),
+    .s_axis_tx_data(s_axis_roce_role_tx_data),
     
 `ifdef IP_VERSION4
     // IPv4
@@ -425,9 +426,9 @@ roce_stack #(
     
     .m_axis_mem_read_cmd(m_axis_roce_read_cmd),
     // Memory Write
-    .m_axis_mem_write_data(axis_roce_write_data),
+    .m_axis_mem_write_data(m_axis_roce_write_data),
     // Memory Read
-    .s_axis_mem_read_data(axis_roce_read_data),
+    .s_axis_mem_read_data(s_axis_roce_read_data),
     // Memory Write Status
     //.s_axis_mem_write_status_TVALID(s_axis_rxwrite_sts_TVALID),
     //.s_axis_mem_write_status_TREADY(s_axis_rxwrite_sts_TREADY),
@@ -1512,84 +1513,6 @@ axis_interconnect_merger_160 tx_metadata_merger (
 );
 
 
-/*
- * Width alignment
- */
-axi_stream #(.WIDTH(WIDTH) )   axis_roce_read_data();
-axi_stream #(.WIDTH(WIDTH) )   axis_roce_write_data();
-axi_stream #(.WIDTH(WIDTH) )  axis_tx_data();
-generate
-if (WIDTH==64) begin
-//TODO move
-//RoCE Data Path
-axis_512_to_64_converter roce_read_data_converter (
-  .aclk(net_clk),                    // input wire aclk
-  .aresetn(net_aresetn),              // input wire aresetn
-  .s_axis_tvalid(s_axis_roce_read_data.valid),  // input wire s_axis_tvalid
-  .s_axis_tready(s_axis_roce_read_data.ready),  // output wire s_axis_tready
-  .s_axis_tdata(s_axis_roce_read_data.data),    // input wire [63 : 0] s_axis_tdata
-  .s_axis_tkeep(s_axis_roce_read_data.keep),    // input wire [7 : 0] s_axis_tkeep
-  .s_axis_tlast(s_axis_roce_read_data.last),    // input wire s_axis_tlast
-  .m_axis_tvalid(axis_roce_read_data.valid),  // output wire m_axis_tvalid
-  .m_axis_tready(axis_roce_read_data.ready),  // input wire m_axis_tready
-  .m_axis_tdata(axis_roce_read_data.data),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_roce_read_data.keep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_roce_read_data.last)    // output wire m_axis_tlast
-);
-
-axis_512_to_64_converter roce_tx_data_converter (
-  .aclk(net_clk),                    // input wire aclk
-  .aresetn(net_aresetn),              // input wire aresetn
-  .s_axis_tvalid(s_axis_roce_role_tx_data.valid),  // input wire s_axis_tvalid
-  .s_axis_tready(s_axis_roce_role_tx_data.ready),  // output wire s_axis_tready
-  .s_axis_tdata(s_axis_roce_role_tx_data.data),    // input wire [63 : 0] s_axis_tdata
-  .s_axis_tkeep(s_axis_roce_role_tx_data.keep),    // input wire [7 : 0] s_axis_tkeep
-  .s_axis_tlast(s_axis_roce_role_tx_data.last),    // input wire s_axis_tlast
-  .m_axis_tvalid(axis_tx_data.valid),  // output wire m_axis_tvalid
-  .m_axis_tready(axis_tx_data.ready),  // input wire m_axis_tready
-  .m_axis_tdata(axis_tx_data.data),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_tx_data.keep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_tx_data.last)    // output wire m_axis_tlast
-);
-
-axis_64_to_512_converter roce_write_data_converter (
-  .aclk(net_clk),                    // input wire aclk
-  .aresetn(net_aresetn),              // input wire aresetn
-  .s_axis_tvalid(axis_roce_write_data.valid),  // input wire s_axis_tvalid
-  .s_axis_tready(axis_roce_write_data.ready),  // output wire s_axis_tready
-  .s_axis_tdata(axis_roce_write_data.data),    // input wire [63 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_roce_write_data.keep),    // input wire [7 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_roce_write_data.last),    // input wire s_axis_tlast
-  .s_axis_tdest(axis_roce_write_data.dest),    // input wire s_axis_tlast
-  .m_axis_tvalid(m_axis_roce_write_data.valid),  // output wire m_axis_tvalid
-  .m_axis_tready(m_axis_roce_write_data.ready),  // input wire m_axis_tready
-  .m_axis_tdata(m_axis_roce_write_data.data),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(m_axis_roce_write_data.keep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(m_axis_roce_write_data.last),    // output wire m_axis_tlast
-  .m_axis_tdest(m_axis_roce_write_data.dest)    // output wire m_axis_tlast
-);
-end
-if (WIDTH==512) begin
-//RoCE Data Path
-assign axis_roce_read_data.valid = s_axis_roce_read_data.valid; 
-assign s_axis_roce_read_data.ready = axis_roce_read_data.ready;
-assign axis_roce_read_data.data = s_axis_roce_read_data.data;
-assign axis_roce_read_data.keep = s_axis_roce_read_data.keep;
-assign axis_roce_read_data.last = s_axis_roce_read_data.last;
-
-assign axis_tx_data.valid = s_axis_roce_role_tx_data.valid;
-assign s_axis_roce_role_tx_data.ready = axis_tx_data.ready;
-assign axis_tx_data.data = s_axis_roce_role_tx_data.data;
-assign axis_tx_data.keep = s_axis_roce_role_tx_data.keep;
-assign axis_tx_data.last = s_axis_roce_role_tx_data.last;
-
-assign m_axis_roce_write_data.valid = axis_roce_write_data.valid;
-assign axis_roce_write_data.ready = m_axis_roce_write_data.ready;
-assign m_axis_roce_write_data.data = axis_roce_write_data.data;
-assign m_axis_roce_write_data.keep = axis_roce_write_data.keep;
-assign m_axis_roce_write_data.last = axis_roce_write_data.last;
-end
-endgenerate
 /*
  * Statistics
  */
