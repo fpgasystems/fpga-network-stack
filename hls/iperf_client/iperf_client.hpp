@@ -1,5 +1,5 @@
 /************************************************
-Copyright (c) 2018, Systems Group, ETH Zurich.
+Copyright (c) 2019, Systems Group, ETH Zurich.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -80,6 +80,15 @@ public:
    {
       header(191, 160) = reverse(seconds);
    }
+};
+
+struct internalAppTxRsp
+{
+	ap_uint<16>	sessionID;
+	ap_uint<2>	error;
+	internalAppTxRsp() {}
+	internalAppTxRsp(ap_uint<16> id, ap_uint<2> err)
+		:sessionID(id), error(err) {}
 };
 
 void iperf_client(	hls::stream<ap_uint<16> >& listenPort,
