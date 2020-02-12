@@ -1,5 +1,5 @@
 /************************************************
-Copyright (c) 2018, Systems Group, ETH Zurich.
+Copyright (c) 2019, Systems Group, ETH Zurich.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -30,15 +30,29 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "iperf_client.hpp"
 #include <iostream>
 
+//Buffers responses coming from the TCP stack
+void status_handler(hls::stream<appTxRsp>&				txStatus,
+							hls::stream<internalAppTxRsp>&	txStatusBuffer)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
+	if (!txStatus.empty())
+	{
+		appTxRsp resp = txStatus.read();
+		txStatusBuffer.write(internalAppTxRsp(resp.sessionID, resp.error));
+	}
+}
+
 template <int WIDTH>
-void client(	stream<ipTuple>&		openConnection,
-            stream<openStatus>& openConStatus,
-				stream<ap_uint<16> >&	closeConnection,
-				stream<appTxMeta>&	txMetaData,
-				stream<net_axis<WIDTH> >& txData,
-				stream<appTxRsp>&	txStatus,
-				stream<bool>&			startSignal,
-				stream<bool>&			stopSignal,
+void client(hls::stream<ipTuple>&				openConnection,
+            hls::stream<openStatus>& 			openConStatus,
+				hls::stream<ap_uint<16> >&			closeConnection,
+				hls::stream<appTxMeta>&				txMetaData,
+				hls::stream<net_axis<WIDTH> >& 	txData,
+				hls::stream<internalAppTxRsp>&	txStatus,
+				hls::stream<bool>&					startSignal,
+				hls::stream<bool>&					stopSignal,
 				ap_uint<1>		runExperiment,
 				ap_uint<1>		dualModeEn,
 				ap_uint<14>		useConn,
@@ -178,7 +192,7 @@ void client(	stream<ipTuple>&		openConnection,
 		}
 		else if (!txStatus.empty())
 		{
-			appTxRsp resp = txStatus.read();
+			internalAppTxRsp resp = txStatus.read();
 			if (resp.error == 0)
 			{
 				currentSessionID = resp.sessionID;
@@ -226,7 +240,7 @@ void client(	stream<ipTuple>&		openConnection,
 	case CHECK_REQ:
 		if (!txStatus.empty())
 		{
-			appTxRsp resp = txStatus.read();
+			internalAppTxRsp resp = txStatus.read();
 			if (resp.error == 0)
 			{
 				currentSessionID = resp.sessionID;
@@ -428,18 +442,18 @@ void clock( hls::stream<bool>&	startSignal,
 }
 
 
-void iperf_client(	stream<ap_uint<16> >& listenPort,
-					stream<bool>& listenPortStatus,
-					stream<appNotification>& notifications,
-					stream<appReadRequest>& readRequest,
-					stream<ap_uint<16> >& rxMetaData,
-					stream<net_axis<DATA_WIDTH> >& rxData,
-					stream<ipTuple>& openConnection,
-					stream<openStatus>& openConStatus,
-					stream<ap_uint<16> >& closeConnection,
-					stream<appTxMeta>& txMetaData,
-					stream<net_axis<DATA_WIDTH> >& txData,
-					stream<appTxRsp>& txStatus,
+void iperf_client(	hls::stream<ap_uint<16> >& listenPort,
+					hls::stream<bool>& listenPortStatus,
+					hls::stream<appNotification>& notifications,
+					hls::stream<appReadRequest>& readRequest,
+					hls::stream<ap_uint<16> >& rxMetaData,
+					hls::stream<net_axis<DATA_WIDTH> >& rxData,
+					hls::stream<ipTuple>& openConnection,
+					hls::stream<openStatus>& openConStatus,
+					hls::stream<ap_uint<16> >& closeConnection,
+					hls::stream<appTxMeta>& txMetaData,
+					hls::stream<net_axis<DATA_WIDTH> >& txData,
+					hls::stream<appTxRsp>& txStatus,
 					ap_uint<1>		runExperiment,
 					ap_uint<1>		dualModeEn,
 					ap_uint<14>		useConn,
@@ -509,15 +523,21 @@ void iperf_client(	stream<ap_uint<16> >& listenPort,
 	#pragma HLS STREAM variable=startSignalFifo depth=2
 	#pragma HLS STREAM variable=stopSignalFifo depth=2
 
+	//This is required to buffer up to 1024 reponses => supporting up to 1024 connections
+	static hls::stream<internalAppTxRsp>	txStatusBuffer("txStatusBuffer");
+	#pragma HLS STREAM variable=txStatusBuffer depth=1024
+
 	/*
 	 * Client
 	 */
+	status_handler(txStatus, txStatusBuffer);
+
 	client<DATA_WIDTH>(	openConnection,
 			openConStatus,
 			closeConnection,
 			txMetaData,
 			txData,
-			txStatus,
+			txStatusBuffer,
 			startSignalFifo,
 			stopSignalFifo,
 			runExperiment,
