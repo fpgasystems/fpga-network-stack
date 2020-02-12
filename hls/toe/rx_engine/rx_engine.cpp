@@ -1098,6 +1098,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							dropDataFifoOut.write(true);
 						}
 
+
 						// Sent ACK
 						//rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
 					}
