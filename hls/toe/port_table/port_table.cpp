@@ -59,7 +59,12 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 	if (!rxApp2portTable_listen_req.empty()) //check range, TODO make sure currPort is not equal in 2 consecutive cycles
 	{
 		rxApp2portTable_listen_req.read(currPort);
-		if (!listeningPortTable[currPort(14, 0)] && currPort < 32768)
+		//return true when the port is already open
+		if (listeningPortTable[currPort(14, 0)] && currPort < 32768)
+		{
+			portTable2rxApp_listen_rsp.write(true);
+		}
+		else if (!listeningPortTable[currPort(14, 0)] && currPort < 32768)
 		{
 			listeningPortTable[currPort] = true;
 			portTable2rxApp_listen_rsp.write(true);
