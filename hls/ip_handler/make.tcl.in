@@ -23,7 +23,7 @@ set command [lindex $argv 2]
 if {$command == "synthesis"} {
    csynth_design
 } elseif {$command == "csim"} {
-   csim_design -clean -argv {${CMAKE_CURRENT_SOURCE_DIR}/newtcp.in ${CMAKE_CURRENT_SOURCE_DIR}/tcp.out}
+   csim_design -clean
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "ip_handler" -display_name "IP Handler" -vendor "ethz.systems.fpga" -version "2.0"
 } elseif {$command == "installip"} {

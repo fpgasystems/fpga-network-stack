@@ -291,6 +291,52 @@ void cut_length(hls::stream<net_axis<WIDTH> > &dataIn, hls::stream<net_axis<WIDT
 	} //switch
 }
 
+void cut_length(hls::stream<net_axis<512> > &dataIn, hls::stream<net_axis<512> > &dataOut)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	enum cl_stateType {FIRST, REST};
+	static cl_stateType cl_state = FIRST;
+
+	switch (cl_state)
+	{
+	case FIRST:
+		if (!dataIn.empty())
+		{
+			net_axis<512> currWord = dataIn.read();
+
+
+			ap_uint<16> totalLength;
+			totalLength(7, 0) = currWord.data(31, 24);
+			totalLength(15, 8) = currWord.data(23, 16);
+
+			if (currWord.last)
+			{
+				currWord.keep = lenToKeep(totalLength);
+			}
+			else
+			{
+				cl_state = REST;
+			}
+			dataOut.write(currWord);
+		} //emtpy
+		break;
+	case REST:
+		if (!dataIn.empty())
+		{
+			net_axis<512> currWord = dataIn.read();
+			dataOut.write(currWord);
+			if (currWord.last)
+			{
+				cl_state = FIRST;
+			}
+		}
+		break;
+	} //switch
+}
+
+
 /*
  *  Detects IP protocol in the packet. ICMP, UDP and TCP packets are forwarded, packets of other IP protocols are discarded.
  */

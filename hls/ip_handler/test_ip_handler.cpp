@@ -27,6 +27,42 @@
  */
 #include "ip_handler_config.hpp"
 #include "ip_handler.hpp"
+#include <algorithm>
+
+
+void writeToOutputFile(std::ofstream& outputFile, std::string name, hls::stream<net_axis<64> >& outFifo)
+{
+		net_axis<64> outWord;
+		if (!outFifo.empty())
+		{
+			outputFile << name << std::endl;
+		}
+		while (!outFifo.empty())
+		{
+			outFifo.read(outWord);
+			print(outputFile, outWord);
+			outputFile << std::endl;
+		}
+}
+
+bool compareFiles(const std::string& filename1, const std::string& filename2)
+{
+    std::ifstream file1(filename1, std::ifstream::ate | std::ifstream::binary); //open file at the end
+    std::ifstream file2(filename2, std::ifstream::ate | std::ifstream::binary); //open file at the end
+    const std::ifstream::pos_type fileSize = file1.tellg();
+
+    if (fileSize != file2.tellg()) {
+        return false; //different file size
+    }
+
+    file1.seekg(0); //rewind
+    file2.seekg(0); //rewind
+
+    std::istreambuf_iterator<char> begin1(file1);
+    std::istreambuf_iterator<char> begin2(file2);
+
+    return std::equal(begin1,std::istreambuf_iterator<char>(),begin2); //Second argument is end-of-range iterator
+}
 
 int main(int argc, char* argv[]) {
 	hls::stream<net_axis<64> > inFifo64("inFIFO");
@@ -54,122 +90,80 @@ int main(int argc, char* argv[]) {
 	hls::stream<net_axis<64> > outFifoIPv6UDP64("outFifoIPv6UDP64");
 	hls::stream<net_axis<DATA_WIDTH> > outFifoIPv6UDP("outFifoIPv6UDP");
 
-	std::ifstream inputFile;
-	std::ifstream goldenFile;
-	std::ofstream outputFile;
 
 	ap_uint<32> ipAddress 	= 0x0a010101;
-    int 		errCount 	= 0;
-
-	/*inputFile.open("../../../../in.dat");
-	if (!inputFile) {
-		cout << "Error: could not open test input file." << endl;
-		return -1;
-	}
-	outputFile.open("../../../../out.dat");
-	if (!outputFile) {
-		cout << "Error: could not open test output file." << endl;
-		return -1;
-	}
-	goldenFile.open("../../../../out.gold");
-	if (!goldenFile) {
-		cerr << " Error opening golden output file!" << endl;
-		return -1;
-	}*/
-	if (argc < 3)
-	{
-		std::cout << "[ERROR] missing arguments." << std::endl;
-		return -1;
-	}
-
-	inputFile.open(argv[1]);
-	if (!inputFile)
-	{
-		std::cout << "[ERROR] could not open test rx input file." << std::endl;
-		return -1;
-	}
-
-	outputFile.open(argv[2]);
-	if (!outputFile)
-	{
-		std::cout << "[ERROR] could not open test rx output file." << std::endl;
-		return -1;
-	}
 
 	net_axis<64> inWord;
 	int count = 0;
-	while (scanLE(inputFile, inWord)) {
-		inFifo64.write(inWord);
-		ip_handler_top(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, outFifoROCE, ipAddress);
-
-		convertStreamWidth<64, 14>(inFifo64, inFifo);
-
-		convertStreamWidth<DATA_WIDTH, 15>(outFifoARP,outFifoARP64);
-		convertStreamWidth<DATA_WIDTH, 16>(outFifoICMPv6,outFifoICMPv6_64);
-		convertStreamWidth<DATA_WIDTH, 17>(outFifoIPv6UDP,outFifoIPv6UDP64);
-		convertStreamWidth<DATA_WIDTH, 18>(outFifoICMP,outFifoICMP64);
-		convertStreamWidth<DATA_WIDTH, 19>(outFifoUDP,outFifoUDP64);
-		convertStreamWidth<DATA_WIDTH, 20>(outFifoTCP,outFifoTCP64);
-		convertStreamWidth<DATA_WIDTH, 21>(outFifoROCE, outFifoROCE64);
-
-	}
-	while (count < 30000)	{
-		ip_handler_top(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, outFifoROCE, ipAddress);
-
-		convertStreamWidth<64, 22>(inFifo64, inFifo);
-
-		convertStreamWidth<DATA_WIDTH, 23>(outFifoARP,outFifoARP64);
-		convertStreamWidth<DATA_WIDTH, 24>(outFifoICMPv6,outFifoICMPv6_64);
-		convertStreamWidth<DATA_WIDTH, 25>(outFifoIPv6UDP,outFifoIPv6UDP64);
-		convertStreamWidth<DATA_WIDTH, 26>(outFifoICMP,outFifoICMP64);
-		convertStreamWidth<DATA_WIDTH, 27>(outFifoUDP,outFifoUDP64);
-		convertStreamWidth<DATA_WIDTH, 28>(outFifoTCP,outFifoTCP64);
-		convertStreamWidth<DATA_WIDTH, 29>(outFifoROCE, outFifoROCE64);
-
-
-		count++;
-	}
-
-	net_axis<64> outWord;
-	outputFile << "ICMPv6" << std::endl;
-	while (!outFifoICMPv6_64.empty())
+	size_t numFiles = 2;
+	std::string inputFiles[numFiles] = {"tcp", "udp"};
+	for (int i = 0; i < numFiles; i++)
 	{
-		outFifoICMPv6_64.read(outWord);
-		print(outputFile, outWord);
-		outputFile << std::endl;
-	}
+		std::ifstream inputFile;
+		std::ofstream outputFile;
 
-	outputFile << "IPv6 UDP" << std::endl;
-	while (!outFifoIPv6UDP64.empty())
-	{
-		outFifoIPv6UDP64.read(outWord);
-		print(outputFile, outWord);
-		outputFile << std::endl;
-	}
+		inputFile.open(currentDirectory+"/"+inputFiles[i]+".in");
+		if (!inputFile)
+		{
+			std::cout << "[ERROR] could not open test input file: " << inputFiles[i] << std::endl;
+			return -1;
+		}
+		outputFile.open(currentDirectory+"/"+inputFiles[i]+".out");
+		if (!outputFile)
+		{
+			std::cout << "[ERROR] could not open test rx output file." << std::endl;
+			return -1;
+		}
 
-	outputFile << "ARP" << std::endl;
-	while (!(outFifoARP64.empty())) {
-		outFifoARP64.read(outWord);
-		print(outputFile, outWord);
-		outputFile << std::endl;
-			}
-	outputFile << "ICMP" << std::endl;
-	while (!(outFifoICMP64.empty())) {
-		outFifoICMP64.read(outWord);
-		print(outputFile, outWord);
-		outputFile << std::endl;
-			}
-	outputFile << "UDP" << std::endl;
-	while (!(outFifoUDP64.empty())) {
-		outFifoUDP64.read(outWord);
-		print(outputFile, outWord);
-		outputFile << std::endl;
-			}
-	outputFile << "TCP" << std::endl;
-	while (!(outFifoTCP64.empty())) {
-		outFifoTCP64.read(outWord);
-		print(outputFile, outWord);
-		outputFile << std::endl;
+		std::cout << "Using input file: " << inputFiles[i] << ".in" << std::endl;
+
+		while (scanLE(inputFile, inWord))
+		{
+			inFifo64.write(inWord);
+			std::cout << "INWORD: ";
+			printLE(std::cout, inWord);
+			std::cout << std::endl;
+			ip_handler<DATA_WIDTH>(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, outFifoROCE, ipAddress);
+
+			convertStreamWidth<64, 14>(inFifo64, inFifo);
+
+			convertStreamWidth<DATA_WIDTH, 15>(outFifoARP,outFifoARP64);
+			convertStreamWidth<DATA_WIDTH, 16>(outFifoICMPv6,outFifoICMPv6_64);
+			convertStreamWidth<DATA_WIDTH, 17>(outFifoIPv6UDP,outFifoIPv6UDP64);
+			convertStreamWidth<DATA_WIDTH, 18>(outFifoICMP,outFifoICMP64);
+			convertStreamWidth<DATA_WIDTH, 19>(outFifoUDP,outFifoUDP64);
+			convertStreamWidth<DATA_WIDTH, 20>(outFifoTCP,outFifoTCP64);
+			convertStreamWidth<DATA_WIDTH, 21>(outFifoROCE, outFifoROCE64);
+
+		}
+		count = 0;
+		while (count < 30000)	{
+			ip_handler<DATA_WIDTH>(inFifo, outFifoARP, outFifoICMPv6, outFifoIPv6UDP, outFifoICMP, outFifoUDP, outFifoTCP, outFifoROCE, ipAddress);
+
+			convertStreamWidth<64, 22>(inFifo64, inFifo);
+
+			convertStreamWidth<DATA_WIDTH, 23>(outFifoARP,outFifoARP64);
+			convertStreamWidth<DATA_WIDTH, 24>(outFifoICMPv6,outFifoICMPv6_64);
+			convertStreamWidth<DATA_WIDTH, 25>(outFifoIPv6UDP,outFifoIPv6UDP64);
+			convertStreamWidth<DATA_WIDTH, 26>(outFifoICMP,outFifoICMP64);
+			convertStreamWidth<DATA_WIDTH, 27>(outFifoUDP,outFifoUDP64);
+			convertStreamWidth<DATA_WIDTH, 28>(outFifoTCP,outFifoTCP64);
+			convertStreamWidth<DATA_WIDTH, 29>(outFifoROCE, outFifoROCE64);
+
+
+			count++;
+		}
+
+		writeToOutputFile(outputFile, "ICMPv6", outFifoICMPv6_64);
+		writeToOutputFile(outputFile, "IPv6 UDP", outFifoIPv6UDP64);
+		writeToOutputFile(outputFile, "ARP", outFifoARP64);
+		writeToOutputFile(outputFile, "ICMP", outFifoICMP64);
+		writeToOutputFile(outputFile, "UDP", outFifoUDP64);
+		writeToOutputFile(outputFile, "TCP", outFifoTCP64);
+		writeToOutputFile(outputFile, "ICMPv6", outFifoICMPv6_64);
+
+		inputFile.close();
+		outputFile.close();
 	}
 	/*cerr << " done." << endl << endl;
 	if (errCount == 0) {
@@ -180,10 +174,42 @@ int main(int argc, char* argv[]) {
 	    cerr << endl << endl;
 	    return -1;
 	}
-	inputFile.close();
 	outputFile.close();
 	goldenFile.close();*/
 
-	return 0;
+	//Compare output files with golden files
+	int errorCount = 0;
+	for (int i = 0; i < numFiles; i++)
+	{
+		/*std::ifstream outputFile;
+		std::ifstream goldenFile;
+		outputFile.open(currentDirectory+"/"+inputFiles[i]+".out");*/
+		std::string outputFileName = currentDirectory+"/"+inputFiles[i]+".out";
+		std::string goldenFileName = currentDirectory+"/"+inputFiles[i]+".gold";
+
+		/*if (!outputFile)
+		{
+			std::cout << "[ERROR] could not open test input file: " << inputFiles[i] << std::endl;
+			return -1;
+		}
+		goldenFile.open(currentDirectory+"/"+inputFiles[i]+".gold");
+		if (!outputFile)
+		{
+			std::cout << "[ERROR] could not open test rx output file." << std::endl;
+			return -1;
+		}*/
+
+		bool equal = compareFiles(outputFileName, goldenFileName);
+		if (!equal)
+		{
+			std::cout << "[ERROR] files do not match: " << inputFiles[i] << std::endl;
+			errorCount++;
+		}
+
+		//outputFile.close();
+		//goldenFile.close();
+	}
+
+	return errorCount;
 }
 
