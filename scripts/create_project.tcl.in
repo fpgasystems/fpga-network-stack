@@ -1,7 +1,7 @@
 set proj_name "network_stack_example_prj"
 set root_dir [pwd]
 set proj_dir $root_dir/$proj_name
-set src_dir $root_dir/../rtl
+set src_dir $root_dir/../hdl
 set ip_dir $root_dir/../ip
 set ip_repo $root_dir/../iprepo
 set constraints_dir $root_dir/../constraints
@@ -14,7 +14,7 @@ if { [file isdirectory $ip_repo] } {
 	exit 1
 }
 # Create project
-create_project $proj_name $proj_dir
+create_project -force $proj_name $proj_dir
 
 # Set project properties
 set obj [get_projects $proj_name]
@@ -42,19 +42,19 @@ set device_ip_dir $ip_dir/${DEVICE_NAME}
 #Create IPs
 
 #Network interface
-source ${CMAKE_SOURCE_DIR}/projects/network_${FPGA_FAMILY}.tcl
+source ${CMAKE_SOURCE_DIR}/scripts/network_${FPGA_FAMILY}.tcl
 
 #AXI Infrastructure: FIFOs, Register slices, Interconnect
-source ${CMAKE_SOURCE_DIR}/projects/axi_infrastructure.tcl
+source ${CMAKE_SOURCE_DIR}/scripts/axi_infrastructure.tcl
 
 #Network stack
-source ${CMAKE_SOURCE_DIR}/projects/network_stack.tcl
+source ${CMAKE_SOURCE_DIR}/scripts/network_stack.tcl
 
 #VIOs
-source ${CMAKE_SOURCE_DIR}/projects/common.tcl
+source ${CMAKE_SOURCE_DIR}/scripts/common.tcl
 
 #Memory interface
-source ${CMAKE_SOURCE_DIR}/projects/dram_${FPGA_FAMILY}.tcl
+source ${CMAKE_SOURCE_DIR}/scripts/dram_${FPGA_FAMILY}.tcl
 
 
-start_gui
+#start_gui
