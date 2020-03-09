@@ -106,13 +106,21 @@ struct stateQuery
  *  @ingroup tx_engine
  *  This struct defines an entry of the @ref rx_sar_table
  */
+
+/*	A gap caused by out-of-order packet:
+*	                v- appd         v- recvd    v- offset        v- head
+*	|  <- undef ->  |  <committed>  |   <gap>   |  <pre-mature>  |  <- undef ->  |
+*/
 struct rxSarEntry
 {
-	ap_uint<32> recvd;
+	ap_uint<32> recvd; 
 	ap_uint<WINDOW_BITS> appd;
 #if (WINDOW_SCALE)
 	ap_uint<4>	win_shift;
 #endif
+	ap_uint<32> head;
+	ap_uint<16> offset;
+	bool gap;
 };
 
 struct rxSarReply
@@ -139,13 +147,21 @@ struct rxSarRecvd
 	ap_uint<4>	win_shift; //TODO name
 	ap_uint<1> write;
 	ap_uint<1> init;
+	ap_uint<32> head;
+	ap_uint<WINDOW_BITS> offset;
+	bool gap;
 	rxSarRecvd() {}
 	rxSarRecvd(ap_uint<16> id)
 				:sessionID(id), recvd(0), write(0), init(0) {}
-	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd)
-				:sessionID(id), recvd(recvd), write(1), init(0) {}
-	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<4> win_shift)
-					:sessionID(id), recvd(recvd), win_shift(win_shift), write(1), init(1) {}
+	// rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd)
+	// 			:sessionID(id), recvd(recvd), write(1), init(0) {}
+	// rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<4> win_shift)
+	// 				:sessionID(id), recvd(recvd), win_shift(win_shift), write(1), init(1) {}
+
+	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<WINDOW_BITS>offset, bool gap)
+				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), write(1), init(0) {}
+	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<WINDOW_BITS>offset, bool gap, ap_uint<4> win_shift)
+				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), win_shift(win_shift), write(1), init(1) {}
 };
 
 struct rxSarAppd

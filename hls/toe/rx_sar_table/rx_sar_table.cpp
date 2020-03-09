@@ -93,6 +93,9 @@ void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 		if (in_recvd.write)
 		{
 			rx_table[in_recvd.sessionID].recvd = in_recvd.recvd;
+			rx_table[in_recvd.sessionID].head = in_recvd.head;
+			rx_table[in_recvd.sessionID].offset = in_recvd.offset;
+			rx_table[in_recvd.sessionID].gap = in_recvd.gap;
 			if (in_recvd.init)
 			{
 				rx_table[in_recvd.sessionID].appd = in_recvd.recvd;
