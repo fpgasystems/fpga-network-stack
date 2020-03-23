@@ -119,7 +119,7 @@ struct rxSarEntry
 	ap_uint<4>	win_shift;
 #endif
 	ap_uint<32> head;
-	ap_uint<16> offset;
+	ap_uint<32> offset;
 	bool gap;
 };
 
@@ -148,7 +148,7 @@ struct rxSarRecvd
 	ap_uint<1> write;
 	ap_uint<1> init;
 	ap_uint<32> head;
-	ap_uint<WINDOW_BITS> offset;
+	ap_uint<32> offset;
 	bool gap;
 	rxSarRecvd() {}
 	rxSarRecvd(ap_uint<16> id)
@@ -158,9 +158,9 @@ struct rxSarRecvd
 	// rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<4> win_shift)
 	// 				:sessionID(id), recvd(recvd), win_shift(win_shift), write(1), init(1) {}
 
-	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<WINDOW_BITS>offset, bool gap)
+	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<32>offset, bool gap)
 				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), write(1), init(0) {}
-	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<WINDOW_BITS>offset, bool gap, ap_uint<4> win_shift)
+	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<32>offset, bool gap, ap_uint<4> win_shift)
 				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), win_shift(win_shift), write(1), init(1) {}
 };
 

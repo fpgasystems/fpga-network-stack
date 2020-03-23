@@ -1121,7 +1121,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 
 						ap_uint<32> newRecvd = 0;
 						ap_uint<32> newHead = 0;
-						ap_uint<WINDOW_BITS> newOffset = 0;
+						ap_uint<32> newOffset = 0;
 						// ### No gap, packet comes in order
 						if (!rxSar.gap && (fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
 						{
@@ -1159,7 +1159,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							std::cout<<" free_space:"<<free_space<<std::endl;
 							//increment head pointer, set offset to ooo sequence number
 							newHead = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
-							newOffset = fsm_meta.meta.seqNumb(WINDOW_BITS-1, 0);
+							newOffset = fsm_meta.meta.seqNumb;
 							//update head and offset pointer, set gap to true
 							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, rxSar.recvd, newHead, newOffset, true));
 							//notification for matching the mem write status in notificationDelayer
@@ -1203,7 +1203,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							std::cout<<" gap:"<<rxSar.gap;
 							std::cout<<" free_space:"<<free_space<<std::endl;
 							//fill the gap
-							if ((fsm_meta.meta.seqNumb + fsm_meta.meta.length)(WINDOW_BITS-1, 0) == rxSar.offset)
+							if ((fsm_meta.meta.seqNumb + fsm_meta.meta.length) == rxSar.offset)
 							{
 								newRecvd = rxSar.head;
 								rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, rxSar.head, rxSar.offset, false));
@@ -1214,7 +1214,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 								dropDataFifoOut.write(false);
 							}
 							//gap can not be filled
-							else if ((fsm_meta.meta.seqNumb + fsm_meta.meta.length)(WINDOW_BITS-1, 0) < rxSar.offset)
+							else if ((fsm_meta.meta.seqNumb + fsm_meta.meta.length) < rxSar.offset)
 							{
 								newRecvd = fsm_meta.meta.seqNumb + fsm_meta.meta.length;
 								rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, rxSar.head, rxSar.offset, rxSar.gap));
@@ -1229,6 +1229,15 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						else 
 						{
 							dropDataFifoOut.write(true);
+							std::cout<<"RX_DROP";
+							std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+							std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+							std::cout<<" recvd:"<<rxSar.recvd;
+							std::cout<<" head:"<<rxSar.head;
+							std::cout<<" offset:"<<rxSar.offset;
+							std::cout<<" length:"<<fsm_meta.meta.length;		
+							std::cout<<" gap:"<<rxSar.gap;
+							std::cout<<" free_space:"<<free_space<<std::endl;
 						}
 
 					}
