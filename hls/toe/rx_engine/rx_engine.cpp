@@ -49,9 +49,9 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 	if (!dataIn.empty())
 	{
 		net_axis<WIDTH> currWord = dataIn.read();
-		std::cout << "IP process: ";
-		printLE(std::cout, currWord);
-		std::cout << std::endl;
+		// std::cout << "IP process: ";
+		// printLE(std::cout, currWord);
+		// std::cout << std::endl;
 		header.parseWord(currWord.data);
 
 		if (header.isReady())
@@ -171,7 +171,7 @@ void prependPseudoHeader(	hls::stream<net_axis<WIDTH> >&		headerIn,
 
 			if (currWord.last)
 			{
-				std::cout << "PREPEND" << std::endl;
+				// std::cout << "PREPEND" << std::endl;
 				state = HEADER;
 			}
 		}
@@ -397,11 +397,13 @@ void rxCheckTCPchecksum(stream<net_axis<64> >&					dataIn,
 				if (csa_meta.length != 0)
 				{
 					validFifoOut.write(true);
+					std::cout<<"checksum correct"<<std::endl;
 				}
 			}
 			else if(csa_meta.length != 0)
 			{
 				validFifoOut.write(false);
+				std::cout<<"checksum not correct!!!"<<std::endl;
 			}
 			csa_checkChecksum = false;
 			csa_tcp_sums[0] = 0;
@@ -435,9 +437,9 @@ void processPseudoHeader(stream<net_axis<WIDTH> >&					dataIn,
 	if (!dataIn.empty() && (!firstWord || !validFifoIn.empty()))
 	{
 		net_axis<WIDTH> word = dataIn.read();
-		std::cout << "PROCESS TCP: ";
-		printLE(std::cout, word);
-		std::cout << std::endl;
+		// std::cout << "PROCESS TCP: ";
+		// printLE(std::cout, word);
+		// std::cout << std::endl;
 		header.parseWord(word.data);
 		if (firstWord)
 		{
@@ -480,7 +482,7 @@ void processPseudoHeader(stream<net_axis<WIDTH> >&					dataIn,
 				}
 				if (meta.length != 0)
 				{
-					std::cout << "VALID WRITE: " << std::dec << meta.length << ", " << header.getLength() << ", " << header.getDataOffset() << std::endl;
+					// std::cout << "VALID WRITE: " << std::dec << meta.length << ", " << header.getLength() << ", " << header.getDataOffset() << std::endl;
 				}
 
 				metaWritten = true;
@@ -527,10 +529,10 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 			optionalFieldsMeta meta =  metaIn.read();
 			net_axis<WIDTH> currWord = dataIn.read();
 			dataOffset = meta.dataOffset;// - 5;
-			std::cout << "OFFSET: " << dataOffset << std::endl;
-			std::cout << "DROP OO: ";
-			printLE(std::cout, currWord);
-			std::cout << std::endl;
+			// std::cout << "OFFSET: " << dataOffset << std::endl;
+			// std::cout << "DROP OO: ";
+			// printLE(std::cout, currWord);
+			// std::cout << std::endl;
 
 			optionalHeader.parseWord(currWord.data);
 			parseHeader = false;
@@ -545,7 +547,7 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
 				if (meta.syn)
 				{
 					parseHeader = true;
-					std::cout << "WRITE Optional Fields" << std::endl;
+					// std::cout << "WRITE Optional Fields" << std::endl;
 					dataOffsetOut.write(dataOffset);
 					if (optionalHeader.isReady() || currWord.last)
 					{
@@ -657,7 +659,7 @@ void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 	case IDLE:
 		if (!dataOffsetIn.empty() && !optionalHeaderFieldsIn.empty())
 		{
-			std::cout << "PARSE IDLE" << std::endl;
+			// std::cout << "PARSE IDLE" << std::endl;
 			dataOffsetIn.read(dataOffset);
 			optionalHeaderFieldsIn.read(fields);
 			state = PARSE;
@@ -671,14 +673,14 @@ void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 		{
 		case 0: //End of option list
 			windowScaleOut.write(0);
-			std::cout << "PARSE EOL" << std::endl;
+			// std::cout << "PARSE EOL" << std::endl;
 			state = IDLE;
 			break;
 		case 1:
 			optionLength = 1;
 			break;
 		case 3:
-			std::cout << "PARSE WS: " << (uint16_t)fields(19, 16) << std::endl;
+			// std::cout << "PARSE WS: " << (uint16_t)fields(19, 16) << std::endl;
 			windowScaleOut.write(fields(19, 16));
 			state = IDLE;
 			break;
@@ -686,7 +688,7 @@ void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 			if (dataOffset == optionLength)
 			{
 				windowScaleOut.write(0);
-				std::cout << "PARSE DONE" << std::endl;
+				// std::cout << "PARSE DONE" << std::endl;
 				state = IDLE;
 			}
 			break;
@@ -712,7 +714,7 @@ void merge_header_meta(hls::stream<ap_uint<4> >&			rxEng_winScaleFifo,
 	case 0:
 		if (!rxEng_headerMetaFifo.empty())
 		{
-			std::cout << "META MERGE 0" << std::endl;
+			// std::cout << "META MERGE 0" << std::endl;
 			rxEng_headerMetaFifo.read(meta);
 			if (meta.syn && meta.dataOffset > 5)
 			{
@@ -728,7 +730,7 @@ void merge_header_meta(hls::stream<ap_uint<4> >&			rxEng_winScaleFifo,
 	case 1:
 		if (!rxEng_winScaleFifo.empty())
 		{
-			std::cout << "META MERGE 1" << std::endl;
+			// std::cout << "META MERGE 1" << std::endl;
 			meta.winScale = rxEng_winScaleFifo.read();
 			rxEng_metaDataFifo.write(meta);
 			state = 0;
@@ -1067,29 +1069,197 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count, ((txSar.count == 3) || txSar.fastRetransmitted))));
 					}
 
+// 					// Check if packet contains payload
+// 					if (fsm_meta.meta.length != 0)
+// 					{
+// 						ap_uint<32> newRecvd = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
+// 						// Second part makes sure that app pointer is not overtaken
+// #if !(RX_DDR_BYPASS)
+// 						ap_uint<WINDOW_BITS> free_space = ((rxSar.appd - rxSar.recvd(WINDOW_BITS-1, 0)) - 1);
+// 						// Check if segment in order and if enough free space is available
+// 						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
+// #else
+// 						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && ((rxbuffer_max_data_count - rxbuffer_data_count) > 375))
+// #endif
+// 						{
+// 							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd));
+// 							// Build memory address
+// 							ap_uint<32> pkgAddr;
+// 							pkgAddr(31, 30) = 0x0;
+// 							pkgAddr(29, WINDOW_BITS) = fsm_meta.sessionID(13, 0);
+// 							pkgAddr(WINDOW_BITS-1, 0) = fsm_meta.meta.seqNumb(WINDOW_BITS-1, 0);
+// #if !(RX_DDR_BYPASS)
+// 							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+// #endif
+// 							// Only notify about  new data available
+// 							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+// 							dropDataFifoOut.write(false);
+// 						}
+// 						else
+// 						{
+// 							dropDataFifoOut.write(true);
+// 						}
+
+
+// 						// Sent ACK
+// 						//rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
+// 					}
+
+#if !(RX_DDR_BYPASS) //if enable DDR, OOO is enabled
+					// Check if packet contains payload
+					// Second part makes sure that app pointer is not overtaken
+					ap_uint<WINDOW_BITS> free_space = ((rxSar.appd - rxSar.head(WINDOW_BITS-1, 0)) - 1);
+					
+					if (fsm_meta.meta.length != 0)
+					{
+
+						// Build memory address
+						ap_uint<32> pkgAddr;
+						pkgAddr(31, 30) = 0x0;
+						pkgAddr(29, WINDOW_BITS) = fsm_meta.sessionID(13, 0);
+						pkgAddr(WINDOW_BITS-1, 0) = fsm_meta.meta.seqNumb(WINDOW_BITS-1, 0);
+
+						ap_uint<32> newRecvd = 0;
+						ap_uint<32> newHead = 0;
+						ap_uint<32> newOffset = 0;
+						// ### No gap, packet comes in order
+						if (!rxSar.gap && (fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
+						{
+							std::cout<<"RX_ACK: no gap in order";
+							std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+							std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+							std::cout<<" recvd:"<<rxSar.recvd;
+							std::cout<<" head:"<<rxSar.head;
+							std::cout<<" offset:"<<rxSar.offset;
+							std::cout<<" length:"<<fsm_meta.meta.length;							
+							std::cout<<" gap:"<<rxSar.gap;
+							std::cout<<" free_space:"<<free_space<<std::endl;
+							//increment both head and recvd pointers
+							newRecvd = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
+							newHead = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
+							//update head and recvd pointers
+							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, newHead, rxSar.offset, rxSar.gap));
+							//write to memory
+							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+							// Notify app length bytes available
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+							dropDataFifoOut.write(false);
+						}
+						// ### No gap, packet comes out-of-order
+						else if (!rxSar.gap && (fsm_meta.meta.seqNumb > rxSar.recvd) && (free_space > (fsm_meta.meta.seqNumb+fsm_meta.meta.length- rxSar.head)(WINDOW_BITS-1, 0)))
+						{
+							std::cout<<"RX_ACK: no gap ooo";
+							std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+							std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+							std::cout<<" recvd:"<<rxSar.recvd;
+							std::cout<<" head:"<<rxSar.head;
+							std::cout<<" offset:"<<rxSar.offset;
+							std::cout<<" length:"<<fsm_meta.meta.length;							
+							std::cout<<" gap:"<<rxSar.gap;
+							std::cout<<" free_space:"<<free_space<<std::endl;
+							//increment head pointer, set offset to ooo sequence number
+							newHead = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
+							newOffset = fsm_meta.meta.seqNumb;
+							//update head and offset pointer, set gap to true
+							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, rxSar.recvd, newHead, newOffset, true));
+							//notification for matching the mem write status in notificationDelayer
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+							//write to memory
+							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+							dropDataFifoOut.write(false);
+						}
+						// ### Gap already exists, packet comes in-order after the head pointer
+						else if (rxSar.gap && (fsm_meta.meta.seqNumb == rxSar.head) && (free_space > fsm_meta.meta.length)  )
+						{
+							std::cout<<"RX_ACK: gap in order after head";
+							std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+							std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+							std::cout<<" recvd:"<<rxSar.recvd;
+							std::cout<<" head:"<<rxSar.head;
+							std::cout<<" offset:"<<rxSar.offset;
+							std::cout<<" length:"<<fsm_meta.meta.length;		
+							std::cout<<" gap:"<<rxSar.gap;
+							std::cout<<" free_space:"<<free_space<<std::endl;
+							//increment head pointer
+							newHead = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
+							//update head pointer
+							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, rxSar.recvd, newHead, rxSar.offset, rxSar.gap));
+							//write to memory
+							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+							//notification for matching the mem write status in notificationDelayer
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+							dropDataFifoOut.write(false);
+						}
+						// ### Gap alread exists, packet comes in-order after the recvd pointer
+						else if (rxSar.gap && (fsm_meta.meta.seqNumb == rxSar.recvd))
+						{
+							std::cout<<"RX_ACK: gap in order after recvd";
+							std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+							std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+							std::cout<<" recvd:"<<rxSar.recvd;
+							std::cout<<" head:"<<rxSar.head;
+							std::cout<<" offset:"<<rxSar.offset;
+							std::cout<<" length:"<<fsm_meta.meta.length;		
+							std::cout<<" gap:"<<rxSar.gap;
+							std::cout<<" free_space:"<<free_space<<std::endl;
+							//fill the gap
+							if ((fsm_meta.meta.seqNumb + fsm_meta.meta.length) == rxSar.offset)
+							{
+								newRecvd = rxSar.head;
+								rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, rxSar.head, rxSar.offset, false));
+								//write to memory
+								rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+								// Only notify about  new data available
+								rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, (rxSar.head - fsm_meta.meta.seqNumb)(WINDOW_BITS-1, 0), fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+								dropDataFifoOut.write(false);
+							}
+							//gap can not be filled
+							else if ((fsm_meta.meta.seqNumb + fsm_meta.meta.length) < rxSar.offset)
+							{
+								newRecvd = fsm_meta.meta.seqNumb + fsm_meta.meta.length;
+								rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, rxSar.head, rxSar.offset, rxSar.gap));
+								//write to memory
+								rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
+								// Only notify about  new data available
+								rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+								dropDataFifoOut.write(false);
+							}
+						}
+						// ### drop the packet in all other cases 
+						else 
+						{
+							dropDataFifoOut.write(true);
+							std::cout<<"RX_DROP";
+							std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+							std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+							std::cout<<" recvd:"<<rxSar.recvd;
+							std::cout<<" head:"<<rxSar.head;
+							std::cout<<" offset:"<<rxSar.offset;
+							std::cout<<" length:"<<fsm_meta.meta.length;		
+							std::cout<<" gap:"<<rxSar.gap;
+							std::cout<<" free_space:"<<free_space<<std::endl;
+						}
+
+					}
+
+
+#else //if DDR is not used, OOO is disabled
 					// Check if packet contains payload
 					if (fsm_meta.meta.length != 0)
 					{
 						ap_uint<32> newRecvd = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
+						ap_uint<32> newHead = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
 						// Second part makes sure that app pointer is not overtaken
-#if !(RX_DDR_BYPASS)
-						ap_uint<WINDOW_BITS> free_space = ((rxSar.appd - rxSar.recvd(WINDOW_BITS-1, 0)) - 1);
 						// Check if segment in order and if enough free space is available
-						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
-#else
 						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && ((rxbuffer_max_data_count - rxbuffer_data_count) > 375))
-#endif
 						{
-							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd));
+							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, newHead, rxSar.offset, rxSar.gap));
 							// Build memory address
 							ap_uint<32> pkgAddr;
 							pkgAddr(31, 30) = 0x0;
 							pkgAddr(29, WINDOW_BITS) = fsm_meta.sessionID(13, 0);
 							pkgAddr(WINDOW_BITS-1, 0) = fsm_meta.meta.seqNumb(WINDOW_BITS-1, 0);
-#if !(RX_DDR_BYPASS)
-							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
-#endif
-							// Only notify about  new data available
+							// Only notify about new data available
 							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
 							dropDataFifoOut.write(false);
 						}
@@ -1097,10 +1267,10 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						{
 							dropDataFifoOut.write(true);
 						}
-
-						// Sent ACK
-						//rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
 					}
+#endif
+
+
 #if FAST_RETRANSMIT
 					if (txSar.count == 3 && !txSar.fastRetransmitted)
 					{
@@ -1111,7 +1281,21 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					if (fsm_meta.meta.length != 0)
 #endif
 					{
-						rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
+						//send ack only when packet in-order
+#if !(RX_DDR_BYPASS)					
+						if (!rxSar.gap && (fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
+#else
+						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && ((rxbuffer_max_data_count - rxbuffer_data_count) > 375))
+#endif
+						{
+							rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
+						}
+						//send duplicate ack with ack_nodelay
+						else 
+						{
+							rxEng2eventEng_setEvent.write(event(ACK_NODELAY, fsm_meta.sessionID));	
+						}
+						
 					}
 
 
@@ -1164,18 +1348,27 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 			{
 				stateTable2rxEng_upd_rsp.read(tcpState);
 				rxSar2rxEng_upd_rsp.read(rxSar);
+				std::cout<<"RX_SYN: ";
+				std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+				std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+				std::cout<<" recvd:"<<rxSar.recvd;
+				std::cout<<" head:"<<rxSar.head;
+				std::cout<<" offset:"<<rxSar.offset;
+				std::cout<<" length:"<<fsm_meta.meta.length;		
+				std::cout<<" gap:"<<rxSar.gap<<std::endl;
+				// std::cout<<" free_space"<<free_space<<std::endl;
 				if (tcpState == CLOSED || tcpState == SYN_SENT) // Actually this is LISTEN || SYN_SENT
 				{
 #if (WINDOW_SCALE)
 					ap_uint<4> rx_win_shift = (fsm_meta.meta.winScale == 0) ? 0 : WINDOW_SCALE_BITS;
 					ap_uint<4> tx_win_shift = fsm_meta.meta.winScale;
-					// Initialize rxSar, SEQ + phantom byte
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, rx_win_shift));
+					// Initialize rxSar, SEQ + phantom byte for recvd and head pointer, offset to 0, gap set to false
+					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, rx_win_shift));
 					// Initialize receive window
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, false, tx_win_shift))); //TODO maybe include count check
 #else
 					// Initialize rxSar, SEQ + phantom byte, last '1' for makes sure appd is initialized
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, 1));
+					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, 1));
 					// Initialize receive window
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, false))); //TODO maybe include count check
 #endif
@@ -1218,16 +1411,25 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 				rxSar2rxEng_upd_rsp.read(rxSar);
 				txSar2rxEng_upd_rsp.read(txSar);
 				rxEng2timer_clearRetransmitTimer.write(rxRetransmitTimerUpdate(fsm_meta.sessionID, (fsm_meta.meta.ackNumb == txSar.nextByte)));
+				std::cout<<"RX_SYN_ACK: ";
+				std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+				std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+				std::cout<<" recvd:"<<rxSar.recvd;
+				std::cout<<" head:"<<rxSar.head;
+				std::cout<<" offset:"<<rxSar.offset;
+				std::cout<<" length:"<<fsm_meta.meta.length;		
+				std::cout<<" gap:"<<rxSar.gap<<std::endl;
+				// std::cout<<" free_space"<<free_space<<std::endl;
 				if ((tcpState == SYN_SENT) && (fsm_meta.meta.ackNumb == txSar.nextByte))// && !mh_lup.created)
 				{
 #if (WINDOW_SCALE)
 					ap_uint<4> rx_win_shift = (fsm_meta.meta.winScale == 0) ? 0 : WINDOW_SCALE_BITS;
 					ap_uint<4> tx_win_shift = fsm_meta.meta.winScale;
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, rx_win_shift));
+					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, rx_win_shift));
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0, false, tx_win_shift))); //TODO maybe include count check
 #else
 					//initialize rx_sar, SEQ + phantom byte, last '1' for appd init
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, 1));
+					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, 1));
 
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0, false))); //TODO maybe include count check
 #endif
@@ -1258,6 +1460,15 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 				stateTable2rxEng_upd_rsp.read(tcpState);
 				rxSar2rxEng_upd_rsp.read(rxSar);
 				txSar2rxEng_upd_rsp.read(txSar);
+				std::cout<<"RX_FIN: ";
+				std::cout<<std::dec<<" session id:"<<fsm_meta.sessionID;
+				std::cout<<" seqNum:"<<fsm_meta.meta.seqNumb;
+				std::cout<<" recvd:"<<rxSar.recvd;
+				std::cout<<" head:"<<rxSar.head;
+				std::cout<<" offset:"<<rxSar.offset;
+				std::cout<<" length:"<<fsm_meta.meta.length;		
+				std::cout<<" gap:"<<rxSar.gap<<std::endl;
+				// std::cout<<" free_space"<<free_space<<std::endl;
 				rxEng2timer_clearRetransmitTimer.write(rxRetransmitTimerUpdate(fsm_meta.sessionID, (fsm_meta.meta.ackNumb == txSar.nextByte)));
 				// Check state and if FIN in order, Current out of order FINs are not accepted
 				if ((tcpState == ESTABLISHED || tcpState == FIN_WAIT_1 || tcpState == FIN_WAIT_2) && (rxSar.recvd == fsm_meta.meta.seqNumb))
@@ -1265,7 +1476,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count, txSar.fastRetransmitted))); //TODO include count check
 
 					// +1 for phantom byte, there might be data too
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1)); //diff to ACK
+					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, rxSar.offset,rxSar.gap)); //diff to ACK
 
 					// Clear the probe timer
 					rxEng2timer_clearProbeTimer.write(fsm_meta.sessionID);
@@ -1481,7 +1692,10 @@ void rxAppNotificationDelayer(	stream<mmStatus>&				rxWriteStatusIn, stream<appN
 			rxWriteStatusIn.read(rxAppNotificationStatus2);
 			rand_fifoCount--;
 			if (rxAppNotificationStatus1.okay && rxAppNotificationStatus2.okay)
-				notificationOut.write(rxAppNotification);
+				if (rxAppNotification.length != 0)
+				{
+					notificationOut.write(rxAppNotification);
+				}
 			rxAppNotificationDoubleAccessFlag = false;
 		}
 	}
@@ -1493,18 +1707,32 @@ void rxAppNotificationDelayer(	stream<mmStatus>&				rxWriteStatusIn, stream<appN
 			if (rxAppNotificationDoubleAccessFlag == 0) {				// if the memory access was not broken down in two for this segment
 				rand_fifoCount--;
 				if (rxAppNotificationStatus1.okay)
-					notificationOut.write(rxAppNotification);				// Output the notification
+					if (rxAppNotification.length!=0)
+					{
+						notificationOut.write(rxAppNotification);				// Output the notification
+					}
 			}
 			//TODO else, we are screwed since the ACK is already sent
 		}
 		else if (!internalNotificationFifoIn.empty() && (rand_fifoCount < 31)) {
 			internalNotificationFifoIn.read(rxAppNotification);
-			if (rxAppNotification.length != 0) {
+			//if (rxAppNotification.length != 0) {
+			//	rand_notificationBuffer.write(rxAppNotification);
+			//	rand_fifoCount++;
+			//}
+			//else
+			//	notificationOut.write(rxAppNotification);
+
+			if (rxAppNotification.closed & rxAppNotification.length == 0)
+			{
+				notificationOut.write(rxAppNotification);
+			}
+			else
+			{
 				rand_notificationBuffer.write(rxAppNotification);
 				rand_fifoCount++;
 			}
-			else
-				notificationOut.write(rxAppNotification);
+
 		}
 	}
 }
@@ -1612,9 +1840,9 @@ void rxEngMemWrite(	hls::stream<net_axis<WIDTH> >& 	dataIn,
 		if (!dataIn.empty())
 		{
 			net_axis<WIDTH> currWord = dataIn.read();
-         std::cout << "HELP: ";
-         printLE(std::cout, currWord);
-         std::cout << std::endl;
+         // std::cout << "HELP: ";
+         // printLE(std::cout, currWord);
+         // std::cout << std::endl;
 			dataOut.write(currWord);
 			if (currWord.last)
 			{

@@ -190,6 +190,17 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 					// Only set RT timer if we actually send sth, TODO only set if we change state and sent sth
 					txEng2timer_setRetransmitTimer.write(txRetransmitTimerSet(ml_curEvent.sessionID));
 				}
+
+				std::cout<<"TX";
+				std::cout<<std::dec<<" session id:"<<ml_curEvent.sessionID;
+				std::cout<<" seqNum:"<<txSar.not_ackd;
+				std::cout<<" ackNum:"<<rxSar.recvd;
+				std::cout<<" window_size:"<<rxSar.windowSize;
+				std::cout<<" ack:"<<meta.ack;
+				std::cout<<" rst:"<<meta.rst;
+				std::cout<<" syn:"<<meta.syn;
+				std::cout<<" fin:"<<meta.fin;
+				std::cout<<" length:"<<ml_curEvent.length<<std::endl;		
 			}
 
 			break;
@@ -303,6 +314,17 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 					txEng2timer_setRetransmitTimer.write(txRetransmitTimerSet(ml_curEvent.sessionID));
 				}//TODO if probe send msg length 1
 				ml_sarLoaded = true;
+
+				std::cout<<"TX";
+				std::cout<<std::dec<<" session id:"<<ml_curEvent.sessionID;
+				std::cout<<" seqNum:"<<txSar.not_ackd;
+				std::cout<<" ackNum:"<<rxSar.recvd;
+				std::cout<<" window_size:"<<rxSar.windowSize;
+				std::cout<<" ack:"<<meta.ack;
+				std::cout<<" rst:"<<meta.rst;
+				std::cout<<" syn:"<<meta.syn;
+				std::cout<<" fin:"<<meta.fin;
+				std::cout<<" length:"<<ml_curEvent.length<<std::endl;	
 			}
 			break;
 #endif
@@ -401,6 +423,17 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				}
 				ml_sarLoaded = true;
 				txSarReg = txSar;
+
+				std::cout<<"RT";
+				std::cout<<std::dec<<" session id:"<<ml_curEvent.sessionID;
+				std::cout<<" seqNum:"<<txSar.not_ackd;
+				std::cout<<" ackNum:"<<rxSar.recvd;
+				std::cout<<" window_size:"<<rxSar.windowSize;
+				std::cout<<" ack:"<<meta.ack;
+				std::cout<<" rst:"<<meta.rst;
+				std::cout<<" syn:"<<meta.syn;
+				std::cout<<" fin:"<<meta.fin;
+				std::cout<<" length:"<<ml_curEvent.length<<std::endl;	
 			}
 			break;
 		case ACK:
@@ -423,6 +456,17 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				txEng_isLookUpFifoOut.write(true);
 				txEng2sLookup_rev_req.write(ml_curEvent.sessionID);
 				ml_FsmState = 0;
+
+				std::cout<<"TX_ACK";
+				std::cout<<std::dec<<" session id:"<<ml_curEvent.sessionID;
+				std::cout<<" seqNum:"<<txSar.not_ackd;
+				std::cout<<" ackNum:"<<rxSar.recvd;
+				std::cout<<" window_size:"<<rxSar.windowSize;
+				std::cout<<" ack:"<<meta.ack;
+				std::cout<<" rst:"<<meta.rst;
+				std::cout<<" syn:"<<meta.syn;
+				std::cout<<" fin:"<<meta.fin;
+				std::cout<<" length:"<<ml_curEvent.length<<std::endl;	
 			}
 			break;
 		case SYN:
@@ -461,6 +505,17 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				// set retransmit timer
 				txEng2timer_setRetransmitTimer.write(txRetransmitTimerSet(ml_curEvent.sessionID, SYN));
 				ml_FsmState = 0;
+
+				std::cout<<"TX_SYN";
+				std::cout<<std::dec<<" session id:"<<ml_curEvent.sessionID;
+				std::cout<<" seqNum:"<<txSar.not_ackd;
+				std::cout<<" ackNum:"<<rxSar.recvd;
+				std::cout<<" window_size:"<<rxSar.windowSize;
+				std::cout<<" ack:"<<meta.ack;
+				std::cout<<" rst:"<<meta.rst;
+				std::cout<<" syn:"<<meta.syn;
+				std::cout<<" fin:"<<meta.fin;
+				std::cout<<" length:"<<ml_curEvent.length<<std::endl;	
 			}
 			break;
 		case SYN_ACK:
@@ -506,6 +561,17 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				// set retransmit timer
 				txEng2timer_setRetransmitTimer.write(txRetransmitTimerSet(ml_curEvent.sessionID, SYN_ACK));
 				ml_FsmState = 0;
+
+				std::cout<<"TX_SYN_ACK";
+				std::cout<<std::dec<<" session id:"<<ml_curEvent.sessionID;
+				std::cout<<" seqNum:"<<txSar.not_ackd;
+				std::cout<<" ackNum:"<<rxSar.recvd;
+				std::cout<<" window_size:"<<rxSar.windowSize;
+				std::cout<<" ack:"<<meta.ack;
+				std::cout<<" rst:"<<meta.rst;
+				std::cout<<" syn:"<<meta.syn;
+				std::cout<<" fin:"<<meta.fin;
+				std::cout<<" length:"<<ml_curEvent.length<<std::endl;	
 			}
 			break;
 		case FIN:
@@ -571,6 +637,17 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				}
 
 				ml_FsmState = 0;
+
+				std::cout<<"TX_FIN";
+				std::cout<<std::dec<<" session id:"<<ml_curEvent.sessionID;
+				std::cout<<" seqNum:"<<txSar.not_ackd;
+				std::cout<<" ackNum:"<<rxSar.recvd;
+				std::cout<<" window_size:"<<rxSar.windowSize;
+				std::cout<<" ack:"<<meta.ack;
+				std::cout<<" rst:"<<meta.rst;
+				std::cout<<" syn:"<<meta.syn;
+				std::cout<<" fin:"<<meta.fin;
+				std::cout<<" length:"<<ml_curEvent.length<<std::endl;	
 			}
 			break;
 		case RST:
@@ -747,19 +824,19 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
 
       //length = meta.length + 20; //was adding +40
 	  ap_uint<16> length = metaLength + 40;
-	  std::cout << "length: " << length << std::endl;
+	  // std::cout << "length: " << length << std::endl;
       header.setLength(length);
       header.setDstAddr(tuples.dstIp);
       header.setSrcAddr(tuples.srcIp);
       header.setProtocol(TCP_PROTOCOL);
       if (IPV4_HEADER_SIZE >= WIDTH)
       {
-		std::cout << "switched to IP HEADER" << std::endl;
+		// std::cout << "switched to IP HEADER" << std::endl;
         gi_state = HEADER;
       }
       else
       {
-		std::cout << "switched to IP PARTIAL HEADER" << std::endl;
+		// std::cout << "switched to IP PARTIAL HEADER" << std::endl;
         gi_state = PARTIAL_HEADER;
       }
     }
@@ -772,7 +849,7 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
       /*currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
       currWord.last = 0;
       m_axis_tx_data.write(currWord);*/
-		std::cout << "switched to IP PARTIAL HEADER" << std::endl;
+		// std::cout << "switched to IP PARTIAL HEADER" << std::endl;
       gi_state = PARTIAL_HEADER;
     }
     //else
@@ -791,9 +868,9 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
       header.consumeWord(currWord.data);
       m_axis_tx_data.write(currWord);
       gi_state = BODY;
-	  std::cout << "IP PARTIAL: ";
-	  printLE(std::cout, currWord);
-	  std::cout << std::endl;
+	  // std::cout << "IP PARTIAL: ";
+	  // printLE(std::cout, currWord);
+	  // std::cout << std::endl;
 
       if (currWord.last)
       {
@@ -806,9 +883,9 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
     {
     	net_axis<WIDTH> currWord = tx_shift2ipv4Fifo.read();
 		
-		std::cout << "IP BODY: ";// << std::endl;
-		printLE(std::cout, currWord);
-	  std::cout << std::endl;
+		// std::cout << "IP BODY: ";// << std::endl;
+		// printLE(std::cout, currWord);
+	 //  std::cout << std::endl;
 
       m_axis_tx_data.write(currWord);
       if (currWord.last)
@@ -1020,7 +1097,7 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			}
 			else
 			{
-				std::cout << "switch to TCP HEADER" << std::endl;
+				// std::cout << "switch to TCP HEADER" << std::endl;
 				//TODO handle 512
 				state = HEADER;
 			}
@@ -1031,20 +1108,20 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 		net_axis<WIDTH> sendWord;
 		sendWord.last = 0;
 		ap_uint<8> remainingLength = header.consumeWord(sendWord.data);
-		std::cout << std::dec << "remainingLenght: " << remainingLength << std::endl;
+		// std::cout << std::dec << "remainingLenght: " << remainingLength << std::endl;
 		if (remainingLength < (WIDTH/8))
 		//if (header.consumeWord(sendWord.data) < WIDTH)
 		{
 			if (hasBody)
 			{
-				std::cout << "switch to TCP BODY" << std::endl;
+				// std::cout << "switch to TCP BODY" << std::endl;
 				state = BODY; //PARTIAL_HEADER;
 			}
 			else
 			{
 				if (isSYN && WIDTH <= 256)
 				{
-					std::cout << "switch to MSS" << std::endl;
+					// std::cout << "switch to MSS" << std::endl;
 					state = HEADER_MSS_OPTION;
 				}
 				else
@@ -1055,9 +1132,9 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			}
 		}
 		sendWord.keep = 0xffffffff; //Keep for 256bit (size of the header)
-		std::cout << "TCP HEADER: ";
-		printLE(std::cout, sendWord);
-		std::cout << std::endl;
+		// std::cout << "TCP HEADER: ";
+		// printLE(std::cout, sendWord);
+		// std::cout << std::endl;
 
 		//In case of WIDTH == 512, we can add the MSS option into the first word
 		if (isSYN && WIDTH == 512)
@@ -1072,7 +1149,7 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 			sendWord.keep(35,32) = 0xF;
 #if (WINDOW_SCALE)
 			// WSopt negotiation, only send in SYN-ACK if received with SYN as in RFC 7323 1.3
-			std::cout << "PSEUDO NEW: " << win_shift << std::endl;
+			// std::cout << "PSEUDO NEW: " << win_shift << std::endl;
 			if (win_shift != 0)
 			{
 				sendWord.data(295, 288) = 0x03; // Option Kind
@@ -1125,7 +1202,7 @@ void pseudoHeaderConstructionNew(stream<tx_engine_meta>&		tcpMetaDataFifoIn,
 #endif
 #if (WINDOW_SCALE)
 		// WSopt negotiation, only send in SYN-ACK if received with SYN as in RFC 7323 1.3
-		std::cout << "PSEUDO NEW: " << win_shift << std::endl;
+		// std::cout << "PSEUDO NEW: " << win_shift << std::endl;
 		if (win_shift != 0)
 		{
 			sendWord.data(39, 32) = 0x03; // Option Kind
@@ -1358,9 +1435,9 @@ void read_data_arbiter(stream<net_axis<WIDTH> >&		txBufferReadData,
 		if (!txApp2txEng_data_stream.empty())
 		{
 			net_axis<WIDTH> currWord = txApp2txEng_data_stream.read();
-			std::cout << "ARBITER: ";
-			printLE(std::cout, currWord);
-			std::cout << std::endl;
+			// std::cout << "ARBITER: ";
+			// printLE(std::cout, currWord);
+			// std::cout << std::endl;
 			txEng_tcpSegOut.write(currWord);
 			if (currWord.last)
 			{
@@ -1428,9 +1505,9 @@ void remove_pseudo_header(hls::stream<net_axis<WIDTH> >&	dataIn,
 	if (!dataIn.empty())
 	{
 		net_axis<WIDTH> word = dataIn.read();
-		std::cout << "REMOVE: ";
-		printLE(std::cout, word);
-		std::cout << std::endl;
+		// std::cout << "REMOVE: ";
+		// printLE(std::cout, word);
+		// std::cout << std::endl;
 
 		if (!firstWord || WIDTH > 64)
 		{
@@ -1472,10 +1549,10 @@ void insert_checksum(	hls::stream<ap_uint<16> >&			checksumIn,
 			if (!checksumIn.empty() && !dataIn.empty())
 			{
 				ap_uint<16> checksum = checksumIn.read();
-				std::cout << "INSERTING checksum: " << checksum << std::endl;
+				// std::cout << "INSERTING checksum: " << checksum << std::endl;
 				net_axis<WIDTH> word = dataIn.read();
-				printLE(std::cout, word);
-				std::cout << std::endl;
+				// printLE(std::cout, word);
+				// std::cout << std::endl;
 				if (WIDTH > 128)
 				{
 					word.data(143, 128) = reverse(checksum);
@@ -1485,9 +1562,9 @@ void insert_checksum(	hls::stream<ap_uint<16> >&			checksumIn,
 					word.data(15, 0) = reverse(checksum);
 				}
 				dataOut.write(word);
-				std::cout << "after: ";
-				printLE(std::cout, word);
-				std::cout << std::endl;
+				// std::cout << "after: ";
+				// printLE(std::cout, word);
+				// std::cout << std::endl;
 
 				state = 2;
 				if (word.last)
