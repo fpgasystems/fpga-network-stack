@@ -10,12 +10,12 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 # Check if parent directory
 get_directory_property(hasParent PARENT_DIRECTORY)
 
-if (DEFINED ENV{IPREPO_DIR})
-   set(IPREPO_DIR $ENV{IPREPO_DIR})
-elseif (NOT IPREPO_DIR)
-   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo)
-   message("set iprepor dir ${IPREPO_DIR}")
-endif()
+#if (DEFINED ENV{IPREPO_DIR})
+#   set(IPREPO_DIR $ENV{IPREPO_DIR})
+#elseif (NOT IPREPO_DIR)
+#   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo)
+#   message("set iprepor dir ${IPREPO_DIR}")
+#endif()
 
 # set(DEVICE_NAME
 if (NOT hasParent)
