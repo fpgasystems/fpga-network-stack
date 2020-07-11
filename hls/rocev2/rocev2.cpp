@@ -571,32 +571,27 @@ void round_robin_merger(stream<ap_uint<32> >& in1,
 }
 
 template <int WIDTH>
-void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+void rocev2(hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
+			hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
+				
+			//Cmd
+			hls::stream<txMeta>& s_axis_tx_meta,
+			hls::stream<txMeta>& m_axis_rx_rpc_params,
+				
+			//Memory
+			hls::stream<routedMemCmd>& m_axis_mem_write_cmd,
+			hls::stream<routedMemCmd>& m_axis_mem_read_cmd,
+			hls::stream<net_axis<WIDTH> >& m_axis_mem_write_data,
+			hls::stream<net_axis<WIDTH> >& s_axis_mem_read_data,
 
-				hls::stream<txMeta>&	s_axis_tx_meta,
-				hls::stream<net_axis<WIDTH> >&	s_axis_tx_data,
-				hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
-				//Memory
-				hls::stream<routedMemCmd>&		m_axis_mem_write_cmd,
-				hls::stream<routedMemCmd>&		m_axis_mem_read_cmd,
-				hls::stream<routed_net_axis<WIDTH> >&	m_axis_mem_write_data,
-				hls::stream<net_axis<WIDTH> >&	s_axis_mem_read_data,
+			//Interface
+			hls::stream<qpContext>&	s_axis_qp_interface,
+			hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
+			ap_uint<128>		local_ip_address,
 
-				//Interface
-				hls::stream<qpContext>&	s_axis_qp_interface,
-				hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
-
-				//pointer chasing
-#if POINTER_CHASING_EN
-				hls::stream<ptrChaseMeta>&	m_axis_rx_pcmeta,
-				hls::stream<ptrChaseMeta>&	s_axis_tx_pcmeta,
-#endif
-
-				ap_uint<128>		local_ip_address,
-
-				//Debug output
-				ap_uint<32>& 	 regCrcDropPkgCount,
-				ap_uint<32>& 	 regInvalidPsnDropCount)
+			//Debug output
+			ap_uint<32>& 	 regCrcDropPkgCount,
+			ap_uint<32>& 	 regInvalidPsnDropCount)
 {
 #pragma HLS INLINE
 
@@ -666,25 +661,19 @@ void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	/*
 	 * IB PROTOCOL
 	 */
-	ib_transport_protocol<WIDTH>(		rx_ipUdpMetaFifo,
-								rx_udp2ibFifo,
-								//m_axis_rx_data,
-								s_axis_tx_meta,
-								s_axis_tx_data,
-								tx_ipUdpMetaFifo,
-								tx_ib2udpFifo,
-								m_axis_mem_write_cmd,
-								m_axis_mem_read_cmd,
-								//s_axis_mem_write_status,
-								m_axis_mem_write_data,
-								s_axis_mem_read_data,
-								s_axis_qp_interface,
-								s_axis_qp_conn_interface,
-#if POINTER_CHASING_EN
-								m_axis_rx_pcmeta,
-								s_axis_tx_pcmeta,
-#endif
-								regInvalidPsnDropCount);
+	ib_transport_protocol<WIDTH>(	rx_ipUdpMetaFifo,
+									rx_udp2ibFifo,
+									tx_ipUdpMetaFifo,
+									tx_ib2udpFifo,
+									s_axis_tx_meta,
+									m_axis_rx_rpc_params,
+									m_axis_mem_write_cmd,
+									m_axis_mem_read_cmd,
+									m_axis_mem_write_data,
+									s_axis_mem_read_data,
+									s_axis_qp_interface,
+									s_axis_qp_conn_interface,
+									regInvalidPsnDropCount);
 
 	/*
 	 * Check ICRC of incoming packets
@@ -755,46 +744,40 @@ void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 #endif
 }
 
-void rocev2_top(	//stream<ipUdpMeta>&	s_axis_rx_meta,
+void rocev2_top(
 				stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
-				//stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
-
+				stream<net_axis<DATA_WIDTH> >& m_axis_tx_data,
+				
 				stream<txMeta>&	s_axis_tx_meta,
-				stream<net_axis<DATA_WIDTH> >&	s_axis_tx_data,
-				stream<net_axis<DATA_WIDTH> >&	m_axis_tx_data,
+				stream<txMeta>& m_axis_rx_rpc_params,
+				
 				//Memory
-				stream<routedMemCmd>&		m_axis_mem_write_cmd,
-				stream<routedMemCmd>&		m_axis_mem_read_cmd,
-				//stream<mmStatus>&	s_axis_mem_write_status,
-				stream<routed_net_axis<DATA_WIDTH> >&	m_axis_mem_write_data,
-				stream<net_axis<DATA_WIDTH> >&	s_axis_mem_read_data,
+				stream<routedMemCmd>& m_axis_mem_write_cmd,
+				stream<routedMemCmd>& m_axis_mem_read_cmd,
+				stream<net_axis<DATA_WIDTH> >& m_axis_mem_write_data,
+				stream<net_axis<DATA_WIDTH> >& s_axis_mem_read_data,
 
 				//Interface
-				stream<qpContext>&	s_axis_qp_interface,
-				stream<ifConnReq>&	s_axis_qp_conn_interface,
-
-				//pointer chasing
-#if POINTER_CHASING_EN
-				stream<ptrChaseMeta>&	m_axis_rx_pcmeta,
-				stream<ptrChaseMeta>&	s_axis_tx_pcmeta,
-#endif
-
-				ap_uint<128>		local_ip_address,
+				stream<qpContext>& s_axis_qp_interface,
+				stream<ifConnReq>& s_axis_qp_conn_interface,
+				ap_uint<128> local_ip_address,
 
 				//Debug output
-				ap_uint<32>& 	 regCrcDropPkgCount,
-				ap_uint<32>& 	 regInvalidPsnDropCount)
+				ap_uint<32>& regCrcDropPkgCount,
+				ap_uint<32>& regInvalidPsnDropCount)
 {
 #pragma HLS DATAFLOW disable_start_propagation
 #pragma HLS INTERFACE ap_ctrl_none port=return
 
 	//DATA
 	#pragma HLS INTERFACE axis register port=s_axis_rx_data
-	#pragma HLS INTERFACE axis register port=s_axis_tx_data
-	#pragma HLS INTERFACE axis register port=s_axis_tx_data
 	#pragma HLS INTERFACE axis register port=m_axis_tx_meta
 	#pragma HLS INTERFACE axis register port=m_axis_tx_data
+
+	//CMD
 	#pragma HLS DATA_PACK variable=s_axis_tx_meta
+	#pragma HLS INTERFACE axis register port=m_axis_rx_rpc_params
+	
 
 	//MEMORY
 	#pragma HLS INTERFACE axis register port=m_axis_mem_write_cmd
@@ -808,30 +791,26 @@ void rocev2_top(	//stream<ipUdpMeta>&	s_axis_rx_meta,
 	#pragma HLS DATA_PACK variable=s_axis_qp_interface
 	#pragma HLS DATA_PACK variable=s_axis_qp_conn_interface
 
-	//Pointer chasing
-#if POINTER_CHASING_EN
-	#pragma HLS INTERFACE axis register port=m_axis_rx_pcmeta
-	#pragma HLS INTERFACE axis register port=s_axis_tx_pcmeta
-	#pragma HLS DATA_PACK variable=m_axis_rx_pcmeta
-	#pragma HLS DATA_PACK variable=s_axis_tx_pcmeta
-#endif
-
 	#pragma HLS INTERFACE ap_none register port=local_ip_address
 
 	//DEBUG
 	#pragma HLS INTERFACE ap_vld port=regCrcDropPkgCount
 
-   rocev2<DATA_WIDTH>(s_axis_rx_data,
-								s_axis_tx_meta,
-								s_axis_tx_data,
+   rocev2<DATA_WIDTH>(			s_axis_rx_data,
 								m_axis_tx_data,
+								
+								s_axis_tx_meta,
+								m_axis_rx_rpc_params,
+								
 								m_axis_mem_write_cmd,
 								m_axis_mem_read_cmd,
 								m_axis_mem_write_data,
 								s_axis_mem_read_data,
+
 								s_axis_qp_interface,
 								s_axis_qp_conn_interface,
 								local_ip_address,
+
 								regCrcDropPkgCount,
 								regInvalidPsnDropCount);
 }

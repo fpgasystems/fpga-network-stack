@@ -67,11 +67,11 @@ void state_table(	hls::stream<rxStateReq>& rxIbh2stateTable_upd_req,
 			stateTableEntry entry = state_table[rxRequest.qpn(15,0)];
 			if (rxRequest.isResponse)
 			{
-				stateTable2rxIbh_rsp.write(rxStateRsp(entry.req_old_unack, entry.req_old_valid, entry.req_next_psn-1));
+				stateTable2rxIbh_rsp.write(rxStateRsp(entry.req_old_unack, entry.req_old_valid, entry.req_next_psn-1, entry.local_reg));
 			}
 			else
 			{
-				stateTable2rxIbh_rsp.write(rxStateRsp(entry.resp_epsn, entry.resp_old_outstanding, entry.resp_epsn, entry.retryCounter));
+				stateTable2rxIbh_rsp.write(rxStateRsp(entry.resp_epsn, entry.resp_old_outstanding, entry.resp_epsn, entry.retryCounter, entry.local_reg));
 			}
 		}
 	}
@@ -101,6 +101,7 @@ void state_table(	hls::stream<rxStateReq>& rxIbh2stateTable_upd_req,
 			state_table[ifRequest.qpn].req_old_unack = ifRequest.remote_psn;
 			state_table[ifRequest.qpn].req_old_valid = ifRequest.remote_psn;
 			state_table[ifRequest.qpn].retryCounter = 0xF;
+			state_table[ifRequest.qpn].local_reg = ifRequest.local_reg;
 			//state_table[ifRequest.qpn].sendNAK = false;
 
 			//state_table[ifRequest.qpn].r_key = ifRequest.r_key;

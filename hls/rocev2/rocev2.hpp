@@ -44,27 +44,28 @@ typedef ipv4Meta ipMeta;
 #endif
 
 template <int WIDTH>
-void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
-				hls::stream<txMeta>&	s_axis_tx_meta,
-				hls::stream<net_axis<WIDTH> >&	s_axis_tx_data,
-				hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
-				//Memory
-				hls::stream<routedMemCmd>&		m_axis_mem_write_cmd,
-				hls::stream<routedMemCmd>&		m_axis_mem_read_cmd,
-				hls::stream<routed_net_axis<WIDTH> >&	m_axis_mem_write_data,
-				hls::stream<net_axis<WIDTH> >&	s_axis_mem_read_data,
-				//Interface
-				hls::stream<qpContext>&	s_axis_qp_interface,
-				hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
-				//Pointer chasing
-#if POINTER_CHASING_EN
-				hls::stream<ptrChaseMeta>&	m_axis_rx_pcmeta,
-				hls::stream<ptrChaseMeta>&	s_axis_tx_pcmeta,
-#endif
+void rocev2(
+			hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
+			hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
 
-				ap_uint<128>		reg_ip_address,
+			// RDMA
+			hls::stream<txMeta>& s_axis_tx_meta,
 
-				//Debug output
-				ap_uint<32>& regCrcDropPkgCount,
-				ap_uint<32>& 	 regInvalidPsnDropCount);
+			// RPC
+			hls::stream<txMeta>& m_axis_rx_rpc_params,
+
+			//Memory
+			hls::stream<routedMemCmd>& m_axis_mem_write_cmd,
+			hls::stream<routedMemCmd>& m_axis_mem_read_cmd,
+			hls::stream<net_axis<WIDTH> >& m_axis_mem_write_data,
+			hls::stream<net_axis<WIDTH> >& s_axis_mem_read_data,
+			
+			//Interface
+			hls::stream<qpContext>&	s_axis_qp_interface,
+			hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
+			ap_uint<128> local_ip_address,
+
+			//Debug output
+			ap_uint<32>& regCrcDropPkgCount,
+			ap_uint<32>& regInvalidPsnDropCount);
 

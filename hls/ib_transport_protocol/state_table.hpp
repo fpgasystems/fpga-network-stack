@@ -42,6 +42,7 @@ struct stateTableEntry
 	ap_uint<24> req_old_unack;
 	ap_uint<24> req_old_valid; //required? can be computed?
 	ap_uint<3>	retryCounter;
+	ap_uint<4>  local_reg;
 };
 
 struct ifStateReq
@@ -50,12 +51,13 @@ struct ifStateReq
 	qpState		newState;
 	ap_uint<24> remote_psn;
 	ap_uint<24> local_psn;
+	ap_uint<4>  local_reg;
 	bool		write;
 	ifStateReq() {}
 	ifStateReq(ap_uint<24> qpn)
 		:qpn(qpn), write(false) {}
-	ifStateReq(ap_uint<16> qpn, qpState s, ap_uint<24> rpsn, ap_uint<24> lpsn)
-		:qpn(qpn), newState(s), remote_psn(rpsn), local_psn(lpsn), write(true) {}
+	ifStateReq(ap_uint<16> qpn, qpState s, ap_uint<24> rpsn, ap_uint<24> lpsn, ap_uint<4> local_reg)
+		:qpn(qpn), newState(s), remote_psn(rpsn), local_psn(lpsn), local_reg(local_reg), write(true) {}
 };
 
 struct rxStateReq
@@ -83,13 +85,15 @@ struct rxStateRsp
 	ap_uint<24> max_forward; //used for reponses, page 346
 
 	ap_uint<3>	retryCounter;
+	ap_uint<4>  local_reg;
+
 	rxStateRsp() {}
 	rxStateRsp(ap_uint<24> epsn, ap_uint<24> old)
 		:epsn(epsn), oldest_outstanding_psn(old), max_forward(0), retryCounter(0) {}
-	rxStateRsp(ap_uint<24> epsn, ap_uint<24> old, ap_uint<24> maxf)
-		:epsn(epsn), oldest_outstanding_psn(old), max_forward(maxf), retryCounter(0) {}
-	rxStateRsp(ap_uint<24> epsn, ap_uint<24> old, ap_uint<24> maxf, ap_uint<3> rc)
-		:epsn(epsn), oldest_outstanding_psn(old), max_forward(maxf), retryCounter(rc) {}
+	rxStateRsp(ap_uint<24> epsn, ap_uint<24> old, ap_uint<24> maxf, ap_uint<4> local_reg)
+		:epsn(epsn), oldest_outstanding_psn(old), max_forward(maxf), retryCounter(0), local_reg(local_reg) {}
+	rxStateRsp(ap_uint<24> epsn, ap_uint<24> old, ap_uint<24> maxf, ap_uint<3> rc, ap_uint<4> local_reg)
+		:epsn(epsn), oldest_outstanding_psn(old), max_forward(maxf), retryCounter(rc), local_reg(local_reg) {}
 };
 
 struct txStateReq
