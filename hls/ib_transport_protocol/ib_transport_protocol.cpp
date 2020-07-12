@@ -466,7 +466,7 @@ void rx_exh_fsm(stream<ibhMeta>& metaIn,
 				stream<ExHeader<WIDTH> >& headerInput,
 				stream<routedMemCmd>& memoryWriteCmd,
 				stream<readRequest>& readRequestFifo,
-				stream<txMeta>& m_axis_rx_rpc_params,
+				stream<routedTxMeta>& m_axis_rx_rpc_params,
 
 				stream<rxMsnReq>& rxExh2msnTable_upd_req,
 //#if RETRANS_EN
@@ -625,7 +625,7 @@ void rx_exh_fsm(stream<ibhMeta>& metaIn,
 		{
 			// [BTH][RETH]
 			RdmaRpcHeader<WIDTH> rpcHeader = exHeader.getRpcHeader();
-			m_axis_rx_rpc_params.write(txMeta(RC_RDMA_RPC_REQUEST, meta.dest_qp, meta.local_reg, 0, 0, rpcHeader.getParams()));
+			m_axis_rx_rpc_params.write(routedTxMeta(RC_RDMA_RPC_REQUEST, meta.dest_qp, meta.local_reg, 0, 0, rpcHeader.getParams()));
 			rxExh2msnTable_upd_req.write(rxMsnReq(meta.dest_qp, dmaMeta.msn+1));
 
 			pe_fsmState = META;
@@ -2093,7 +2093,7 @@ void ib_transport_protocol(	// RX - net module
 							stream<txMeta>&	s_axis_tx_meta,
 
 							// RPC
-							stream<txMeta>& m_axis_rx_rpc_params,
+							stream<routedTxMeta>& m_axis_rx_rpc_params,
 
 							// Memory
 							stream<routedMemCmd>& m_axis_mem_write_cmd,
@@ -2558,7 +2558,7 @@ template void ib_transport_protocol<DATA_WIDTH>(
 							stream<txMeta>& s_axis_tx_meta,
 
 							// RPC
-							stream<txMeta>& m_axis_rx_rpc_params,
+							stream<routedTxMeta>& m_axis_rx_rpc_params,
 
 							// Memory
 							stream<routedMemCmd>& m_axis_mem_write_cmd,

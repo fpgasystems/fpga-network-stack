@@ -24,48 +24,13 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
-
-#define IP_VERSION 4
+#ifndef ETH_FRAME_PADDING512
+#define ETH_FRAME_PADDING512
 
 #include "../axi_utils.hpp"
-#include "../ipv4/ipv4.hpp"
-#include "../ipv6/ipv6.hpp"
-#include "../udp/udp.hpp"
-#include "../ib_transport_protocol/ib_transport_protocol.hpp"
-//#include "../pointer_chasing/pointer_chasing.hpp"
 
-#define DISABLE_CRC_CHECK
 
-#if IP_VERSION == 6
-typedef ipv6Meta ipMeta;
-#else
-typedef ipv4Meta ipMeta;
+void ethernet_fram_padding_512(	hls::stream<net_axis<512> >&			dataIn,
+				hls::stream<net_axis<512> >&			dataOut);
+
 #endif
-
-template <int WIDTH>
-void rocev2(
-			hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
-			hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
-
-			// RDMA
-			hls::stream<txMeta>& s_axis_tx_meta,
-
-			// RPC
-			hls::stream<routedTxMeta>& m_axis_rx_rpc_params,
-
-			//Memory
-			hls::stream<routedMemCmd>& m_axis_mem_write_cmd,
-			hls::stream<routedMemCmd>& m_axis_mem_read_cmd,
-			hls::stream<net_axis<WIDTH> >& m_axis_mem_write_data,
-			hls::stream<net_axis<WIDTH> >& s_axis_mem_read_data,
-			
-			//Interface
-			hls::stream<qpContext>&	s_axis_qp_interface,
-			hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
-			ap_uint<128> local_ip_address,
-
-			//Debug output
-			ap_uint<32>& regCrcDropPkgCount,
-			ap_uint<32>& regInvalidPsnDropCount);
-

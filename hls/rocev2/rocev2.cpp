@@ -576,7 +576,7 @@ void rocev2(hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
 				
 			//Cmd
 			hls::stream<txMeta>& s_axis_tx_meta,
-			hls::stream<txMeta>& m_axis_rx_rpc_params,
+			hls::stream<routedTxMeta>& m_axis_rx_rpc_params,
 				
 			//Memory
 			hls::stream<routedMemCmd>& m_axis_mem_write_cmd,
@@ -749,7 +749,7 @@ void rocev2_top(
 				stream<net_axis<DATA_WIDTH> >& m_axis_tx_data,
 				
 				stream<txMeta>&	s_axis_tx_meta,
-				stream<txMeta>& m_axis_rx_rpc_params,
+				stream<routedTxMeta>& m_axis_rx_rpc_params,
 				
 				//Memory
 				stream<routedMemCmd>& m_axis_mem_write_cmd,
@@ -777,7 +777,6 @@ void rocev2_top(
 	//CMD
 	#pragma HLS DATA_PACK variable=s_axis_tx_meta
 	#pragma HLS INTERFACE axis register port=m_axis_rx_rpc_params
-	
 
 	//MEMORY
 	#pragma HLS INTERFACE axis register port=m_axis_mem_write_cmd

@@ -1,0 +1,34 @@
+
+open_project ${PROJECT_NAME}_prj
+
+open_solution "solution1"
+set_part ${FPGA_PART}
+create_clock -period ${CLOCK_PERIOD} -name default
+
+set_top ${PROJECT_NAME}
+
+add_files ${CMAKE_CURRENT_SOURCE_DIR}/ethernet_frame_padding_512.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+
+
+#add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/test_ethernet_frame_padding_512.cpp
+
+
+#Check which command
+set command [lindex $argv 2]
+
+if {$command == "synthesis"} {
+   csynth_design
+} elseif {$command == "csim"} {
+   csim_design
+} elseif {$command == "ip"} {
+   export_design -format ip_catalog -display_name "Ethernet Frame Padding 512" -vendor "ethz.systems.fpga" -version "0.1"
+} elseif {$command == "installip"} {
+   file mkdir ${IPREPO_DIR}
+   file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
+   file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/
+} else {
+   puts "No valid command specified. Use vivado_hls -f make.tcl <synthesis|csim|ip> ."
+}
+
+
+exit

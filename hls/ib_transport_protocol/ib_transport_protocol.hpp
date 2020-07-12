@@ -154,6 +154,14 @@ struct txMeta
 				:op_code(op), qpn(qp), local_reg(local_reg), host(host), rsrvd(rsrvd), params(params) {}
 };
 
+struct routedTxMeta
+{
+	txMeta      data;
+	routedTxMeta() {}
+	routedTxMeta(ibOpCode op, ap_uint<24> qp, ap_uint<4> local_reg, ap_uint<1> host, ap_uint<30> rsrvd, ap_uint<192> params)
+		:data(op, qp, local_reg, host, rsrvd, params) {}
+};
+
 /* Internal read */
 struct memCmdInternal
 {
@@ -509,7 +517,7 @@ void ib_transport_protocol(	// RX - net module
 							hls::stream<txMeta>& s_axis_tx_meta,
 
 							// RPC
-							hls::stream<txMeta>& m_axis_rx_rpc_params,
+							hls::stream<routedTxMeta>& m_axis_rx_rpc_params,
 
 							// Memory
 							hls::stream<routedMemCmd>& m_axis_mem_write_cmd,

@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.0)
 
-set (PROJECT_NAME arp_server_subnet)
+set (PROJECT_NAME ethernet_frame_padding_512)
 project(${PROJECT_NAME})
 
 # Include custom Find<Module>.cmake scripts to enable searching for Vivado HLS
@@ -20,9 +20,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cma
 #      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 #endif()
 
+
 set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
 set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
+
 
 # Find Xilinx Vivado HLS
 find_package(VivadoHLS REQUIRED)
@@ -33,14 +35,13 @@ endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/arp_server_subnet_config.hpp.in arp_server_subnet_config.hpp)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
 
 
 set(EXAMPLE_HLS_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/arp_server_subnet.cpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/arp_server_subnet.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/arp_server_subnet_config.hpp.in)
+    ${CMAKE_CURRENT_SOURCE_DIR}/ethernet_frame_padding_512.cpp 
+    ${CMAKE_CURRENT_SOURCE_DIR}/ethernet_frame_padding_512.hpp)
+    #${CMAKE_CURRENT_SOURCE_DIR}/test_ethernet_frame_padding_512.cpp)
 
 
 #Setup HLS custom targets
@@ -69,4 +70,4 @@ elseif(NOT  IPREPO_DIR)
 endif()
 #install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip/
 #   DESTINATION ${IPREPO_DIR}/${PROJECT_NAME}/)
-                                   
+
