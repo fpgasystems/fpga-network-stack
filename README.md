@@ -295,6 +295,8 @@ TCP/IP Stack Architecture for Reconfigurable Hardware,* in FCCM’15, [Paper](ht
 
 - D. Sidler, Z. Istvan, G. Alonso, *Low-Latency TCP/IP Stack for Data Center Applications,* in FPL'16, [Paper](http://davidsidler.ch/files/fpl16-lowlatencytcpip.pdf)
 
+- D. Sidler, Z. Wang, M. Chiosa, A. Kulkarni, G. Alonso, *StRoM: smart remote memory,* in EuroSys'20, [Paper](https://dl.acm.org/doi/abs/10.1145/3342195.3387519)
+
 
 <a name="citation"></a>
 ## Citation
