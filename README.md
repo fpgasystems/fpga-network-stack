@@ -298,7 +298,7 @@ TCP/IP Stack Architecture for Reconfigurable Hardware,* in FCCM’15, [Paper](ht
 
 <a name="citation"></a>
 ## Citation
-If you use the TCP/IP stack in your project please cite one of the following papers and/or link to the github project:
+If you use the TCP/IP stack or the RDMA stack in your project please cite one of the following papers and/or link to the github project:
 ```
 @INPROCEEDINGS{sidler2015tcp, 
 	author={D. Sidler and G. Alonso and M. Blott and K. Karras and others}, 
@@ -317,12 +317,19 @@ If you use the TCP/IP stack in your project please cite one of the following pap
 	copyright = {In Copyright - Non-Commercial Use Permitted},
 	title = {In-Network Data Processing using FPGAs},
 }
+@INPROCEEDINGS{sidler2020strom,
+	author = {Sidler, David and Wang, Zeke and Chiosa, Monica and Kulkarni, Amit and Alonso, Gustavo},
+	booktitle = {Proceedings of the Fifteenth European Conference on Computer Systems},
+	title = {StRoM: Smart Remote Memory},
+	doi = {10.1145/3342195.3387519},
+}
 ```
 
 <a name="contributors"></a>
 ## Contributors
 - [David Sidler](http://github.com/dsidler), [Systems Group](http://systems.ethz.ch), ETH Zurich
 - [Monica Chiosa](http://github.com/chipet), [Systems Group](http://systems.ethz.ch), ETH Zurich
+- [Zhenhao He](http://github.com/zhenhaohe), [Systems Group](http://systems.ethz.ch), ETH Zurich
 - [Mario Ruiz](https://github.com/mariodruiz), HPCN Group of UAM, Spain
 - [Kimon Karras](http://github.com/kimonk), former Researcher at Xilinx Research, Dublin
 - [Lisa Liu](http://github.com/lisaliu1), Xilinx Research, Dublin
