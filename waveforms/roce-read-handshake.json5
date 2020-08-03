@@ -1,0 +1,13 @@
+{signal: [
+  {name: 'axi_clk',              wave: 'p...'},
+  {name: 's_axis_tx_meta_valid', wave: '010.'},
+  {name: 's_axis_tx_meta_ready', wave: '1...'},
+  {name: 's_axis_tx_meta_data',  wave: 'x=x.', data: ['READ']},
+  {name: 's_axis_tx_data_valid', wave: '0...'},
+  {name: 's_axis_tx_data_ready', wave: '1...'},
+  {name: 's_axis_tx_data_data',  wave: 'x...'},
+  {name: 's_axis_tx_data_keep',  wave: 'x...'},
+  {name: 's_axis_tx_data_last',  wave: '0...'},
+],
+config: { hscale: 1.5 }
+}
