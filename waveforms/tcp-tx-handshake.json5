@@ -1,0 +1,16 @@
+{signal: [
+  {name: 'axi_clk',                           wave: 'p..|...|....'},
+  {name: 's_axis_tx_data_req_metadata_valid', wave: '010|...|....'},
+  {name: 's_axis_tx_data_req_metadata_ready', wave: '1..|...|....'},
+  {name: 's_axis_tx_data_req_metadata_data',  wave: 'x=x|...|....', data: ['ID,length']},
+  {name: 'm_axis_tx_data_rsp_valid',          wave: '0..|.10|....'},
+  {name: 'm_axis_tx_data_rsp_ready',          wave: '1..|...|....'},
+  {name: 'm_axis_tx_data_rsp_data',           wave: 'x..|.=x|....', data: ['ID,error']},
+  {name: 's_axis_tx_data_req_valid',          wave: '0..|...|10..'},
+  {name: 's_axis_tx_data_req_ready',          wave: '1..|...|....'},
+  {name: 's_axis_tx_data_req_data',           wave: 'x..|...|===x', data: ['D0', 'D1', 'D2']},
+  {name: 's_axis_tx_data_req_keep',           wave: 'x..|...|===x', data: ['FF', 'FF', '0F']},
+  {name: 's_axis_tx_data_req_last',           wave: '0..|...|..10'},
+],
+config: { hscale: 1.5 }
+}
