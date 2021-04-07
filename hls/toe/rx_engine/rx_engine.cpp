@@ -34,7 +34,7 @@
 
 //parse IP header, and remove it
 template <int WIDTH>
-void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
+void toe_process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 					stream<ap_uint<4> >&	process2dropLengthFifo,
 					stream<pseudoMeta>&		metaOut,
 					stream<net_axis<WIDTH> >&		dataOut)
@@ -853,6 +853,7 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 	static mhStateType mh_state = META;
 	static ap_uint<32> mh_srcIpAddress;
 	static ap_uint<16> mh_dstIpPort;
+	static ap_uint<16> mh_srcIpPort;
 
 	fourTuple tuple;
 	bool portIsOpen;
@@ -871,6 +872,8 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			mh_srcIpAddress(31, 24) = tuple.srcIp(7, 0);
 			mh_dstIpPort(7, 0) = tuple.dstPort(15, 8);
 			mh_dstIpPort(15, 8) = tuple.dstPort(7, 0);
+			mh_srcIpPort(7,0) = tuple.srcPort(15,8);
+			mh_srcIpPort(15,8) = tuple.srcPort(7,0);
 			// CHeck if port is closed
 			if (!portIsOpen)
 			{
@@ -913,7 +916,7 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			if (mh_lup.hit)
 			{
 				//Write out lup and meta
-				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta));
+				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta, mh_srcIpPort));
 			}
 			if (mh_meta.length != 0)
 			{
@@ -1437,7 +1440,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					rxEng2eventEng_setEvent.write(event(ACK_NODELAY, fsm_meta.sessionID));
 
 					rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, ESTABLISHED, 1));
-					openConStatusOut.write(openStatus(fsm_meta.sessionID, true));
+					openConStatusOut.write(openStatus(fsm_meta.sessionID, 1, fsm_meta.srcIpAddress, fsm_meta.srcIpPort));
 				}
 				else if (tcpState == SYN_SENT) //TODO correct answer?
 				{
@@ -1553,7 +1556,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						if (fsm_meta.meta.ackNumb == txSar.nextByte) // Check if matching SYN
 						{
 							//tell application, could not open connection
-							openConStatusOut.write(openStatus(fsm_meta.sessionID, false));
+							openConStatusOut.write(openStatus(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.srcIpPort));
 							rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, CLOSED, 1));
 							rxEng2timer_clearRetransmitTimer.write(rxRetransmitTimerUpdate(fsm_meta.sessionID, true));
 						}
@@ -1762,7 +1765,7 @@ void rxEngMemWrite(	hls::stream<net_axis<WIDTH> >& 	dataIn,
 #pragma HLS pipeline II=1
 #pragma HLS INLINE off
 
-	enum fsmStateType {IDLE, CUT_FIRST, ALIGN_SECOND, FWD_ALIGNED, RESIDUE};
+	enum fsmStateType {IDLE, IDLE_REG, CUT_FIRST, ALIGN_SECOND, FWD_ALIGNED, RESIDUE};
 	static fsmStateType rxMemWrState = IDLE;
 	static mmCmd cmd;
 	static ap_uint<WINDOW_BITS> remainingLength = 0;
@@ -1777,24 +1780,26 @@ void rxEngMemWrite(	hls::stream<net_axis<WIDTH> >& 	dataIn,
 		if (!cmdIn.empty())
 		{
 			cmdIn.read(cmd);
+			rxMemWrState = IDLE_REG;
+		}
+		break;
+	case IDLE_REG:
+		if ((cmd.saddr(WINDOW_BITS-1, 0) + cmd.bbt) > BUFFER_SIZE)
+		{
+			lengthFirstPkg = BUFFER_SIZE - cmd.saddr;
+			remainingLength = lengthFirstPkg;
+			offset = lengthFirstPkg(DATA_KEEP_BITS - 1, 0);
 
-			if ((cmd.saddr(WINDOW_BITS-1, 0) + cmd.bbt) > BUFFER_SIZE)
-			{
-				lengthFirstPkg = BUFFER_SIZE - cmd.saddr;
-				remainingLength = lengthFirstPkg;
-				offset = lengthFirstPkg(DATA_KEEP_BITS - 1, 0);
+			doubleAccess.write(true);
+			cmdOut.write(mmCmd(cmd.saddr, lengthFirstPkg));
+			rxMemWrState = CUT_FIRST;
+		}
+		else
+		{
+			doubleAccess.write(false);
 
-				doubleAccess.write(true);
-				cmdOut.write(mmCmd(cmd.saddr, lengthFirstPkg));
-				rxMemWrState = CUT_FIRST;
-			}
-			else
-			{
-				doubleAccess.write(false);
-
-				cmdOut.write(cmd);
-				rxMemWrState = FWD_ALIGNED;
-			}
+			cmdOut.write(cmd);
+			rxMemWrState = FWD_ALIGNED;
 		}
 		break;
 	case CUT_FIRST:
@@ -2026,7 +2031,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	#pragma HLS STREAM depth=2 variable=rx_process2dropLengthFifo
 
 
-	process_ipv4<WIDTH>(ipRxData, rx_process2dropLengthFifo, rxEng_ipMetaFifo, rxEng_dataBuffer0);
+	toe_process_ipv4<WIDTH>(ipRxData, rx_process2dropLengthFifo, rxEng_ipMetaFifo, rxEng_dataBuffer0);
 	//Assumes for WIDTH > 64 no optional fields
 	drop_optional_ip_header<WIDTH>(rx_process2dropLengthFifo, rxEng_dataBuffer0, rxEng_dataBuffer4);
 	//align
@@ -2062,7 +2067,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 #endif
 
 	two_complement_subchecksums<WIDTH, 11>(rxEng_dataBuffer1, rxEng_dataBuffer2, subSumFifo);
-	check_ipv4_checksum(subSumFifo, rxEng_checksumValidFifo);
+	toe_check_ipv4_checksum(subSumFifo, rxEng_checksumValidFifo);
 	processPseudoHeader<WIDTH>(rxEng_dataBuffer2,
 								rxEng_dataBuffer3a,
 								rxEng_checksumValidFifo,

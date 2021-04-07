@@ -77,9 +77,10 @@ struct rxFsmMetaData
 	ap_uint<32>			srcIpAddress;
 	ap_uint<16>			dstIpPort;
 	rxEngineMetaData	meta; //check if all needed
+	ap_uint<16> 		srcIpPort;
 	rxFsmMetaData() {}
-	rxFsmMetaData(ap_uint<16> id, ap_uint<32> ipAddr, ap_uint<16> ipPort, rxEngineMetaData meta)
-				:sessionID(id), srcIpAddress(ipAddr), dstIpPort(ipPort), meta(meta) {}
+	rxFsmMetaData(ap_uint<16> id, ap_uint<32> ipAddr, ap_uint<16> ipPort, rxEngineMetaData meta, ap_uint<16> srcIpPort)
+				:sessionID(id), srcIpAddress(ipAddr), dstIpPort(ipPort), meta(meta), srcIpPort(srcIpPort) {}
 };
 
 /** @defgroup rx_engine RX Engine

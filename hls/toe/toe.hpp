@@ -87,10 +87,14 @@ struct mm_ibtt_status
 struct openStatus
 {
 	ap_uint<16>	sessionID;
-	bool		success;
+	ap_uint<8>	success;
+	ap_uint<32> ip;
+	ap_uint<16> port;
 	openStatus() {}
-	openStatus(ap_uint<16> id, bool success)
-		:sessionID(id), success(success) {}
+	openStatus(ap_uint<16> id, ap_uint<8> success)
+		:sessionID(id), success(success), ip(0), port(0) {}
+	openStatus(ap_uint<16> id, ap_uint<8> success, ap_uint<32> ip, ap_uint<16> port)
+		:sessionID(id), success(success), ip(ip), port(port) {}
 };
 
 struct appNotification
