@@ -47,3 +47,13 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 				hls::stream<net_axis<WIDTH> >&		m_axis_ROCE,
 				ap_uint<32>				myIpAddress);
 
+void ip_handler_top(
+        hls::stream<net_axis<DATA_WIDTH> >&     s_axis_raw,
+        hls::stream<net_axis<DATA_WIDTH> >&     m_axis_arp,
+        hls::stream<net_axis<DATA_WIDTH> >&     m_axis_icmpv6,
+        hls::stream<net_axis<DATA_WIDTH> >&     m_axis_ipv6udp,
+        hls::stream<net_axis<DATA_WIDTH> >&     m_axis_icmp,
+        hls::stream<net_axis<DATA_WIDTH> >&     m_axis_udp,
+        hls::stream<net_axis<DATA_WIDTH> >&     m_axis_tcp,
+        hls::stream<net_axis<DATA_WIDTH> >&     m_axis_roce,
+        ap_uint<32>                             myIpAddress);

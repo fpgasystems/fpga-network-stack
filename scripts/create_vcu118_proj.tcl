@@ -1,10 +1,13 @@
 set proj_name "tcp_ip_vcu118"
 set root_dir [pwd]
 set proj_dir $root_dir/$proj_name
-set src_dir $root_dir/../rtl
+set src_dir $root_dir/../hdl
 set ip_dir $root_dir/../ip
 set ip_repo $root_dir/../iprepo
 set constraints_dir $root_dir/../constraints
+
+puts "root_dir = $root_dir"
+puts "ip_repo = $ip_repo"
 
 #Check if iprepo is available
 if { [file isdirectory $ip_repo] } {
