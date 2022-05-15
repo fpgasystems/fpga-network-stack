@@ -252,7 +252,11 @@ void reverseLookupTableInterface(	stream<revLupInsert>& revTableInserts,
 #pragma HLS INLINE off
 
 	static threeTupleInternal reverseLookupTable[MAX_SESSIONS];
+#if defined( __VITIS_HLS__)
+	#pragma HLS bind_storage variable=reverseLookupTable type=RAM_T2P impl=BRAM
+#else
 	#pragma HLS RESOURCE variable=reverseLookupTable core=RAM_T2P_BRAM
+#endif
 	#pragma HLS DEPENDENCE variable=reverseLookupTable inter false
 	static bool tupleValid[MAX_SESSIONS];
 	#pragma HLS DEPENDENCE variable=tupleValid inter false
@@ -332,7 +336,11 @@ void session_lookup_controller(	stream<sessionLookupQuery>&			rxEng2sLookup_req,
 	// Fifos
 	static stream<sessionLookupQueryInternal> slc_lookups("slc_lookups");
 	#pragma HLS stream variable=slc_lookups depth=4
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=slc_lookups compact=bit
+#else
 	#pragma HLS DATA_PACK variable=slc_lookups
+#endif
 
 	static stream<ap_uint<14> > slc_sessionIdFreeList("slc_sessionIdFreeList");
 	static stream<ap_uint<14> > slc_sessionIdFinFifo("slc_sessionIdFinFifo");

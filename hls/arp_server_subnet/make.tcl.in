@@ -24,7 +24,7 @@ if {$command == "synthesis"} {
    csim_design -clean -argv {${CMAKE_CURRENT_SOURCE_DIR}/in.dat ${CMAKE_CURRENT_SOURCE_DIR}/out.dat}
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "arp_server_subnet" -display_name "ARP Subnet Server" -description "Replies to ARP queries and resolves IP addresses." -vendor "ethz.systems.fpga" -version "1.1"
-} elseif {$command == "installip"} {
+} elseif {$command == "services"} {
    file mkdir ${IPREPO_DIR}
    file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
    file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/

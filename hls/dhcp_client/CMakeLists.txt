@@ -46,7 +46,7 @@ set(EXAMPLE_HLS_DEPENDS
 
 
 #Setup HLS custom targets
-set(HLS_TARGETS synthesis csim ip installip)
+set(HLS_TARGETS synthesis csim ip services)
 
 foreach (target ${HLS_TARGETS})
    if (NOT TARGET ${target})
@@ -61,7 +61,7 @@ endforeach()
 
 #target dependencies
 add_dependencies(ip.${PROJECT_NAME} synthesis.${PROJECT_NAME})
-add_dependencies(installip.${PROJECT_NAME} ip.${PROJECT_NAME})
+add_dependencies(services.${PROJECT_NAME} ip.${PROJECT_NAME})
 
 # Installation
 if (DEFINED ENV{IPREPO_DIR})

@@ -47,10 +47,55 @@ const uint32_t KEY_SIZE = 64;
 const uint32_t VALUE_SIZE = 16;
 const uint32_t MAX_TRIALS = 12;
 
+typedef enum {KV_INSERT, KV_DELETE} kvOperation;
+
 //The hash table can easily support NUM_TABLES-1 * TABLE_SIZE
 //for NUM_TABLES = 9 -> this equals to a load factor of 0.88
+#if defined( __VITIS_HLS__)
+enum lookupSource {RX, TX_APP};
 
+template <int K>
+struct htLookupReq
+{
+   ap_uint<K>  key;
+   lookupSource  source;
+   htLookupReq<K>() {}
+   htLookupReq<K>(ap_uint<K> key, lookupSource source)
+      :key(key), source(source) {}
+};
 
+template <int K, int V>
+struct htLookupResp
+{
+   ap_uint<K>  key;
+   ap_uint<V>  value;
+   bool        hit;
+   lookupSource  source;
+};
+
+template <int K, int V>
+struct htUpdateReq
+{
+   kvOperation op;
+   ap_uint<K>  key;
+   ap_uint<V>  value;
+   lookupSource  source;
+   htUpdateReq<K,V>() {}
+   htUpdateReq<K,V>(kvOperation op, ap_uint<K> key, ap_uint<V> value, lookupSource source)
+      :op(op), key(key), value(value), source(source) {}
+};
+
+template <int K, int V>
+struct htUpdateResp
+{
+   kvOperation op;
+   ap_uint<K>  key;
+   ap_uint<V>  value;
+   bool        success;
+   lookupSource  source;
+};
+
+#else
 template <int K>
 struct htLookupReq
 {
@@ -69,8 +114,6 @@ struct htLookupResp
    bool        hit;
    ap_uint<1>  source;
 };
-
-typedef enum {KV_INSERT, KV_DELETE} kvOperation;
 
 template <int K, int V>
 struct htUpdateReq
@@ -93,6 +136,10 @@ struct htUpdateResp
    bool        success;
    ap_uint<1>  source;
 };
+
+#endif
+
+
 
 template <int K, int V>
 struct htEntry

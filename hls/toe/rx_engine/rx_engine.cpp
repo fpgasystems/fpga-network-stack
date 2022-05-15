@@ -34,7 +34,7 @@
 
 //parse IP header, and remove it
 template <int WIDTH>
-void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
+void toe_process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 					stream<ap_uint<4> >&	process2dropLengthFifo,
 					stream<pseudoMeta>&		metaOut,
 					stream<net_axis<WIDTH> >&		dataOut)
@@ -853,6 +853,7 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 	static mhStateType mh_state = META;
 	static ap_uint<32> mh_srcIpAddress;
 	static ap_uint<16> mh_dstIpPort;
+	static ap_uint<16> mh_srcIpPort;
 
 	fourTuple tuple;
 	bool portIsOpen;
@@ -871,6 +872,8 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			mh_srcIpAddress(31, 24) = tuple.srcIp(7, 0);
 			mh_dstIpPort(7, 0) = tuple.dstPort(15, 8);
 			mh_dstIpPort(15, 8) = tuple.dstPort(7, 0);
+			mh_srcIpPort(7,0) = tuple.srcPort(15,8);
+			mh_srcIpPort(15,8) = tuple.srcPort(7,0);
 			// CHeck if port is closed
 			if (!portIsOpen)
 			{
@@ -913,7 +916,7 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			if (mh_lup.hit)
 			{
 				//Write out lup and meta
-				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta));
+				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta, mh_srcIpPort));
 			}
 			if (mh_meta.length != 0)
 			{
@@ -1437,7 +1440,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					rxEng2eventEng_setEvent.write(event(ACK_NODELAY, fsm_meta.sessionID));
 
 					rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, ESTABLISHED, 1));
-					openConStatusOut.write(openStatus(fsm_meta.sessionID, true));
+					openConStatusOut.write(openStatus(fsm_meta.sessionID, 1, fsm_meta.srcIpAddress, fsm_meta.srcIpPort));
 				}
 				else if (tcpState == SYN_SENT) //TODO correct answer?
 				{
@@ -1553,7 +1556,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						if (fsm_meta.meta.ackNumb == txSar.nextByte) // Check if matching SYN
 						{
 							//tell application, could not open connection
-							openConStatusOut.write(openStatus(fsm_meta.sessionID, false));
+							openConStatusOut.write(openStatus(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.srcIpPort));
 							rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, CLOSED, 1));
 							rxEng2timer_clearRetransmitTimer.write(rxRetransmitTimerUpdate(fsm_meta.sessionID, true));
 						}
@@ -1680,7 +1683,11 @@ void rxAppNotificationDelayer(	stream<mmStatus>&				rxWriteStatusIn, stream<appN
 
 	static stream<appNotification> rand_notificationBuffer("rand_notificationBuffer");
 	#pragma HLS STREAM variable=rand_notificationBuffer depth=32 //depends on memory delay
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rand_notificationBuffer compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rand_notificationBuffer
+#endif
 
 	static ap_uint<1>		rxAppNotificationDoubleAccessFlag = false;
 	static ap_uint<5>		rand_fifoCount = 0;
@@ -1740,7 +1747,7 @@ void rxAppNotificationDelayer(	stream<mmStatus>&				rxWriteStatusIn, stream<appN
 void rxEventMerger(stream<extendedEvent>& in1, stream<event>& in2, stream<extendedEvent>& out)
 {
 	#pragma HLS PIPELINE II=1
-	#pragma HLS INLINE
+	#pragma HLS INLINE OFF
 
 	if (!in1.empty())
 	{
@@ -1762,7 +1769,7 @@ void rxEngMemWrite(	hls::stream<net_axis<WIDTH> >& 	dataIn,
 #pragma HLS pipeline II=1
 #pragma HLS INLINE off
 
-	enum fsmStateType {IDLE, CUT_FIRST, ALIGN_SECOND, FWD_ALIGNED, RESIDUE};
+	enum fsmStateType {IDLE, IDLE_REG, CUT_FIRST, ALIGN_SECOND, FWD_ALIGNED, RESIDUE};
 	static fsmStateType rxMemWrState = IDLE;
 	static mmCmd cmd;
 	static ap_uint<WINDOW_BITS> remainingLength = 0;
@@ -1777,7 +1784,10 @@ void rxEngMemWrite(	hls::stream<net_axis<WIDTH> >& 	dataIn,
 		if (!cmdIn.empty())
 		{
 			cmdIn.read(cmd);
-
+				rxMemWrState = IDLE_REG;
+		}
+		break;
+	case IDLE_REG:
 			if ((cmd.saddr(WINDOW_BITS-1, 0) + cmd.bbt) > BUFFER_SIZE)
 			{
 				lengthFirstPkg = BUFFER_SIZE - cmd.saddr;
@@ -1795,7 +1805,6 @@ void rxEngMemWrite(	hls::stream<net_axis<WIDTH> >& 	dataIn,
 				cmdOut.write(cmd);
 				rxMemWrState = FWD_ALIGNED;
 			}
-		}
 		break;
 	case CUT_FIRST:
 		if (!dataIn.empty())
@@ -1963,12 +1972,21 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	#pragma HLS stream variable=rxEng_dataBuffer3 depth=32
 	#pragma HLS stream variable=rxEng_dataBuffer3a depth=8
 	#pragma HLS stream variable=rxEng_dataBuffer3b depth=8
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rxEng_dataBuffer0 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer1 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer2 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer3 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer3a compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer3b compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rxEng_dataBuffer0
 	#pragma HLS DATA_PACK variable=rxEng_dataBuffer1
 	#pragma HLS DATA_PACK variable=rxEng_dataBuffer2
 	#pragma HLS DATA_PACK variable=rxEng_dataBuffer3
 	#pragma HLS DATA_PACK variable=rxEng_dataBuffer3a
 	#pragma HLS DATA_PACK variable=rxEng_dataBuffer3b
+#endif
 
 	// Meta Streams/FIFOs
 	//static stream<bool>					rxEng_tcpValidFifo("rx_tcpValidFifo");
@@ -1981,35 +1999,63 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	#pragma HLS stream variable=rxEng_fsmMetaDataFifo depth=2
 	#pragma HLS stream variable=rxEng_tupleBuffer depth=2
 	#pragma HLS stream variable=rxEng_ipMetaFifo depth=2
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rxEng_metaDataFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmMetaDataFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_tupleBuffer compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rxEng_metaDataFifo
 	#pragma HLS DATA_PACK variable=rxEng_fsmMetaDataFifo
 	#pragma HLS DATA_PACK variable=rxEng_tupleBuffer
+#endif
 
 	static stream<extendedEvent>		rxEng_metaHandlerEventFifo("rxEng_metaHandlerEventFifo");
 	static stream<event>				rxEng_fsmEventFifo("rxEng_fsmEventFifo");
 	#pragma HLS stream variable=rxEng_metaHandlerEventFifo depth=2
 	#pragma HLS stream variable=rxEng_fsmEventFifo depth=2
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rxEng_metaHandlerEventFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmEventFifo compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rxEng_metaHandlerEventFifo
 	#pragma HLS DATA_PACK variable=rxEng_fsmEventFifo
+#endif
 
 	static stream<bool>					rxEng_metaHandlerDropFifo("rxEng_metaHandlerDropFifo");
 	static stream<bool>					rxEng_fsmDropFifo("rxEng_fsmDropFifo");
 	#pragma HLS stream variable=rxEng_metaHandlerDropFifo depth=2
 	#pragma HLS stream variable=rxEng_fsmDropFifo depth=2
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rxEng_metaHandlerDropFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmDropFifo compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rxEng_metaHandlerDropFifo
 	#pragma HLS DATA_PACK variable=rxEng_fsmDropFifo
+#endif
 
 	static stream<appNotification> rx_internalNotificationFifo("rx_internalNotificationFifo");
 	#pragma HLS stream variable=rx_internalNotificationFifo depth=8 //This depends on the memory delay
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rx_internalNotificationFifo compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rx_internalNotificationFifo
+#endif
 
 	static stream<mmCmd> 					rxTcpFsm2wrAccessBreakdown("rxTcpFsm2wrAccessBreakdown");
 	#pragma HLS stream variable=rxTcpFsm2wrAccessBreakdown depth=8
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rxTcpFsm2wrAccessBreakdown compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rxTcpFsm2wrAccessBreakdown
+#endif
 
 	static stream<net_axis<WIDTH> > 					rxPkgDrop2rxMemWriter("rxPkgDrop2rxMemWriter");
 	#pragma HLS stream variable=rxPkgDrop2rxMemWriter depth=16
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=rxPkgDrop2rxMemWriter compact=bit
+#else
 	#pragma HLS DATA_PACK variable=rxPkgDrop2rxMemWriter
+#endif
 
 	static stream<ap_uint<1> >				rxEngDoubleAccess("rxEngDoubleAccess");
 	#pragma HLS stream variable=rxEngDoubleAccess depth=8
@@ -2026,7 +2072,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	#pragma HLS STREAM depth=2 variable=rx_process2dropLengthFifo
 
 
-	process_ipv4<WIDTH>(ipRxData, rx_process2dropLengthFifo, rxEng_ipMetaFifo, rxEng_dataBuffer0);
+	toe_process_ipv4<WIDTH>(ipRxData, rx_process2dropLengthFifo, rxEng_ipMetaFifo, rxEng_dataBuffer0);
 	//Assumes for WIDTH > 64 no optional fields
 	drop_optional_ip_header<WIDTH>(rx_process2dropLengthFifo, rxEng_dataBuffer0, rxEng_dataBuffer4);
 	//align
@@ -2062,7 +2108,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 #endif
 
 	two_complement_subchecksums<WIDTH, 11>(rxEng_dataBuffer1, rxEng_dataBuffer2, subSumFifo);
-	check_ipv4_checksum(subSumFifo, rxEng_checksumValidFifo);
+	toe_check_ipv4_checksum(subSumFifo, rxEng_checksumValidFifo);
 	processPseudoHeader<WIDTH>(rxEng_dataBuffer2,
 								rxEng_dataBuffer3a,
 								rxEng_checksumValidFifo,

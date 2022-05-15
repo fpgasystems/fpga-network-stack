@@ -30,7 +30,7 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/toe.cpp -cflags "-std=c++11 -I${CMAKE_CURR
 
 add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/toe_tb.cpp
 
-config_rtl -disable_start_propagation
+#config_rtl -disable_start_propagation
 
 
 #Check which command
@@ -43,7 +43,7 @@ if {$command == "synthesis"} {
 #   csim_design -clean -argv {0 ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/mysyn2.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/rxOutput.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/txOutput.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/rx_io_fin_5.gold}
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "toe" -display_name "10G TCP Offload Engine" -description "TCP Offload Engine supporting 10Gbps line rate, up to 10K concurrent sessions." -vendor "ethz.systems" -version "1.6"
-} elseif {$command == "installip"} {
+} elseif {$command == "services"} {
    file mkdir ${IPREPO_DIR}
    file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
    file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/

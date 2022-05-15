@@ -47,11 +47,11 @@ public:
 	fakeDRAM() :writeState(CMD), readState(INIT) { memory = new ap_uint<8>[65536]; readAddr = 0; }
 
 	template <int WIDTH>
-	void process_writes(stream<memCmd>& cmdIn, stream<routed_net_axis<WIDTH> >& dataIn)//, stream<mmStatus>& statusOut)
+	void process_writes(stream<memCmd>& cmdIn, stream<net_axis<WIDTH> >& dataIn)//, stream<mmStatus>& statusOut)
 	{
 		//static fsmStateType writeState = CMD;
 		memCmd cmd;
-		routed_net_axis<WIDTH> inWord;
+		net_axis<WIDTH> inWord;
 		//static uint16_t writeAddr;
 		static int counter = 0;
 
@@ -73,7 +73,7 @@ public:
 				{
 					dataIn.read(inWord);
 					counter++;
-					std::cout << "MEMORY WRITE ADDR: " << std::hex << writeAddr << ", dest: " << inWord.dest << ", counter: " << std::dec << counter << std::endl; //" length: " << keepToLen(inWord.keep) << std::endl;
+					std::cout << "MEMORY WRITE ADDR: " << std::hex << writeAddr << ", counter: " << std::dec << counter << std::endl; //" length: " << keepToLen(inWord.keep) << std::endl;
 					print(std::cout, inWord.data);
 					std::cout << std::endl;
 					for (int i = 0; i < (WIDTH/8); i++)
@@ -101,11 +101,11 @@ public:
 	}
 //annoying hack
 	template <int WIDTH>
-	void process_writes(stream<routedMemCmd>& cmdIn, stream<routed_net_axis<WIDTH> >& dataIn)//, stream<mmStatus>& statusOut)
+	void process_writes(stream<routedMemCmd>& cmdIn, stream<net_axis<WIDTH> >& dataIn)//, stream<mmStatus>& statusOut)
 	{
 		//static fsmStateType writeState = CMD;
 		routedMemCmd cmd;
-		routed_net_axis<WIDTH> inWord;
+		net_axis<WIDTH> inWord;
 		//static uint16_t writeAddr;
 		static int counter = 0;
 
@@ -127,7 +127,7 @@ public:
 				{
 					dataIn.read(inWord);
 					counter++;
-					std::cout << "MEMORY WRITE ADDR: " << std::hex << writeAddr << ", dest: " << inWord.dest << ", counter: " << std::dec << counter << std::endl; //" length: " << keepToLen(inWord.keep) << std::endl;
+					std::cout << "MEMORY WRITE ADDR: " << std::hex << writeAddr << ", counter: " << std::dec << counter << std::endl; //" length: " << keepToLen(inWord.keep) << std::endl;
 					print(std::cout, inWord.data);
 					std::cout << std::endl;
 					for (int i = 0; i < (WIDTH/8); i++)
@@ -544,7 +544,7 @@ int test_rx(fakeDRAM* memory, std::ifstream& inputFile, std::ofstream& outputFil
 	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
 	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
-	stream<routed_net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
+	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
 	//interface
 	stream<qpContext>	s_axis_qp_interface("s_axis_qp_interface");
@@ -692,7 +692,7 @@ int test_tx_host(fakeDRAM* memory, std::ifstream& inputFile, std::ofstream& outp
 	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
 	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
-	stream<routed_net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
+	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
 	//interface
 	stream<qpContext>	s_axis_qp_interface("s_axis_qp_interface");
@@ -835,7 +835,7 @@ int test_tx_latency(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint
 	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
 	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
-	stream<routed_net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
+	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
 	//interface
 	stream<qpContext>	s_axis_qp_interface("s_axis_qp_interface");
@@ -1027,7 +1027,7 @@ int test_tx_nak(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<128
 	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
 	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
-	stream<routed_net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
+	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
 	//interface
 	stream<qpContext>	s_axis_qp_interface("s_axis_qp_interface");
@@ -1218,7 +1218,7 @@ int test_rx_nak(fakeDRAM* memory, std::ifstream& inputFile, std::ofstream& outpu
 	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
 	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
-	stream<routed_net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
+	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
 	//interface
 	stream<qpContext>	s_axis_qp_interface("s_axis_qp_interface");
@@ -1369,7 +1369,7 @@ int test_tx_debug(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<1
 	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
 	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
-	stream<routed_net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
+	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
 	//interface
 	stream<qpContext>	s_axis_qp_interface("s_axis_qp_interface");
@@ -1572,7 +1572,7 @@ int test_tx_read(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<12
 	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
 	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
-	stream<routed_net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
+	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
 	//interface
 	stream<qpContext>	s_axis_qp_interface("s_axis_qp_interface");

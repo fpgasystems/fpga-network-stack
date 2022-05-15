@@ -387,11 +387,19 @@ void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 	#pragma HLS stream variable=dataStreamBuffer2 depth=2
 	#pragma HLS stream variable=dataStreamBuffer3 depth=2
 	#pragma HLS stream variable=dataStreamBuffer4 depth=2
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=dataStreamBuffer0 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer1 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer2 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer3 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer4 compact=bit
+#else
 	#pragma HLS DATA_PACK variable=dataStreamBuffer0
 	#pragma HLS DATA_PACK variable=dataStreamBuffer1
 	#pragma HLS DATA_PACK variable=dataStreamBuffer2
 	#pragma HLS DATA_PACK variable=dataStreamBuffer3
 	#pragma HLS DATA_PACK variable=dataStreamBuffer4
+#endif
 
 	static hls::stream<subSums<WIDTH/16> >	subSumFifo("subSumFifo");
 	static hls::stream<ap_uint<16> >		checksumFifo("checksumFifo");
@@ -399,23 +407,77 @@ void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 	#pragma HLS stream variable=subSumFifo depth=2
 	#pragma HLS stream variable=checksumFifo depth=16
 	#pragma HLS stream variable=headerFifo depth=2
-	#pragma HLS DATA_PACK variable=headerFifo
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=headerFifo compact=bit
 
 	extract_ip_address(dataIn, dataStreamBuffer0, arpTableOut, regSubNetMask, regDefaultGateway);
 
+	mac_compute_ipv4_checksum(dataStreamBuffer0, dataStreamBuffer1, subSumFifo, true);
+	mac_finalize_ipv4_checksum<WIDTH/16>(subSumFifo, checksumFifo);
+
+	insert_ip_checksum(dataStreamBuffer1, checksumFifo, dataStreamBuffer2);
+
+	handle_arp_reply(arpTableIn, dataStreamBuffer2, headerFifo, dataStreamBuffer3, myMacAddress);
+	mac_lshiftWordByOctet<WIDTH, 1>(((ETH_HEADER_SIZE%WIDTH)/8), dataStreamBuffer3, dataStreamBuffer4);
+	insert_ethernet_header(headerFifo, dataStreamBuffer4, dataOut);
+#else
+	#pragma HLS DATA_PACK variable=headerFifo
+	extract_ip_address(dataIn, dataStreamBuffer0, arpTableOut, regSubNetMask, regDefaultGateway);
+	
 	compute_ipv4_checksum(dataStreamBuffer0, dataStreamBuffer1, subSumFifo, true);
 	finalize_ipv4_checksum<WIDTH/16>(subSumFifo, checksumFifo);
 
 	insert_ip_checksum(dataStreamBuffer1, checksumFifo, dataStreamBuffer2);
 
-
 	handle_arp_reply(arpTableIn, dataStreamBuffer2, headerFifo, dataStreamBuffer3, myMacAddress);
 	lshiftWordByOctet<WIDTH, 1>(((ETH_HEADER_SIZE%WIDTH)/8), dataStreamBuffer3, dataStreamBuffer4);
 	insert_ethernet_header(headerFifo, dataStreamBuffer4, dataOut);
-
+#endif
 	//generate_ethernet(dataStreamBuffer3, arpTableIn, dataOut, myMacAddress);
 }
 
+#if defined( __VITIS_HLS__)
+void mac_ip_encode_top( hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataIn,
+					hls::stream<arpTableReply>&		arpTableIn,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataOut,
+					hls::stream<ap_uint<32> >&		arpTableOut,
+					ap_uint<48>					myMacAddress,
+					ap_uint<32>					regSubNetMask,
+					ap_uint<32>					regDefaultGateway)
+{
+	#pragma HLS DATAFLOW disable_start_propagation
+	#pragma HLS INTERFACE ap_ctrl_none port=return
+
+	#pragma HLS INTERFACE axis register port=dataIn name=s_axis_ip
+	#pragma HLS INTERFACE axis register port=dataOut name=m_axis_ip
+	#pragma HLS INTERFACE axis register port=arpTableIn name=s_axis_arp_lookup_reply
+	#pragma HLS INTERFACE axis register port=arpTableOut name=m_axis_arp_lookup_request
+
+	#pragma HLS aggregate  variable=arpTableIn compact=bit
+
+	#pragma HLS INTERFACE ap_none register port=myMacAddress
+	#pragma HLS INTERFACE ap_none register port=regSubNetMask
+	#pragma HLS INTERFACE ap_none register port=regDefaultGateway
+
+	static hls::stream<net_axis<DATA_WIDTH> > dataIn_internal;
+	#pragma HLS STREAM depth=2 variable=dataIn_internal
+	static hls::stream<net_axis<DATA_WIDTH> > dataOut_internal;
+	#pragma HLS STREAM depth=2 variable=dataOut_internal
+
+	convert_axis_to_net_axis<DATA_WIDTH>(dataIn, 
+							dataIn_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(dataOut_internal, 
+							dataOut);
+
+   	mac_ip_encode<DATA_WIDTH>( dataIn_internal,
+                              arpTableIn,
+                              dataOut_internal,
+                              arpTableOut,
+                              myMacAddress,
+                              regSubNetMask,
+                              regDefaultGateway);
+#else
 void mac_ip_encode_top( hls::stream<net_axis<DATA_WIDTH> >&			dataIn,
 					hls::stream<arpTableReply>&		arpTableIn,
 					hls::stream<net_axis<DATA_WIDTH> >&			dataOut,
@@ -445,5 +507,5 @@ void mac_ip_encode_top( hls::stream<net_axis<DATA_WIDTH> >&			dataIn,
                               myMacAddress,
                               regSubNetMask,
                               regDefaultGateway);
-
+#endif
 }

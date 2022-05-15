@@ -22,7 +22,7 @@ if {$command == "synthesis"} {
    csim_design
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "icmp_server" -display_name "ICMP Server" -vendor "xilinx.labs" -version "1.67"
-} elseif {$command == "installip"} {
+} elseif {$command == "services"} {
    file mkdir ${IPREPO_DIR}
    file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
    file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/

@@ -22,7 +22,7 @@ if {$command == "synthesis"} {
    csim_design
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "dhcp_client" -display_name "DHCP Client" -description "DHCP Client to be used with the Xilinx Labs TCP & UDP offload engines." -vendor "xilinx.labs" -version "1.05"
-} elseif {$command == "installip"} {
+} elseif {$command == "services"} {
    file mkdir ${IPREPO_DIR}
    file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
    file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/

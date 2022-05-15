@@ -26,10 +26,17 @@ set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
 
 
-# Find Xilinx Vivado HLS
+# Find Xilinx HLS
 find_package(VivadoHLS REQUIRED)
 if (NOT VIVADO_HLS_FOUND)
-  message(FATAL_ERROR "Vivado HLS not found.")
+message(FATAL_ERROR "Xilinx HLS tools not found.")
+endif()
+
+# Installation
+if (DEFINED ENV{IPREPO_DIR})
+   set(IPREPO_DIR $ENV{IPREPO_DIR})
+elseif(NOT  IPREPO_DIR)
+   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo/)
 endif()
 
 
@@ -46,7 +53,7 @@ set(EXAMPLE_HLS_DEPENDS
 
 
 #Setup HLS custom targets
-set(HLS_TARGETS synthesis csim ip installip)
+set(HLS_TARGETS synthesis csim ip services)
 
 foreach (target ${HLS_TARGETS})
    if (NOT TARGET ${target})
@@ -61,14 +68,9 @@ endforeach()
 
 #target dependencies
 add_dependencies(ip.${PROJECT_NAME} synthesis.${PROJECT_NAME})
-add_dependencies(installip.${PROJECT_NAME} ip.${PROJECT_NAME})
+add_dependencies(services.${PROJECT_NAME} ip.${PROJECT_NAME})
 
-# Installation
-if (DEFINED ENV{IPREPO_DIR})
-   set(IPREPO_DIR $ENV{IPREPO_DIR})
-elseif(NOT  IPREPO_DIR)
-   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo/)
-endif()
+
 #install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip/
 #   DESTINATION ${IPREPO_DIR}/${PROJECT_NAME}/)
                                    

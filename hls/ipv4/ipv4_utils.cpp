@@ -470,3 +470,108 @@ void compute_ipv4_checksum(	hls::stream<net_axis<512> >&	dataIn,
 	}
 }
 
+
+void mac_compute_ipv4_checksum(	hls::stream<net_axis<512> >&	dataIn,
+							hls::stream<net_axis<512> >&	dataOut,
+							hls::stream<subSums<32> >&		subSumFiFoOut,
+							const bool						skipChecksum)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	static subSums<32>	cics_ip_sums;
+	static ap_uint<4> cics_ipHeaderLen;
+	static bool cics_firstWord = true;
+
+	ap_uint<16> temp;
+
+	if (!dataIn.empty())
+	{
+		net_axis<512> currWord = dataIn.read();
+		dataOut.write(currWord);
+
+		if (cics_firstWord)
+		{
+			cics_ipHeaderLen = currWord.data(3, 0);
+
+			for (int i = 0; i < 32; i++)
+			{
+				#pragma HLS unroll
+				temp = reverse((ap_uint<16>) currWord.data(i*16+15, i*16));
+				if (!skipChecksum || i != 5)
+				{
+					if ((i/2) < cics_ipHeaderLen)
+					{
+						cics_ip_sums.sum[i] += temp;
+						cics_ip_sums.sum[i] = (cics_ip_sums.sum[i] + (cics_ip_sums.sum[i] >> 16)) & 0xFFFF;
+					}
+				}
+			}
+			subSumFiFoOut.write(subSums<32>(cics_ip_sums));
+			cics_firstWord = false;
+		}
+
+		if (currWord.last)
+		{
+			for (int i = 0; i < 32; i++)
+			{
+				#pragma HLS unroll
+				cics_ip_sums.sum[i] = 0;
+			}
+			cics_firstWord = true;
+		}
+	}
+}
+
+void ip_handler_compute_ipv4_checksum(	hls::stream<net_axis<512> >&	dataIn,
+							hls::stream<net_axis<512> >&	dataOut,
+							hls::stream<subSums<32> >&		subSumFiFoOut,
+							const bool						skipChecksum)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	static subSums<32>	cics_ip_sums;
+	static ap_uint<4> cics_ipHeaderLen;
+	static bool cics_firstWord = true;
+
+	ap_uint<16> temp;
+
+	if (!dataIn.empty())
+	{
+		net_axis<512> currWord = dataIn.read();
+		dataOut.write(currWord);
+
+		if (cics_firstWord)
+		{
+			cics_ipHeaderLen = currWord.data(3, 0);
+
+			for (int i = 0; i < 32; i++)
+			{
+				#pragma HLS unroll
+				temp = reverse((ap_uint<16>) currWord.data(i*16+15, i*16));
+				if (!skipChecksum || i != 5)
+				{
+					if ((i/2) < cics_ipHeaderLen)
+					{
+						cics_ip_sums.sum[i] += temp;
+						cics_ip_sums.sum[i] = (cics_ip_sums.sum[i] + (cics_ip_sums.sum[i] >> 16)) & 0xFFFF;
+					}
+				}
+			}
+			subSumFiFoOut.write(subSums<32>(cics_ip_sums));
+			cics_firstWord = false;
+		}
+
+		if (currWord.last)
+		{
+			for (int i = 0; i < 32; i++)
+			{
+				#pragma HLS unroll
+				cics_ip_sums.sum[i] = 0;
+			}
+			cics_firstWord = true;
+		}
+	}
+}
+

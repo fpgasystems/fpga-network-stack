@@ -24,7 +24,7 @@ if {$command == "synthesis"} {
    csim_design -argv {${CMAKE_CURRENT_SOURCE_DIR}/in.dat ${CMAKE_CURRENT_SOURCE_DIR}/tcp.out}
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "mac_ip_encode" -display_name "MAC IP Encoder" -vendor "ethz.systems.fpga" -version "2.0"
-} elseif {$command == "installip"} {
+} elseif {$command == "services"} {
    file mkdir ${IPREPO_DIR}
    file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
    file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/

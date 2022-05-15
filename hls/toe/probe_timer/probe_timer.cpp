@@ -42,6 +42,16 @@ void probe_timer(	stream<ap_uint<16> >&		rxEng2timer_clearProbeTimer,
 					stream<ap_uint<16> >&		txEng2timer_setProbeTimer,
 					stream<event>&				probeTimer2eventEng_setEvent)
 {
+#if defined( __VITIS_HLS__)
+#pragma HLS aggregate  variable=txEng2timer_setProbeTimer compact=bit
+#pragma HLS aggregate  variable=probeTimer2eventEng_setEvent compact=bit
+
+#pragma HLS PIPELINE II=1
+
+	static probe_timer_entry probeTimerTable[MAX_SESSIONS];
+	#pragma HLS bind_storage variable=probeTimerTable type=RAM_T2P impl=BRAM
+	#pragma HLS aggregate  variable=probeTimerTable compact=bit
+#else
 #pragma HLS DATA_PACK variable=txEng2timer_setProbeTimer
 #pragma HLS DATA_PACK variable=probeTimer2eventEng_setEvent
 
@@ -50,6 +60,7 @@ void probe_timer(	stream<ap_uint<16> >&		rxEng2timer_clearProbeTimer,
 	static probe_timer_entry probeTimerTable[MAX_SESSIONS];
 	#pragma HLS RESOURCE variable=probeTimerTable core=RAM_T2P_BRAM
 	#pragma HLS DATA_PACK variable=probeTimerTable
+#endif
 	#pragma HLS DEPENDENCE variable=probeTimerTable inter false
 
 	static ap_uint<16>		pt_currSessionID = 0;

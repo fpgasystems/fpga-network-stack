@@ -124,7 +124,11 @@ void mq_pointer_table(	hls::stream<mqPointerReq>&			pointerReqFifo,
 #pragma HLS INLINE off
 
 	static mqPointerEntry ptr_table[NUM_QUEUES];
+#if defined( __VITIS_HLS__)
+	#pragma HLS bind_storage variable=ptr_table type=RAM_T2P impl=BRAM
+#else
 	#pragma HLS RESOURCE variable=ptr_table core=RAM_T2P_BRAM
+#endif
 	//#pragma HLS DEPENDENCE variable=ptr_table inter false
 
 	static ap_uint<16> mq_lockedKey;
@@ -201,7 +205,11 @@ void mq_meta_table(	hls::stream<mqMetaReq<T> >&		meta_upd_req,
 #pragma HLS INLINE off
 
 	static mqMetaEntry<T> meta_table[MULTI_QUEUE_SIZE];
+#if defined( __VITIS_HLS__)
+	#pragma HLS bind_storage variable=meta_table type=RAM_T2P impl=BRAM
+#else
 	#pragma HLS RESOURCE variable=meta_table core=RAM_T2P_BRAM
+#endif
 	//#pragma HLS DEPENDENCE variable=meta_table inter false
 	mqMetaReq<T> req;
 
@@ -525,7 +533,7 @@ void multi_queue(	hls::stream<mqInsertReq<T> >&	multiQueue_push,
 					hls::stream<T>&					multiQueue_pop_rsp)
 {
 #pragma HLS DATAFLOW
-#pragma HLS INLINE
+//#pragma HLS INLINE
 
 	static hls::stream<mqPointerReq>		mq_pointerReqFifo("mq_pointerReqFifo");
 	static hls::stream<mqPointerUpdate>		mq_pointerUpdFifo("mq_pointerUpdFifo");

@@ -29,18 +29,23 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "state_table.hpp"
 #include <rocev2_config.hpp> //defines MAX_QPS
 
-void state_table(	hls::stream<rxStateReq>& rxIbh2stateTable_upd_req,
-						hls::stream<txStateReq>& txIbh2stateTable_upd_req,
-						hls::stream<ifStateReq>& qpi2stateTable_upd_req,
-						hls::stream<rxStateRsp>& stateTable2rxIbh_rsp,
-						hls::stream<stateTableEntry>& stateTable2txIbh_rsp,
-						hls::stream<stateTableEntry>& stateTable2qpi_rsp)
-{
+void state_table(		
+	hls::stream<rxStateReq>& rxIbh2stateTable_upd_req,
+	hls::stream<txStateReq>& txIbh2stateTable_upd_req,
+	hls::stream<ifStateReq>& qpi2stateTable_upd_req,
+	hls::stream<rxStateRsp>& stateTable2rxIbh_rsp,
+	hls::stream<stateTableEntry>& stateTable2txIbh_rsp,
+	hls::stream<stateTableEntry>& stateTable2qpi_rsp
+) {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
 	static stateTableEntry state_table[MAX_QPS];
+#if defined( __VITIS_HLS__)
+	#pragma HLS bind_storage variable=state_table type=RAM_2P impl=BRAM
+#else
 	#pragma HLS RESOURCE variable=state_table core=RAM_2P_BRAM
+#endif
 
 	rxStateReq rxRequest;
 	txStateReq txRequest;

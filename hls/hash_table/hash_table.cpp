@@ -208,7 +208,11 @@ void hash_table(hls::stream<htLookupReq<K> >&      s_axis_lup_req,
 
    //Global arrays
    #pragma HLS ARRAY_PARTITION variable=tabulation_table complete dim=1
+#if defined( __VITIS_HLS__)
+   #pragma HLS bind_storage variable=cuckooTables type=RAM_2P impl=BRAM
+#else
    #pragma HLS RESOURCE variable=cuckooTables core=RAM_2P_BRAM
+#endif
    #pragma HLS ARRAY_PARTITION variable=cuckooTables complete dim=1
 
    if (!s_axis_lup_req.empty())
@@ -245,12 +249,19 @@ void hash_table_top( hls::stream<htLookupReq<KEY_SIZE> >&               s_axis_l
 #pragma HLS INTERFACE axis register port=s_axis_upd_req
 #pragma HLS INTERFACE axis register port=m_axis_lup_rsp
 #pragma HLS INTERFACE axis register port=m_axis_upd_rsp
+#if defined( __VITIS_HLS__)
+#pragma HLS aggregate compact=bit variable=s_axis_lup_req
+#pragma HLS aggregate compact=bit variable=s_axis_upd_req
+#pragma HLS aggregate compact=bit variable=m_axis_lup_rsp
+#pragma HLS aggregate compact=bit variable=m_axis_upd_rsp
+#pragma HLS INTERFACE ap_none port=regInsertFailureCount
+#else
 #pragma HLS DATA_PACK variable=s_axis_lup_req
 #pragma HLS DATA_PACK variable=s_axis_upd_req
 #pragma HLS DATA_PACK variable=m_axis_lup_rsp
 #pragma HLS DATA_PACK variable=m_axis_upd_rsp
 #pragma HLS INTERFACE ap_stable port=regInsertFailureCount
-
+#endif
    hash_table<KEY_SIZE, VALUE_SIZE>(s_axis_lup_req,
                                     s_axis_upd_req,
                                     m_axis_lup_rsp,

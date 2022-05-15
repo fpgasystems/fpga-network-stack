@@ -53,7 +53,11 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 
 	static txSarEntry tx_table[MAX_SESSIONS];
 	#pragma HLS DEPENDENCE variable=tx_table inter false
+#if defined( __VITIS_HLS__)
+	#pragma HLS bind_storage variable=tx_table type=RAM_T2P impl=BRAM
+#else
 	#pragma HLS RESOURCE variable=tx_table core=RAM_T2P_BRAM
+#endif
 
 	// TX Engine
 	if (!txEng2txSar_upd_req.empty())

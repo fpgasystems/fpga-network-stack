@@ -22,7 +22,7 @@ if {$command == "synthesis"} {
    csim_design
 } elseif {$command == "ip"} {
    export_design -format ip_catalog -ipname "echo_server_application" -display_name "Echo Server Application for 10G TOE" -description "Echos packets on connections coming in on port 7." -vendor "ethz.systems" -version "1.2"
-} elseif {$command == "installip"} {
+} elseif {$command == "services"} {
    file mkdir ${IPREPO_DIR}
    file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
    file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/

@@ -35,6 +35,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, 
 #include "ap_int.h"
 #include <stdint.h>
 #include <cstdlib>
+#include "../axi_utils.hpp"
 
 using namespace hls;
 

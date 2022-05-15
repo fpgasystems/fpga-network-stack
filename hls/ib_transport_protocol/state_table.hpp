@@ -83,6 +83,7 @@ struct rxStateRsp
 	ap_uint<24> max_forward; //used for reponses, page 346
 
 	ap_uint<3>	retryCounter;
+
 	rxStateRsp() {}
 	rxStateRsp(ap_uint<24> epsn, ap_uint<24> old)
 		:epsn(epsn), oldest_outstanding_psn(old), max_forward(0), retryCounter(0) {}

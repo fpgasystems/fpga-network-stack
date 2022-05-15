@@ -26,8 +26,6 @@
  */
 #pragma once
 #include "../axi_utils.hpp"
-#include "../mem_utils.hpp"
-
 template <int WIDTH>
 class newFakeDRAM {
 	struct MemChunk {
@@ -56,21 +54,21 @@ public:
 		return chunk->data;*/
 	}
 
-	void processWrite(memCmd cmd, hls::stream<routed_net_axis<WIDTH> >& dataIn)
+	void processWrite(memCmd cmd, hls::stream<net_axis<WIDTH> >& dataIn)
 	{
 		std::cout << "Write command, address: " << cmd.addr << ", length: " << cmd.len << std::endl;
 
-		routed_net_axis<WIDTH> currWord;
+		net_axis<WIDTH> currWord;
 		do
 		{
 			dataIn.read(currWord);
 		} while(!currWord.last);
 	}
-	void processWrite(routedMemCmd cmd, hls::stream<routed_net_axis<WIDTH> >& dataIn)
+	void processWrite(routedMemCmd cmd, hls::stream<net_axis<WIDTH> >& dataIn)
 	{
 		std::cout << "Write command, address: " << cmd.data.addr << ", length: " << cmd.data.len << std::endl;
 
-		routed_net_axis<WIDTH> currWord;
+		net_axis<WIDTH> currWord;
 		do
 		{
 			dataIn.read(currWord);

@@ -24,49 +24,68 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#pragma once
+#include "ethernet_frame_padding_512.hpp"
 
-#define IP_VERSION 4
-
-#include "../axi_utils.hpp"
-#include "../ipv4/ipv4.hpp"
-#include "../ipv6/ipv6.hpp"
-#include "../udp/udp.hpp"
-#include "../ib_transport_protocol/ib_transport_protocol.hpp"
-//#include "../pointer_chasing/pointer_chasing.hpp"
-
-#define DISABLE_CRC_CHECK
-
-#if IP_VERSION == 6
-typedef ipv6Meta ipMeta;
+#if defined( __VITIS_HLS__)
+void ethernet_frame_padding_512(	hls::stream<ap_axiu<512, 0, 0, 0> >&			dataIn,
+				hls::stream<ap_axiu<512, 0, 0, 0> >&			dataOut)
 #else
-typedef ipv4Meta ipMeta;
+void ethernet_frame_padding_512(	hls::stream<net_axis<512> >&			dataIn,
+				hls::stream<net_axis<512> >&			dataOut)
 #endif
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INTERFACE ap_ctrl_none port=return
 
-template <int WIDTH>
-void rocev2(
-	hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
-	hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
+#pragma HLS INTERFACE axis register port=dataIn name=s_axis
+#pragma HLS INTERFACE axis register port=dataOut name=m_axis
 
-	// S(R)Q
-	hls::stream<txMeta>& s_axis_sq_meta,
+	static ap_uint<1> state = 0;
 
-	// ACKs
-	stream<routedAckMeta>& m_axis_rx_ack_meta,
+	switch(state)
+	{
+	case 0:
+		if (!dataIn.empty())
+		{
+#if defined( __VITIS_HLS__)
+         ap_axiu<512, 0, 0, 0> currWord = dataIn.read();
+#else
+			net_axis<512> currWord = dataIn.read();
+#endif
+         if (currWord.last)
+         {
+            for (int i = 0; i < 64; ++i)
+            {
+               #pragma HLS UNROLL
+               if (currWord.keep[i] == 0)
+               {
+                  currWord.keep[i] = 1;
+                  currWord.data(i*8+7, i*8) = 0;
+               }
+            }
+         }
+         else
+         {
+            state = 1;
+         }
+			dataOut.write(currWord);
+		}
+		break;
+	case 1:
+      if (!dataIn.empty())
+      {
+#if defined( __VITIS_HLS__)
+         ap_axiu<512, 0, 0, 0> currWord = dataIn.read();
+#else
+         net_axis<512> currWord = dataIn.read();
+#endif
+         dataOut.write(currWord);
 
-	// RDMA
-	hls::stream<routedMemCmd>& m_axis_mem_write_cmd,
-	hls::stream<routedMemCmd>& m_axis_mem_read_cmd,
-	hls::stream<net_axis<WIDTH> >& m_axis_mem_write_data,
-	hls::stream<net_axis<WIDTH> >& s_axis_mem_read_data,
-	
-	// QP
-	hls::stream<qpContext>&	s_axis_qp_interface,
-	hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
-	ap_uint<128> local_ip_address,
-
-	// Debug
-	ap_uint<32>& regCrcDropPkgCount,
-	ap_uint<32>& regInvalidPsnDropCount
-);
-
+         if (currWord.last)
+         {
+            state = 0;
+         }
+      }
+		break;
+	} //switch
+}

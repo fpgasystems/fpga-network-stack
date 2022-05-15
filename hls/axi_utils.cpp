@@ -26,27 +26,6 @@
  */
 #include "axi_utils.hpp"
 
-template <>
-void assignDest<routed_net_axis<64> >(routed_net_axis<64>& d, routed_net_axis<64>& s)
-{
-	d.dest = s.dest;
-}
-template <>
-void assignDest<routed_net_axis<128> >(routed_net_axis<128>& d, routed_net_axis<128>& s)
-{
-	d.dest = s.dest;
-}
-template <>
-void assignDest<routed_net_axis<256> >(routed_net_axis<256>& d, routed_net_axis<256>& s)
-{
-	d.dest = s.dest;
-}
-template <>
-void assignDest<routed_net_axis<512> >(routed_net_axis<512>& d, routed_net_axis<512>& s)
-{
-	d.dest = s.dest;
-}
-
 ap_uint<64> lenToKeep(ap_uint<6> length)
 {
 	switch (length)
@@ -321,6 +300,8 @@ ap_uint<8> keepToLen(ap_uint<64> keepValue)
 		return 0x3F;
 	case 0xFFFFFFFFFFFFFFFF:
 		return 0x40;
+	default:
+		return 0xFF;
 //#endif
 //#endif
 //#endif

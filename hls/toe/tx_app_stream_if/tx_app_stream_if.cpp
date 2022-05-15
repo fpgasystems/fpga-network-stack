@@ -87,11 +87,13 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 			{
 				// Notify app about fail
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, ERROR_NOCONNCECTION));
+				tai_state = READ_REQUEST;
 			}
 #if !(TCP_NODELAY)
 			else if(tasi_writeMeta.length > maxWriteLength)
 			{
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, ERROR_NOSPACE));
+				tai_state = READ_REQUEST;
 
 			}
 #else
@@ -100,13 +102,14 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 			{
 				// Notify app about fail
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, usableWindow, ERROR_NOSPACE));
+				tai_state = READ_REQUEST;
 			}
 #endif
 			else //if (state == ESTABLISHED && pkgLen <= tasi_maxWriteLength)
 			{
 				// TODO there seems some redundancy
 				ap_uint<32> pkgAddr;
-				pkgAddr(31, 30) = 0x01;
+				pkgAddr(31, 30) = 0x00;
 				pkgAddr(29, WINDOW_BITS) = tasi_writeMeta.sessionID(13, 0);
 				pkgAddr(WINDOW_BITS-1, 0) = writeSar.mempt;
 
@@ -114,8 +117,9 @@ void tasi_metaLoader(	stream<appTxMeta>&			appTxDataReqMetaData,
 				appTxDataRsp.write(appTxRsp(tasi_writeMeta.sessionID, tasi_writeMeta.length, maxWriteLength, NO_ERROR));
 				txAppStream2eventEng_setEvent.write(event(TX, tasi_writeMeta.sessionID, writeSar.mempt, tasi_writeMeta.length));
 				txApp2txSar_upd_req.write(txAppTxSarQuery(tasi_writeMeta.sessionID, writeSar.mempt+tasi_writeMeta.length));
+				tai_state = READ_REQUEST;
 			}
-			tai_state = READ_REQUEST;
+			// tai_state = READ_REQUEST;
 		}
 		break;
 	} //switch
@@ -136,7 +140,7 @@ void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
 
-	enum fsmStateType {IDLE, CUT_FIRST, ALIGN_SECOND, FWD_ALIGNED, RESIDUE};
+	enum fsmStateType {IDLE, IMPROVE_TIMING, CUT_FIRST, ALIGN_SECOND, FWD_ALIGNED, RESIDUE};
 	static fsmStateType tasiPkgPushState = IDLE;
 	static mmCmd cmd;
 	static ap_uint<WINDOW_BITS> remainingLength = 0;
@@ -150,7 +154,10 @@ void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
 		if (!tasi_meta2pkgPushCmd.empty())
 		{
 			tasi_meta2pkgPushCmd.read(cmd);
-
+			tasiPkgPushState = IMPROVE_TIMING;
+		}
+		break;
+	case IMPROVE_TIMING:
 			if ((cmd.saddr(WINDOW_BITS-1, 0) + cmd.bbt) > BUFFER_SIZE)
 			{
 				lengthFirstPkg = BUFFER_SIZE - cmd.saddr;
@@ -166,7 +173,6 @@ void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
 				txBufferWriteCmd.write(cmd);
 				tasiPkgPushState = FWD_ALIGNED;
 			}
-		}
 		break;
 		case CUT_FIRST:
 		if (!appTxDataIn.empty())
@@ -212,7 +218,7 @@ void tasi_pkg_pusher(hls::stream<mmCmd>&					tasi_meta2pkgPushCmd,
 		{
 			net_axis<WIDTH> currWord = appTxDataIn.read();
          std::cout << "HELP: ";
-         printLE(std::cout, currWord);
+        //  printLE(std::cout, currWord);
          std::cout << std::endl;
 			txBufferWriteData.write(currWord);
 			if (currWord.last)
@@ -292,8 +298,12 @@ void tx_app_stream_if(	stream<appTxMeta>&				appTxDataReqMetaData,
 #pragma HLS INLINE
 
 	static stream<mmCmd> tasi_meta2pkgPushCmd("tasi_meta2pkgPushCmd");
-	#pragma HLS stream variable=tasi_meta2pkgPushCmd depth=32
+	#pragma HLS stream variable=tasi_meta2pkgPushCmd depth=128
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=tasi_meta2pkgPushCmd compact=bit
+#else
 	#pragma HLS DATA_PACK variable=tasi_meta2pkgPushCmd
+#endif
 
 	tasi_metaLoader(	appTxDataReqMetaData,
 						stateTable2txApp_rsp,
@@ -306,10 +316,14 @@ void tx_app_stream_if(	stream<appTxMeta>&				appTxDataReqMetaData,
 
 #if (TCP_NODELAY)
 	static hls::stream<net_axis<WIDTH> > tasi_dataFifo("tasi_dataFifo");
-	#pragma HLS stream variable=tasi_dataFifo depth=2
+	#pragma HLS stream variable=tasi_dataFifo depth=1024
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=tasi_dataFifo compact=bit
+#else
 	#pragma HLS DATA_PACK variable=tasi_dataFifo
+#endif
 
-	duplicate_stream(appTxDataReq, tasi_dataFifo, txApp2txEng_data_stream);
+	toe_duplicate_stream(appTxDataReq, tasi_dataFifo, txApp2txEng_data_stream);
 #endif
 
 	tasi_pkg_pusher<WIDTH>(tasi_meta2pkgPushCmd,

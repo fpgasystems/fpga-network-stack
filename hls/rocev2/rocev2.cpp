@@ -571,33 +571,31 @@ void round_robin_merger(stream<ap_uint<32> >& in1,
 }
 
 template <int WIDTH>
-void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+void rocev2(
+	hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
+	hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
+				
+	// S(R)Q
+	hls::stream<txMeta>& s_axis_sq_meta,
 
-				hls::stream<txMeta>&	s_axis_tx_meta,
-				hls::stream<net_axis<WIDTH> >&	s_axis_tx_data,
-				hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
-				//Memory
-				hls::stream<routedMemCmd>&		m_axis_mem_write_cmd,
-				hls::stream<routedMemCmd>&		m_axis_mem_read_cmd,
-				hls::stream<routed_net_axis<WIDTH> >&	m_axis_mem_write_data,
-				hls::stream<net_axis<WIDTH> >&	s_axis_mem_read_data,
+	// ACKs
+	hls::stream<routedAckMeta>& m_axis_rx_ack_meta,
+				
+	// RDMA
+	hls::stream<routedMemCmd>& m_axis_mem_write_cmd,
+	hls::stream<routedMemCmd>& m_axis_mem_read_cmd,
+	hls::stream<net_axis<WIDTH> >& m_axis_mem_write_data,
+	hls::stream<net_axis<WIDTH> >& s_axis_mem_read_data,
 
-				//Interface
-				hls::stream<qpContext>&	s_axis_qp_interface,
-				hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
+	// QP
+	hls::stream<qpContext>&	s_axis_qp_interface,
+	hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
+	ap_uint<128> local_ip_address,
 
-				//pointer chasing
-#if POINTER_CHASING_EN
-				hls::stream<ptrChaseMeta>&	m_axis_rx_pcmeta,
-				hls::stream<ptrChaseMeta>&	s_axis_tx_pcmeta,
-#endif
-
-				ap_uint<128>		local_ip_address,
-
-				//Debug output
-				ap_uint<32>& 	 regCrcDropPkgCount,
-				ap_uint<32>& 	 regInvalidPsnDropCount)
-{
+	//Debug output
+	ap_uint<32>& regCrcDropPkgCount,
+	ap_uint<32>& regInvalidPsnDropCount
+) {
 #pragma HLS INLINE
 
 	//metadata fifos
@@ -630,30 +628,35 @@ void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	 * IPv6 & UDP
 	 */
 #if IP_VERSION == 6
-	ipv6(	rx_crc2ipFifo,
-			rx_ip2udpMetaFifo,
-			rx_ip2udpFifo,
-			tx_udp2ipMetaFifo,
-			tx_udp2ipFifo,
-			tx_ip2crcFifo,
-			local_ip_address);
+	ipv6(	
+		rx_crc2ipFifo,
+		rx_ip2udpMetaFifo,
+		rx_ip2udpFifo,
+		tx_udp2ipMetaFifo,
+		tx_udp2ipFifo,
+		tx_ip2crcFifo,
+		local_ip_address
+	);
 
 	/*
 	 * IPv4 & UDP
 	 */
 #else
-	ipv4<WIDTH>(	rx_crc2ipFifo,
-			rx_ip2udpMetaFifo,
-			rx_ip2udpFifo,
-			tx_udp2ipMetaFifo,
-			tx_udp2ipFifo,
-			tx_ip2crcFifo,
-			local_ip_address,
-			UDP_PROTOCOL);
+	ipv4<WIDTH>(	
+		rx_crc2ipFifo,
+		rx_ip2udpMetaFifo,
+		rx_ip2udpFifo,
+		tx_udp2ipMetaFifo,
+		tx_udp2ipFifo,
+		tx_ip2crcFifo,
+		local_ip_address,
+		UDP_PROTOCOL
+	);
 #endif
 
-	udp<WIDTH>(rx_ip2udpMetaFifo,
-			rx_ip2udpFifo,
+	udp<WIDTH>(
+		rx_ip2udpMetaFifo,
+		rx_ip2udpFifo,
 		rx_ipUdpMetaFifo,
 		rx_udp2ibFifo,
 		tx_ipUdpMetaFifo,
@@ -661,30 +664,27 @@ void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 		tx_udp2ipMetaFifo,
 		tx_udp2ipFifo,
 		local_ip_address,
-		RDMA_DEFAULT_PORT);
+		RDMA_DEFAULT_PORT
+	);
 
 	/*
 	 * IB PROTOCOL
 	 */
-	ib_transport_protocol<WIDTH>(		rx_ipUdpMetaFifo,
-								rx_udp2ibFifo,
-								//m_axis_rx_data,
-								s_axis_tx_meta,
-								s_axis_tx_data,
-								tx_ipUdpMetaFifo,
-								tx_ib2udpFifo,
-								m_axis_mem_write_cmd,
-								m_axis_mem_read_cmd,
-								//s_axis_mem_write_status,
-								m_axis_mem_write_data,
-								s_axis_mem_read_data,
-								s_axis_qp_interface,
-								s_axis_qp_conn_interface,
-#if POINTER_CHASING_EN
-								m_axis_rx_pcmeta,
-								s_axis_tx_pcmeta,
-#endif
-								regInvalidPsnDropCount);
+	ib_transport_protocol<WIDTH>(	
+		rx_ipUdpMetaFifo,
+		rx_udp2ibFifo,
+		tx_ipUdpMetaFifo,
+		tx_ib2udpFifo,
+		s_axis_sq_meta,
+		m_axis_rx_ack_meta,
+		m_axis_mem_write_cmd,
+		m_axis_mem_read_cmd,
+		m_axis_mem_write_data,
+		s_axis_mem_read_data,
+		s_axis_qp_interface,
+		s_axis_qp_conn_interface,
+		regInvalidPsnDropCount
+	);
 
 	/*
 	 * Check ICRC of incoming packets
@@ -755,65 +755,63 @@ void rocev2(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 #endif
 }
 
-void rocev2_top(	//stream<ipUdpMeta>&	s_axis_rx_meta,
-				stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
-				//stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
+#if defined( __VITIS_HLS__)
+void rocev2_top(
+	stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >& s_axis_rx_data,
+	stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >& m_axis_tx_data,
+				
+	stream<txMeta>&	s_axis_sq_meta,
 
-				stream<txMeta>&	s_axis_tx_meta,
-				stream<net_axis<DATA_WIDTH> >&	s_axis_tx_data,
-				stream<net_axis<DATA_WIDTH> >&	m_axis_tx_data,
-				//Memory
-				stream<routedMemCmd>&		m_axis_mem_write_cmd,
-				stream<routedMemCmd>&		m_axis_mem_read_cmd,
-				//stream<mmStatus>&	s_axis_mem_write_status,
-				stream<routed_net_axis<DATA_WIDTH> >&	m_axis_mem_write_data,
-				stream<net_axis<DATA_WIDTH> >&	s_axis_mem_read_data,
+	stream<routedAckMeta>& m_axis_rx_ack_meta,
+				
+	//Memory
+	stream<routedMemCmd>& m_axis_mem_write_cmd,
+	stream<routedMemCmd>& m_axis_mem_read_cmd,
+	stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >& m_axis_mem_write_data,
+	stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >& s_axis_mem_read_data,
 
-				//Interface
-				stream<qpContext>&	s_axis_qp_interface,
-				stream<ifConnReq>&	s_axis_qp_conn_interface,
+	//Interface
+	stream<qpContext>& s_axis_qp_interface,
+	stream<ifConnReq>& s_axis_qp_conn_interface,
+	ap_uint<128> local_ip_address,
 
-				//pointer chasing
-#if POINTER_CHASING_EN
-				stream<ptrChaseMeta>&	m_axis_rx_pcmeta,
-				stream<ptrChaseMeta>&	s_axis_tx_pcmeta,
+	//Debug output
+	ap_uint<32>& regCrcDropPkgCount,
+	ap_uint<32>& regInvalidPsnDropCount
+) {
+	#pragma HLS DATAFLOW disable_start_propagation
+	#pragma HLS INTERFACE ap_ctrl_none port=return
+
+	// NET
+	#pragma HLS INTERFACE axis register port=s_axis_rx_data
+	#pragma HLS INTERFACE axis register port=m_axis_tx_data
+
+	// S(R)Q
+	#pragma HLS INTERFACE axis register port=s_axis_sq_meta
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=s_axis_sq_meta compact=bit
+#else
+	#pragma HLS DATA_PACK variable=s_axis_sq_meta
 #endif
 
-				ap_uint<128>		local_ip_address,
+	// ACKs
+	#pragma HLS INTERFACE axis register port=m_axis_rx_ack_meta
 
-				//Debug output
-				ap_uint<32>& 	 regCrcDropPkgCount,
-				ap_uint<32>& 	 regInvalidPsnDropCount)
-{
-#pragma HLS DATAFLOW disable_start_propagation
-#pragma HLS INTERFACE ap_ctrl_none port=return
-
-	//DATA
-	#pragma HLS INTERFACE axis register port=s_axis_rx_data
-	#pragma HLS INTERFACE axis register port=s_axis_tx_data
-	#pragma HLS INTERFACE axis register port=s_axis_tx_data
-	#pragma HLS INTERFACE axis register port=m_axis_tx_meta
-	#pragma HLS INTERFACE axis register port=m_axis_tx_data
-	#pragma HLS DATA_PACK variable=s_axis_tx_meta
-
-	//MEMORY
+	// RDMA
 	#pragma HLS INTERFACE axis register port=m_axis_mem_write_cmd
 	#pragma HLS INTERFACE axis register port=m_axis_mem_read_cmd
 	#pragma HLS INTERFACE axis register port=m_axis_mem_write_data
 	#pragma HLS INTERFACE axis register port=s_axis_mem_read_data
 
-	//CONTROL
+	// QP
 	#pragma HLS INTERFACE axis register port=s_axis_qp_interface
 	#pragma HLS INTERFACE axis register port=s_axis_qp_conn_interface
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=s_axis_qp_interface compact=bit
+	#pragma HLS aggregate  variable=s_axis_qp_conn_interface compact=bit
+#else
 	#pragma HLS DATA_PACK variable=s_axis_qp_interface
 	#pragma HLS DATA_PACK variable=s_axis_qp_conn_interface
-
-	//Pointer chasing
-#if POINTER_CHASING_EN
-	#pragma HLS INTERFACE axis register port=m_axis_rx_pcmeta
-	#pragma HLS INTERFACE axis register port=s_axis_tx_pcmeta
-	#pragma HLS DATA_PACK variable=m_axis_rx_pcmeta
-	#pragma HLS DATA_PACK variable=s_axis_tx_pcmeta
 #endif
 
 	#pragma HLS INTERFACE ap_none register port=local_ip_address
@@ -821,17 +819,126 @@ void rocev2_top(	//stream<ipUdpMeta>&	s_axis_rx_meta,
 	//DEBUG
 	#pragma HLS INTERFACE ap_vld port=regCrcDropPkgCount
 
-   rocev2<DATA_WIDTH>(s_axis_rx_data,
-								s_axis_tx_meta,
-								s_axis_tx_data,
-								m_axis_tx_data,
-								m_axis_mem_write_cmd,
-								m_axis_mem_read_cmd,
-								m_axis_mem_write_data,
-								s_axis_mem_read_data,
-								s_axis_qp_interface,
-								s_axis_qp_conn_interface,
-								local_ip_address,
-								regCrcDropPkgCount,
-								regInvalidPsnDropCount);
+	static hls::stream<net_axis<DATA_WIDTH> > s_axis_rx_data_internal;
+	#pragma HLS STREAM depth=2 variable=s_axis_rx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_tx_data_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_tx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_mem_write_data_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_mem_write_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > s_axis_mem_read_data_internal;
+	#pragma HLS STREAM depth=2 variable=s_axis_mem_read_data_internal
+
+	convert_axis_to_net_axis<DATA_WIDTH>(s_axis_rx_data, s_axis_rx_data_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tx_data_internal, m_axis_tx_data);
+
+	convert_axis_to_net_axis<DATA_WIDTH>(s_axis_mem_read_data, s_axis_mem_read_data_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_mem_write_data_internal, m_axis_mem_write_data);
+
+   	rocev2<DATA_WIDTH>(			
+	   	s_axis_rx_data_internal,
+		m_axis_tx_data_internal,
+								
+		s_axis_sq_meta,
+		m_axis_rx_ack_meta,
+								
+		m_axis_mem_write_cmd,
+		m_axis_mem_read_cmd,
+		m_axis_mem_write_data_internal,
+		s_axis_mem_read_data_internal,
+
+		s_axis_qp_interface,
+		s_axis_qp_conn_interface,
+		local_ip_address,
+
+		regCrcDropPkgCount,
+		regInvalidPsnDropCount
+	);
+	
+#else
+void rocev2_top(
+	stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+	stream<net_axis<DATA_WIDTH> >& m_axis_tx_data,
+				
+	stream<txMeta>&	s_axis_sq_meta,
+
+	stream<routedAckMeta>& m_axis_rx_ack_meta,
+				
+	//Memory
+	stream<routedMemCmd>& m_axis_mem_write_cmd,
+	stream<routedMemCmd>& m_axis_mem_read_cmd,
+	stream<net_axis<DATA_WIDTH> >& m_axis_mem_write_data,
+	stream<net_axis<DATA_WIDTH> >& s_axis_mem_read_data,
+
+	//Interface
+	stream<qpContext>& s_axis_qp_interface,
+	stream<ifConnReq>& s_axis_qp_conn_interface,
+	ap_uint<128> local_ip_address,
+
+	//Debug output
+	ap_uint<32>& regCrcDropPkgCount,
+	ap_uint<32>& regInvalidPsnDropCount
+) {
+	#pragma HLS DATAFLOW disable_start_propagation
+	#pragma HLS INTERFACE ap_ctrl_none port=return
+
+	// NET
+	#pragma HLS INTERFACE axis register port=s_axis_rx_data
+	#pragma HLS INTERFACE axis register port=m_axis_tx_data
+
+	// S(R)Q
+	#pragma HLS INTERFACE axis register port=s_axis_sq_meta
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=s_axis_sq_meta compact=bit
+#else
+	#pragma HLS DATA_PACK variable=s_axis_sq_meta
+#endif
+
+	// ACKs
+	#pragma HLS INTERFACE axis register port=m_axis_rx_ack_meta
+
+	// RDMA
+	#pragma HLS INTERFACE axis register port=m_axis_mem_write_cmd
+	#pragma HLS INTERFACE axis register port=m_axis_mem_read_cmd
+	#pragma HLS INTERFACE axis register port=m_axis_mem_write_data
+	#pragma HLS INTERFACE axis register port=s_axis_mem_read_data
+
+	// QP
+	#pragma HLS INTERFACE axis register port=s_axis_qp_interface
+	#pragma HLS INTERFACE axis register port=s_axis_qp_conn_interface
+#if defined( __VITIS_HLS__)
+	#pragma HLS aggregate  variable=s_axis_qp_interface compact=bit
+	#pragma HLS aggregate  variable=s_axis_qp_conn_interface compact=bit
+#else
+	#pragma HLS DATA_PACK variable=s_axis_qp_interface
+	#pragma HLS DATA_PACK variable=s_axis_qp_conn_interface
+#endif
+
+	#pragma HLS INTERFACE ap_none register port=local_ip_address
+
+	//DEBUG
+	#pragma HLS INTERFACE ap_vld port=regCrcDropPkgCount
+
+   rocev2<DATA_WIDTH>(			
+	   	s_axis_rx_data,
+		m_axis_tx_data,
+								
+		s_axis_sq_meta,
+		m_axis_rx_ack_meta,
+								
+		m_axis_mem_write_cmd,
+		m_axis_mem_read_cmd,
+		m_axis_mem_write_data,
+		s_axis_mem_read_data,
+
+		s_axis_qp_interface,
+		s_axis_qp_conn_interface,
+		local_ip_address,
+
+		regCrcDropPkgCount,
+		regInvalidPsnDropCount
+);
+#endif
+
 }
