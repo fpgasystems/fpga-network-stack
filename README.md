@@ -239,9 +239,10 @@ TCP/IP Stack Architecture for Reconfigurable Hardware,* in FCCM’15, [Paper](ht
 
 - D. Sidler, Z. Istvan, G. Alonso, *Low-Latency TCP/IP Stack for Data Center Applications,* in FPL'16, [Paper](http://davidsidler.ch/files/fpl16-lowlatencytcpip.pdf)
 
+- D. Sidler, Z. Wang, M. Chiosa, A. Kulkarni, G. Alonso, *StRoM: smart remote memory,* in EuroSys'20, [Paper](https://dl.acm.org/doi/abs/10.1145/3342195.3387519)
 
 ## Citations
-If you use the TCP/IP stack in your project please cite one of the following papers and/or link to the github project:
+If you use the TCP/IP or RDMA stacks in your project please cite one of the following papers and/or link to the github project:
 
 ```bibtex
 @inproceedings{DBLP:conf/fccm/SidlerABKVC15,
@@ -258,17 +259,11 @@ If you use the TCP/IP stack in your project please cite one of the following pap
   publisher    = {{IEEE} Computer Society},
   year         = {2015},
   doi          = {10.1109/FCCM.2015.12}
-}
 
 @inproceedings{DBLP:conf/fpl/SidlerIA16,
   author       = {David Sidler and
                   Zsolt Istv{\'{a}}n and
                   Gustavo Alonso},
-  editor       = {Paolo Ienne and
-                  Walid A. Najjar and
-                  Jason Helge Anderson and
-                  Philip Brisk and
-                  Walter Stechele},
   title        = {Low-latency {TCP/IP} stack for data center applications},
   booktitle    = {26th International Conference on Field Programmable Logic and Applications,
                   {FPL} 2016, Lausanne, Switzerland, August 29 - September 2, 2016},
@@ -278,6 +273,21 @@ If you use the TCP/IP stack in your project please cite one of the following pap
   doi          = {10.1109/FPL.2016.7577319}
 }
 
+@inproceedings{DBLP:conf/eurosys/SidlerWCKA20,
+  author       = {David Sidler and
+                  Zeke Wang and
+                  Monica Chiosa and
+                  Amit Kulkarni and
+                  Gustavo Alonso},
+  title        = {StRoM: smart remote memory},
+  booktitle    = {EuroSys '20: Fifteenth EuroSys Conference 2020, Heraklion, Greece,
+                  April 27-30, 2020},
+  pages        = {29:1--29:16},
+  publisher    = {{ACM}},
+  year         = {2020},
+  doi          = {10.1145/3342195.3387519}
+}
+
 @PHDTHESIS{sidler2019innetworkdataprocessing,
 	author = {Sidler, David},
 	publisher = {ETH Zurich},
@@ -285,12 +295,20 @@ If you use the TCP/IP stack in your project please cite one of the following pap
 	copyright = {In Copyright - Non-Commercial Use Permitted},
 	title = {In-Network Data Processing using FPGAs},
 }
+
+@INPROCEEDINGS{sidler2020strom,
+	author = {Sidler, David and Wang, Zeke and Chiosa, Monica and Kulkarni, Amit and Alonso, Gustavo},
+	booktitle = {Proceedings of the Fifteenth European Conference on Computer Systems},
+	title = {StRoM: Smart Remote Memory},
+	doi = {10.1145/3342195.3387519},
+}
 ```
 
 ## Contributors
 - [David Sidler](http://github.com/dsidler), [Systems Group](http://systems.ethz.ch), ETH Zurich
 - [Monica Chiosa](http://github.com/chipet), [Systems Group](http://systems.ethz.ch), ETH Zurich
 - [Fabio Maschi](http://github.com/fabiomaschi), [Systems Group](http://systems.ethz.ch), ETH Zurich
+- [Zhenhao He](http://github.com/zhenhaohe), [Systems Group](http://systems.ethz.ch), ETH Zurich
 - [Mario Ruiz](https://github.com/mariodruiz), HPCN Group of UAM, Spain
 - [Kimon Karras](http://github.com/kimonk), former Researcher at Xilinx Research, Dublin
 - [Lisa Liu](http://github.com/lisaliu1), Xilinx Research, Dublin
