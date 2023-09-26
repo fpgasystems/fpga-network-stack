@@ -24,9 +24,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ipv6_config.hpp"
 #include "ipv6.hpp"
-
 
 template <int WIDTH>
 void process_ipv6(	stream<net_axis<WIDTH> >&	input,
@@ -134,7 +132,7 @@ void generate_ipv6(	stream<ipv6Meta>&		metaIn,
 }
 
 template <int WIDTH>
-void ipv6(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+void ipv6_core(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipv6Meta>&	m_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
 				hls::stream<ipv6Meta>&	s_axis_tx_meta,
@@ -165,7 +163,7 @@ void ipv6(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 }
 
 
-void ipv6_top(	hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+void ipv6(	hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 					hls::stream<ipv6Meta>&	m_axis_rx_meta,
 					hls::stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
 					hls::stream<ipv6Meta>&	s_axis_tx_meta,
@@ -187,7 +185,7 @@ void ipv6_top(	hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 #pragma HLS INTERFACE ap_none register port=reg_ip_address
 
 
-	ipv6<DATA_WIDTH>(	s_axis_rx_data,
+	ipv6_core<DATA_WIDTH>(	s_axis_rx_data,
 							m_axis_rx_meta,
 							m_axis_rx_data,
 							s_axis_tx_meta,

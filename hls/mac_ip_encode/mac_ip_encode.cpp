@@ -25,7 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "mac_ip_encode_config.hpp"
 #include "mac_ip_encode.hpp"
 #include "../ethernet/ethernet.hpp"
 #include "../ipv4/ipv4.hpp"
@@ -365,7 +364,7 @@ void generate_ethernet(	hls::stream<net_axis<WIDTH> >&		dataIn,
 }
 
 template <int WIDTH>
-void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
+void mac_ip_encode_core( hls::stream<net_axis<WIDTH> >&			dataIn,
 					hls::stream<arpTableReply>&		arpTableIn,
 					hls::stream<net_axis<WIDTH> >&			dataOut,
 					hls::stream<ap_uint<32> >&		arpTableOut,
@@ -416,7 +415,7 @@ void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 	//generate_ethernet(dataStreamBuffer3, arpTableIn, dataOut, myMacAddress);
 }
 
-void mac_ip_encode_top( hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataIn,
+void mac_ip_encode( hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataIn,
 					hls::stream<arpTableReply>&		arpTableIn,
 					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataOut,
 					hls::stream<ap_uint<32> >&		arpTableOut,
@@ -449,12 +448,11 @@ void mac_ip_encode_top( hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataIn,
 	convert_net_axis_to_axis<DATA_WIDTH>(dataOut_internal, 
 							dataOut);
 
-   	mac_ip_encode<DATA_WIDTH>( dataIn_internal,
+	mac_ip_encode_core<DATA_WIDTH>( dataIn_internal,
                               arpTableIn,
                               dataOut_internal,
                               arpTableOut,
                               myMacAddress,
                               regSubNetMask,
                               regDefaultGateway);
-
 }

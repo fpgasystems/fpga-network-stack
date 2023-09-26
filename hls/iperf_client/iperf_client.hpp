@@ -28,10 +28,10 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ************************************************/
 #pragma once
 
-#include "iperf_client_config.hpp"
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
 #include "../toe/toe.hpp"
+#include "../fns_config.hpp"
 
 #ifndef __SYNTHESIS__
 static const ap_uint<32> END_TIME		= 1000; //1000000;

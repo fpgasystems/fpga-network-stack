@@ -328,5 +328,3 @@ ap_uint<8> keepToLen(ap_uint<64> keepValue)
 //#endif
 	}
 }
-
-

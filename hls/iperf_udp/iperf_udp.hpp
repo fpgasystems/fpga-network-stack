@@ -27,10 +27,10 @@
 #ifndef IPERF_UDP_HPP
 #define IPERF_UDP_HPP
 
-#include "iperf_udp_config.hpp"
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
 #include "../udp/udp.hpp"
+#include "../fns_config.hpp"
 
 #ifndef __SYNTHESIS__
 static const ap_uint<40> END_TIME_100ms	= 5;

@@ -28,9 +28,9 @@
 
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
+#include "../fns_config.hpp"
 
 const uint32_t IPV6_HEADER_SIZE = 320;
-
 
 struct ipv6Meta
 {
@@ -100,7 +100,7 @@ public:
 
 
 template <int WIDTH>
-void ipv6(	stream<net_axis<WIDTH> >&	s_axis_rx_data,
+void ipv6_core(	stream<net_axis<WIDTH> >&	s_axis_rx_data,
 			stream<ipv6Meta>&	m_axis_rx_meta,
 			stream<net_axis<WIDTH> >&	m_axis_rx_data,
 			stream<ipv6Meta>&	s_axis_tx_meta,

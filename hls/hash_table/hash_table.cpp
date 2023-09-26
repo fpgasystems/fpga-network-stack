@@ -197,7 +197,7 @@ htUpdateResp<K,V> remove(htUpdateReq<K,V> request)
 }
 
 template <int K, int V>
-void hash_table(hls::stream<htLookupReq<K> >&      s_axis_lup_req,
+void hash_table_core(hls::stream<htLookupReq<K> >&      s_axis_lup_req,
                hls::stream<htUpdateReq<K,V> >&     s_axis_upd_req,
                hls::stream<htLookupResp<K,V> >&    m_axis_lup_rsp,
                hls::stream<htUpdateResp<K,V> >&    m_axis_upd_rsp,
@@ -233,7 +233,7 @@ void hash_table(hls::stream<htLookupReq<K> >&      s_axis_lup_req,
    }
 }
 
-void hash_table_top( hls::stream<htLookupReq<KEY_SIZE> >&               s_axis_lup_req,
+void hash_table( hls::stream<htLookupReq<KEY_SIZE> >&               s_axis_lup_req,
                      hls::stream<htUpdateReq<KEY_SIZE,VALUE_SIZE> >&    s_axis_upd_req,
                      hls::stream<htLookupResp<KEY_SIZE,VALUE_SIZE> >&   m_axis_lup_rsp,
                      hls::stream<htUpdateResp<KEY_SIZE,VALUE_SIZE> >&   m_axis_upd_rsp,
@@ -251,7 +251,7 @@ void hash_table_top( hls::stream<htLookupReq<KEY_SIZE> >&               s_axis_l
 #pragma HLS aggregate compact=bit variable=m_axis_upd_rsp
 #pragma HLS INTERFACE ap_none port=regInsertFailureCount
 
-   hash_table<KEY_SIZE, VALUE_SIZE>(s_axis_lup_req,
+   hash_table_core<KEY_SIZE, VALUE_SIZE>(s_axis_lup_req,
                                     s_axis_upd_req,
                                     m_axis_lup_rsp,
                                     m_axis_upd_rsp,

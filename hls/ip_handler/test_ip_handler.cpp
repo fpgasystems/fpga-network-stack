@@ -25,10 +25,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ip_handler_config.hpp"
 #include "ip_handler.hpp"
 #include <algorithm>
 
+#define currentDirectory './'
 
 void writeToOutputFile(std::ofstream& outputFile, std::string name, hls::stream<net_axis<64> >& outFifo)
 {
@@ -212,4 +212,3 @@ int main(int argc, char* argv[]) {
 
 	return errorCount;
 }
-

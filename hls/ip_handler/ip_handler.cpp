@@ -25,7 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ip_handler_config.hpp"
 #include "ip_handler.hpp"
 #include "../ethernet/ethernet.hpp"
 #include "../ipv4/ipv4.hpp"
@@ -464,7 +463,7 @@ void detect_ipv6_protocol(	hls::stream<net_axis<WIDTH> >& dataIn,
  *  @param[out]		m_axis_TCP, outgoing TCP data stream
  */
 template <int WIDTH>
-void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
+void ip_handler_core(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 				hls::stream<net_axis<WIDTH> >&		m_axis_ARP,
 				hls::stream<net_axis<WIDTH> >&		m_axis_ICMPv6,
 				hls::stream<net_axis<WIDTH> >&		m_axis_IPv6UDP,
@@ -547,7 +546,7 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 
 }
 
-void ip_handler_top(hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		s_axis_raw,
+void ip_handler(hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		s_axis_raw,
 					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_arp,
 					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_icmpv6,
 					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_ipv6udp,
@@ -613,7 +612,7 @@ void ip_handler_top(hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		s_axis_raw,
 	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_roce_internal, 
 							m_axis_roce);
 
-   	ip_handler<DATA_WIDTH>(s_axis_raw_internal,
+	ip_handler_core<DATA_WIDTH>(s_axis_raw_internal,
                            m_axis_arp_internal,
                            m_axis_icmpv6_internal,
                            m_axis_ipv6udp_internal,

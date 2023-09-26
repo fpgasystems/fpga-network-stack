@@ -28,7 +28,31 @@
 #ifndef TOE_HPP_INCLUDED
 #define TOE_HPP_INCLUDED
 
+#include <stdint.h>
 #include "../axi_utils.hpp"
+#include "../fns_config.hpp"
+
+//Copied from hlslib by Johannes de Fine Licht https://github.com/definelicht/hlslib/blob/master/include/hlslib/xilinx/Utility.h
+constexpr unsigned long ConstLog2(unsigned long val) {
+  return val == 1 ? 0 : 1 + ConstLog2(val >> 1);
+}
+
+const uint16_t MSS = TCP_MSS;
+const uint16_t MAX_SESSIONS = TCP_STACK_MAX_SESSIONS;
+const unsigned DATA_WIDTH_BITS = ConstLog2(DATA_WIDTH);
+const unsigned DATA_KEEP_BITS = ConstLog2(DATA_WIDTH/8);
+
+const unsigned WINDOW_SCALE_BITS = 2;
+#if (WINDOW_SCALE)
+const unsigned WINDOW_BITS = 16 + WINDOW_SCALE_BITS;
+#else
+const unsigned WINDOW_BITS = 16;
+#endif
+
+const unsigned BUFFER_SIZE = (1 << WINDOW_BITS);
+const unsigned CONGESTION_WINDOW_MAX = (BUFFER_SIZE - 2048);
+
+
 
 const uint16_t TCP_PROTOCOL = 0x06;
 
@@ -148,7 +172,7 @@ struct appTxRsp
 
 
 template <int WIDTH>
-void toe(	// Data & Memory Interface
+void toe_core(	// Data & Memory Interface
 			hls::stream<net_axis<WIDTH> >&						ipRxData,
 			hls::stream<mmStatus>&						rxBufferWriteStatus,
 			hls::stream<mmStatus>&						txBufferWriteStatus,

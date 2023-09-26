@@ -26,7 +26,6 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
-#include "dhcp_client_config.hpp"
 #include "dhcp_client.hpp"
 
 using namespace hls;
@@ -331,7 +330,7 @@ void dhcp_fsm(	stream<dhcpReplyMeta>& 		replyMetaIn,
 	randomValue++; //Make sure it doesn't get zero
 }
 
-void dhcp_client(	stream<ap_uint<16> >&	openPort,
+void dhcp_client (stream<ap_uint<16> >&	openPort,
 					stream<bool>&			confirmPortStatus,
 					//stream<ap_uint<16> >&	realeasePort,
 					stream<udpMetadata>&	dataInMeta,

@@ -25,7 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "mac_ip_encode_config.hpp"
 #include "mac_ip_encode.hpp"
 
 int main(int argc, char* argv[])

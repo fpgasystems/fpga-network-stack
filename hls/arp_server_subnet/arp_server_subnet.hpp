@@ -30,6 +30,7 @@
 
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
+#include "../fns_config.hpp"
 
 #define ARP_HEADER_SIZE 336
 
@@ -160,7 +161,7 @@ public:
 };
 
 template <int WIDTH>
-void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
+void arp_server_subnet_core(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
                   	  	hls::stream<ap_uint<32> >&     macIpEncode_req,
                   	  	hls::stream<ap_uint<32> >&     hostIpEncode_req,
 				        hls::stream<net_axis<WIDTH> >&          arpDataOut,

@@ -25,7 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "toe_config.hpp"
 #include "toe.hpp"
 #include "dummy_memory.hpp"
 #include "session_lookup_controller/session_lookup_controller.hpp"

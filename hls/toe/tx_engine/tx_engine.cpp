@@ -25,8 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "toe_config.hpp"
 #include "tx_engine.hpp"
 #include "../../ipv4/ipv4.hpp"
 #include "../two_complement_subchecksums.hpp"
@@ -929,19 +927,19 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
 	//static bool phc_done = true;
 	ap_uint<16> length = 0;
 
-	/*if (phc_done && !tcpMetaDataFifoIn.empty())
+	if (phc_done && !tcpMetaDataFifoIn.empty())
 	{
 		tcpMetaDataFifoIn.read(phc_meta);
 		phc_done = false;
 		//Adapt window, if too small close completely
-		/*if(phc_meta.window_size < (MY_MSS/2))
-		{
-			phc_meta.window_size = 0;
-		}*//*
+		// if(phc_meta.window_size < (MY_MSS/2))
+		// {
+		// 	phc_meta.window_size = 0;
+		// }
 	}
 	else if (!phc_done)
-	{*/
-		/*switch(phc_currWord)
+	{
+		switch(phc_currWord)
 		{
 		case WORD_0:
 			if (!tcpTupleFifoIn.empty() && !tcpMetaDataFifoIn.empty())
@@ -988,15 +986,14 @@ void generate_ipv4( //stream<ipv4Meta>&    txEng_ipMetaDataFifoIn,
 		case WORD_3:
 			sendWord.data(3,1) = 0; // reserved
 			sendWord.data(7, 4) = (0x5 + phc_meta.syn); //data offset
-			/* Control bits:
-			 * [8] == FIN
-			 * [9] == SYN
-			 * [10] == RST
-			 * [11] == PSH
-			 * [12] == ACK
-			 * [13] == URG
-			 */
-			/*sendWord.data[0] = 0; //NS bit
+			//  * Control bits:
+			//  * [8] == FIN
+			//  * [9] == SYN
+			//  * [10] == RST
+			//  * [11] == PSH
+			//  * [12] == ACK
+			//  * [13] == URG
+			sendWord.data[0] = 0; //NS bit
 			sendWord.data[8] = phc_meta.fin; //control bits
 			sendWord.data[9] = phc_meta.syn;
 			sendWord.data[10] = phc_meta.rst;

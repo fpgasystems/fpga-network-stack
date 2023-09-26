@@ -254,7 +254,7 @@ void print(std::ostream& output, ap_uint<D> data)
 }
 
 template<int D>
-void print(std::ostream& output, net_axis<D>& word)
+void print(__attribute__((unused)) std::ostream& output, __attribute__((unused)) net_axis<D>& word)
 {
 #ifndef __SYNTHESIS__
 	output << std::hex;
@@ -269,7 +269,7 @@ void print(std::ostream& output, net_axis<D>& word)
 }
 
 template<int D>
-void printLE(std::ostream& output, ap_uint<D>& data)
+void printLE(__attribute__((unused)) std::ostream& output, __attribute__((unused)) ap_uint<D>& data)
 {
 #ifndef __SYNTHESIS__
 	output << std::hex;
@@ -282,7 +282,7 @@ void printLE(std::ostream& output, ap_uint<D>& data)
 }
 
 template<int D>
-void printLE(std::ostream& output, net_axis<D>& word)
+void printLE(__attribute__((unused)) std::ostream& output, __attribute__((unused)) net_axis<D>& word)
 {
 #ifndef __SYNTHESIS__
 	output << std::hex;
@@ -297,7 +297,7 @@ void printLE(std::ostream& output, net_axis<D>& word)
 }
 
 template<int D, int R>
-void printLE(std::ostream& output, routed_net_axis<D, R>& word)
+void printLE(__attribute__((unused)) std::ostream& output, __attribute__((unused)) routed_net_axis<D, R>& word)
 {
 #ifndef __SYNTHESIS__
 	output << std::hex;
@@ -473,7 +473,7 @@ void convertStreamWidth(hls::stream<net_axis<W> >& input, hls::stream<net_axis<W
 
 
 template <class T>
-void assignDest(T& d, T& s) {}
+void assignDest(__attribute__((unused)) T& d, __attribute__((unused)) T& s) {}
 
 template <>
 void assignDest<routed_net_axis<64> >(routed_net_axis<64>& d, routed_net_axis<64>& s);

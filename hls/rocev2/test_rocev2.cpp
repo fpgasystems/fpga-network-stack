@@ -36,7 +36,6 @@
 #include <fcntl.h> /* Added for the nonblocking socket */
 
 #include "../axi_utils.hpp" //TODO why is this needed here
-#include "rocev2_config.hpp"
 
 using namespace hls;
 #include "newFakeDram.hpp"

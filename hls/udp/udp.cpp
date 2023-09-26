@@ -24,7 +24,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "udp_config.hpp"
 #include "udp.hpp"
 
 template <int WIDTH>
@@ -197,7 +196,7 @@ void merge_rx_meta(	stream<ipMeta>&		ipMetaIn,
 
 
 template <int WIDTH>
-void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
+void udp_core(		hls::stream<ipMeta>&		s_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
@@ -243,7 +242,7 @@ void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
 	generate_udp<WIDTH>(tx_udpMetaFifo, tx_shift2udpFifo, m_axis_tx_data);
 }
 
-void udp_top(	hls::stream<ipMeta>&		s_axis_rx_meta,
+void udp(	hls::stream<ipMeta>&		s_axis_rx_meta,
 				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
 				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
 				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_rx_data,
@@ -294,7 +293,7 @@ void udp_top(	hls::stream<ipMeta>&		s_axis_rx_meta,
 	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tx_data_internal,
 							m_axis_tx_data);
 
-   	udp<DATA_WIDTH>(s_axis_rx_meta,
+  udp_core<DATA_WIDTH>(s_axis_rx_meta,
                    s_axis_rx_data_internal,
                    m_axis_rx_meta,
                    m_axis_rx_data_internal,
@@ -305,4 +304,3 @@ void udp_top(	hls::stream<ipMeta>&		s_axis_rx_meta,
                    reg_ip_address,
                    reg_listen_port);
 }
-

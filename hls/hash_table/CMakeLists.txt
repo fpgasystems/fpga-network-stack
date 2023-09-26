@@ -1,75 +1,27 @@
-# Author:  David Sidler (david.sidler@inf.ethz.ch)
+# Author: David Sidler (david.sidler@inf.ethz.ch)
 
 cmake_minimum_required(VERSION 3.0)
 
-set (PROJECT_NAME hash_table)
-project(${PROJECT_NAME})
+project(hash_table
+        VERSION 1.0)
 
-# Include custom Find<Module>.cmake scripts to enable searching for Vitis HLS
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
+# Target options
+set(FNS_PLATFORM_PART "xcu55c-fsvh2892-2L-e" CACHE STRING "FPGA platform part")
+set(FNS_TCP_STACK_MAX_SESSIONS 1000 CACHE STRING "Max number of entries")
 
-# Without this variable set, CMake will build tests when running install
-#set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+# Find Vitis
+find_package(Vitis REQUIRED)
 
-# Generate Doxygen if available
-#find_package(Doxygen)
-#if(Doxygen_FOUND)
-#  configure_file(${CMAKE_SOURCE_DIR}/Doxyfile.in Doxyfile)
-#  add_custom_target(doxygen ALL
-#      COMMAND ${DOXYGEN_EXECUTABLE} Doxyfile 
-#      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-#endif()
-
-
-set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
-set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
-set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
-set(TCP_STACK_MAX_SESSIONS 1000 CACHE STRING "Max number of entries")
-
-
-# Find Xilinx Vitis HLS
-find_package(VitisHLS REQUIRED)
-if (NOT VITIS_HLS_FOUND)
-  message(FATAL_ERROR "Vitis HLS not found.")
-endif()
-
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hash_table_config.hpp.in hash_table_config.hpp)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
-
-
-set(EXAMPLE_HLS_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/hash_table.cpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/hash_table.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/hash_table_config.hpp.in)
-
-
-#Setup HLS custom targets
-set(HLS_TARGETS synthesis csim ip installip)
-
-foreach (target ${HLS_TARGETS})
-   if (NOT TARGET ${target})
-      add_custom_target(${target})
-   endif()
-
-   add_custom_target(${target}.${PROJECT_NAME}
-      COMMAND ${VITIS_HLS_BINARY} -f make.tcl -tclargs ${target}
-      DEPENDS ${EXAMPLE_HLS_DEPENDS})
-   add_dependencies(${target} ${target}.${PROJECT_NAME})
-endforeach()
-
-#target dependencies
-add_dependencies(ip.${PROJECT_NAME} synthesis.${PROJECT_NAME})
-add_dependencies(installip.${PROJECT_NAME} ip.${PROJECT_NAME})
-
-# Installation
-if (DEFINED ENV{IPREPO_DIR})
-   set(IPREPO_DIR $ENV{IPREPO_DIR})
-elseif(NOT  IPREPO_DIR)
-   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo/)
-endif()
-#install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip/
-#   DESTINATION ${IPREPO_DIR}/${PROJECT_NAME}/)
-                                   
+add_vitis_ip(${PROJECT_NAME}
+                 FILES
+                    "hash_table.cpp"
+                    "hash_table.hpp"
+                 TB_FILES
+                    "test_hash_table.cpp"
+                 HLS_FLAGS
+                    "-DTCP_STACK_MAX_SESSIONS=${FNS_TCP_STACK_MAX_SESSIONS}"
+                 PLATFORM_PART ${FNS_PLATFORM_PART}
+                 VENDOR "ethz.systems.fpga"
+                 DISPLAY_NAME "Hash Table (cuckoo)"
+                 DESCRIPTION ""
+                 VERSION ${PROJECT_VERSION})

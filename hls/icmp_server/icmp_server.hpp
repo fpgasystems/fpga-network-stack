@@ -54,7 +54,7 @@ enum { WORD_0, WORD_1, WORD_2, WORD_3, WORD_4, WORD_5 };
 /** @defgroup icmp_server ICMP(Ping) Server
  *
  */
-void icmp_server(stream<axiWord>&	dataIn,
+void icmp_server (stream<axiWord>&	dataIn,
 				 stream<axiWord>&	udpIn,
 				 stream<axiWord>&	ttlIn,
 				 stream<axiWord>&	dataOut);

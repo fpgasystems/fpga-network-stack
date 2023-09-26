@@ -411,7 +411,7 @@ void dropper(stream<net_axis<64> >& dataIn, stream<bool>& validFifoIn, stream<ne
  *  @param[in]		dataIn
  *  @param[out]		dataOut
  */
-void icmp_server(stream<net_axis<64> >&	dataIn,
+void icmp_server_core(stream<net_axis<64> >&	dataIn,
 				 stream<net_axis<64> >&	udpIn,
 				 stream<net_axis<64> >&	ttlIn,
 				 stream<net_axis<64> >&	dataOut) {
@@ -443,8 +443,7 @@ void icmp_server(stream<net_axis<64> >&	dataIn,
 	insertChecksum(dataStreams, checksumStreams, dataOut);
 }
 
-
-void icmp_server_top(stream<ap_axiu<64, 0, 0, 0> >&	dataIn,
+void icmp_server(stream<ap_axiu<64, 0, 0, 0> >&	dataIn,
 				 stream<ap_axiu<64, 0, 0, 0> >&	udpIn,
 				 stream<ap_axiu<64, 0, 0, 0> >&	ttlIn,
 				 stream<ap_axiu<64, 0, 0, 0> >&	dataOut) {
@@ -478,7 +477,7 @@ void icmp_server_top(stream<ap_axiu<64, 0, 0, 0> >&	dataIn,
 	convert_net_axis_to_axis<64>(dataOut_internal, 
 							dataOut);
 
-	icmp_server(dataIn_internal,
+	icmp_server_core(dataIn_internal,
 				udpIn_internal,
 				ttlIn_internal,
 				dataOut_internal);

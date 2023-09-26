@@ -1,0 +1,4 @@
+[submodule "external/xilinx-cmake"]
+	path = xilinx-cmake
+  url = git@github.com:fpgasystems/xilinx-cmake.git
+  branch = main

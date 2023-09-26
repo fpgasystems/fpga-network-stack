@@ -25,7 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "arp_server_subnet_config.hpp"
 #include "arp_server_subnet.hpp"
 
 template <int WIDTH>
@@ -212,7 +211,7 @@ void arp_table( stream<arpTableEntry>&    	arpTableInsertFifo,
 }
 
 template<int WIDTH>
-void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
+void arp_server_subnet_core(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
                   	  	hls::stream<ap_uint<32> >&     macIpEncode_req,
                   	  	hls::stream<ap_uint<32> >&     hostIpEncode_req,
 				        hls::stream<net_axis<WIDTH> >&          arpDataOut,
@@ -258,7 +257,7 @@ void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
 				arpRequestMetaFifo);
 }
 
-void arp_server_subnet_top(	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&          arpDataIn,
+void arp_server_subnet(	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&          arpDataIn,
                   	  	hls::stream<ap_uint<32> >&     macIpEncode_req,
                   	  	hls::stream<ap_uint<32> >&     hostIpEncode_req,
 				        hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&          arpDataOut,
@@ -294,7 +293,7 @@ void arp_server_subnet_top(	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&         
 	convert_net_axis_to_axis<DATA_WIDTH>(arpDataOut_internal, 
 							arpDataOut);
 
-   	arp_server_subnet<DATA_WIDTH>(arpDataIn_internal,
+   	arp_server_subnet_core<DATA_WIDTH>(arpDataIn_internal,
                                  macIpEncode_req,
                                  hostIpEncode_req,
                                  arpDataOut_internal,

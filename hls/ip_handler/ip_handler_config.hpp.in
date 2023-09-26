@@ -1,6 +1,0 @@
-#pragma once
-#include <string>
-
-const unsigned DATA_WIDTH = ${DATA_WIDTH} * 8;
-
-const std::string currentDirectory = "${CMAKE_CURRENT_SOURCE_DIR}";

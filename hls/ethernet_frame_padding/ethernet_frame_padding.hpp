@@ -24,12 +24,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef ETH_FRAME_PADDING
-#define ETH_FRAME_PADDING
-
+#pragma once
+#include "../fns_config.hpp"
 #include "../axi_utils.hpp"
 
-void ethernet_fram_padding(	hls::stream<net_axis<64> >&			dataIn,
-							hls::stream<net_axis<64> >&			dataOut);
-
-#endif
+void ethernet_frame_padding(
+  hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& dataIn,
+  hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& dataOut);

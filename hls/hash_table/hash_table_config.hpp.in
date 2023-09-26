@@ -1,3 +1,0 @@
-#pragma once
-
-const uint32_t MAX_NUMBER_OF_ENTRIES = ${TCP_STACK_MAX_SESSIONS};

@@ -1,3 +1,0 @@
-#pragma once
-
-const unsigned DATA_WIDTH = 64;//${DATA_WIDTH} * 8;

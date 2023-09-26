@@ -26,8 +26,9 @@
  */
 #include "ethernet_frame_padding.hpp"
 
-void ethernet_frame_padding(hls::stream<net_axis<64> >&			dataIn,
-							hls::stream<net_axis<64> >&			dataOut)
+void ethernet_frame_padding(
+  hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& dataIn,
+  hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0>>& dataOut)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INTERFACE ap_ctrl_none port=return
@@ -35,56 +36,44 @@ void ethernet_frame_padding(hls::stream<net_axis<64> >&			dataIn,
 #pragma HLS INTERFACE axis register port=dataIn name=s_axis
 #pragma HLS INTERFACE axis register port=dataOut name=m_axis
 
+  static ap_uint<1> state = 0;
 
-	static ap_uint<1> state = 0;
-	static ap_uint<8> wordCounter = 0;
-	net_axis<64> currWord;
-	net_axis<64> sendWord;
+  switch(state)
+  {
+    case 0:
+      if (!dataIn.empty())
+      {
+        ap_axiu<DATA_WIDTH, 0, 0, 0> currWord = dataIn.read();
+        if (currWord.last)
+        {
+          for (int i = 0; i < DATA_WIDTH/8; ++i)
+          {
+            #pragma HLS UNROLL
+            if (currWord.keep[i] == 0)
+            {
+              currWord.keep[i] = 1;
+              currWord.data(i*8+7, i*8) = 0;
+            }
+          }
+        }
+        else
+        {
+          state = 1;
+        }
+        dataOut.write(currWord);
+      }
+      break;
+    case 1:
+      if (!dataIn.empty())
+      {
+        ap_axiu<DATA_WIDTH, 0, 0, 0> currWord = dataIn.read();
+        dataOut.write(currWord);
 
-	switch(state)
-	{
-	case 0:
-		if (!dataIn.empty())
-		{
-			dataIn.read(currWord);
-			sendWord.data = currWord.data;
-			sendWord.keep = currWord.keep;
-			sendWord.last = currWord.last;
-
-			wordCounter++;
-			if (currWord.last)
-			{
-				if (wordCounter < 8)
-				{
-					sendWord.keep = 0xFF;
-					sendWord.last = 0;
-					state = 1;
-				}
-				else
-				{
-					if (wordCounter == 8 && sendWord.keep < 0xF)
-					{
-						sendWord.keep = 0x0F;
-					}
-					wordCounter = 0;
-				}
-			}
-			dataOut.write(sendWord);
-		}
-		break;
-	case 1:
-		sendWord.data = 0;
-		sendWord.keep = 0xFF;
-		sendWord.last = 0x0;
-		wordCounter++;
-		if (wordCounter == 8)
-		{
-			sendWord.keep = 0x0F;
-			sendWord.last = 0x1;
-			wordCounter = 0;
-			state = 0;
-		}
-		dataOut.write(sendWord);
-		break;
-	} //switch
+        if (currWord.last)
+        {
+          state = 0;
+        }
+      }
+      break;
+  } //switch
 }

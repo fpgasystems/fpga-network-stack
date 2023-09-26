@@ -1,76 +1,31 @@
-# Author:  David Sidler (david.sidler@inf.ethz.ch)
+# Author: David Sidler (david.sidler@inf.ethz.ch)
 
 cmake_minimum_required(VERSION 3.0)
+project(ip_handler
+        VERSION 2.0)
 
-set (PROJECT_NAME ip_handler)
-project(${PROJECT_NAME})
+# Target options
+set(FNS_PLATFORM_PART "xcu55c-fsvh2892-2L-e" CACHE STRING "FPGA platform part")
 
-# Include custom Find<Module>.cmake scripts to enable searching for Vitis HLS
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
+# Domain options
+set(FNS_DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 
-# Without this variable set, CMake will build tests when running install
-#set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+# Find Vitis
+find_package(Vitis REQUIRED)
 
-# Generate Doxygen if available
-#find_package(Doxygen)
-#if(Doxygen_FOUND)
-#  configure_file(${CMAKE_SOURCE_DIR}/Doxyfile.in Doxyfile)
-#  add_custom_target(doxygen ALL
-#      COMMAND ${DOXYGEN_EXECUTABLE} Doxyfile 
-#      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-#endif()
-
-
-set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
-set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
-set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
-
-
-# Find Xilinx Vitis HLS
-find_package(VitisHLS REQUIRED)
-if (NOT VITIS_HLS_FOUND)
-  message(FATAL_ERROR "Vitis HLS not found.")
-endif()
-
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ip_handler_config.hpp.in ip_handler_config.hpp)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
-
-
-set(EXAMPLE_HLS_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/ip_handler.cpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/ip_handler.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ip_handler_config.hpp.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_ip_handler.cpp)
-
-
-
-#Setup HLS custom targets
-set(HLS_TARGETS synthesis csim ip installip)
-
-foreach (target ${HLS_TARGETS})
-   if (NOT TARGET ${target})
-      add_custom_target(${target})
-   endif()
-
-   add_custom_target(${target}.${PROJECT_NAME}
-      COMMAND ${VITIS_HLS_BINARY} -f make.tcl -tclargs ${target}
-      DEPENDS ${EXAMPLE_HLS_DEPENDS})
-   add_dependencies(${target} ${target}.${PROJECT_NAME})
-endforeach()
-
-#target dependencies
-add_dependencies(ip.${PROJECT_NAME} synthesis.${PROJECT_NAME})
-add_dependencies(installip.${PROJECT_NAME} ip.${PROJECT_NAME})
-
-# Installation
-if (DEFINED ENV{IPREPO_DIR})
-   set(IPREPO_DIR $ENV{IPREPO_DIR})
-elseif(NOT  IPREPO_DIR)
-   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo/)
-endif()
-#install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip/
-#   DESTINATION ${IPREPO_DIR}/${PROJECT_NAME}/)
-                                   
+add_vitis_ip(${PROJECT_NAME}
+                 FILES
+                    "../axi_utils.cpp"
+                    "../ipv4/ipv4.cpp"
+                    "../ipv4/ipv4_utils.cpp"
+                    "ip_handler.cpp"
+                    "ip_handler.hpp"
+                 TB_FILES
+                    "test_ip_handler.cpp"
+                 HLS_FLAGS
+                    "-DFNS_DATA_WIDTH=${FNS_DATA_WIDTH}"
+                 PLATFORM_PART ${FNS_PLATFORM_PART}
+                 VENDOR "ethz.systems.fpga"
+                 DISPLAY_NAME "IP Handler"
+                 DESCRIPTION ""
+                 VERSION ${PROJECT_VERSION})

@@ -26,6 +26,19 @@
  */
 #pragma once
 
+#include <stdint.h>
+#include "../fns_config.hpp"
+
+const uint16_t MAX_QPS = ROCE_STACK_MAX_QPS;
+
+const uint16_t PMTU = 1408; //dividable by 8, 16, 32, 64
+const uint16_t PMTU_WORDS = PMTU / (DATA_WIDTH/8);
+
+static const uint32_t PCIE_BATCH_PKG = 12;
+static const uint32_t PCIE_BATCH_SIZE = PMTU * PCIE_BATCH_PKG;
+
+
+
 #define IP_VERSION 4
 
 #include "../axi_utils.hpp"
@@ -33,7 +46,6 @@
 #include "../ipv6/ipv6.hpp"
 #include "../udp/udp.hpp"
 #include "../ib_transport_protocol/ib_transport_protocol.hpp"
-//#include "../pointer_chasing/pointer_chasing.hpp"
 
 #define DISABLE_CRC_CHECK
 
@@ -44,9 +56,9 @@ typedef ipv4Meta ipMeta;
 #endif
 
 template <int WIDTH>
-void rocev2(
+void rocev2_core(
 			hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
-			hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
+			hls::stream<net_axis<WIDTH> >& m_axis_tx_data,
 
 			// RDMA
 			hls::stream<txMeta>& s_axis_tx_meta,
@@ -68,4 +80,3 @@ void rocev2(
 			//Debug output
 			ap_uint<32>& regCrcDropPkgCount,
 			ap_uint<32>& regInvalidPsnDropCount);
-

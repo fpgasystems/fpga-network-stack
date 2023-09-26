@@ -1,8 +1,8 @@
 #pragma once
 
-#include "toe_config.hpp"
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
+#include "toe.hpp"
 
 #ifndef __SYNTHESIS__
 static const ap_uint<32> TIME_64us		= 1;

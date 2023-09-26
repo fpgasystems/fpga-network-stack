@@ -1,76 +1,46 @@
-# Author:  David Sidler (david.sidler@inf.ethz.ch)
+# Author: David Sidler (david.sidler@inf.ethz.ch)
 
 cmake_minimum_required(VERSION 3.0)
 
-set (PROJECT_NAME rocev2)
-project(${PROJECT_NAME})
+project(rocev2
+        VERSION 0.82)
 
-# Include custom Find<Module>.cmake scripts to enable searching for Vitis HLS
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
+# Target options
+set(FNS_PLATFORM_PART "xcu55c-fsvh2892-2L-e" CACHE STRING "FPGA platform part")
 
-# Without this variable set, CMake will build tests when running install
-#set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+# Domain options
+set(FNS_DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
+set(FNS_ROCE_STACK_MAX_QPS 500 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
 
-# Generate Doxygen if available
-#find_package(Doxygen)
-#if(Doxygen_FOUND)
-#  configure_file(${CMAKE_SOURCE_DIR}/Doxyfile.in Doxyfile)
-#  add_custom_target(doxygen ALL
-#      COMMAND ${DOXYGEN_EXECUTABLE} Doxyfile 
-#      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-#endif()
+# Find Vitis
+find_package(Vitis REQUIRED)
 
+add_vitis_ip(${PROJECT_NAME}
+                 FILES
+                    "../axi_utils.cpp"
+                    "rocev2.cpp"
+                    "rocev2.hpp"
+                    "../ipv4/ipv4_utils.cpp"
+                    "../ipv4/ipv4.cpp"
+                    "../ipv6/ipv6.cpp"
+                    "../udp/udp.cpp"
+                    "../ib_transport_protocol/ib_utils.cpp"
+                    "../ib_transport_protocol/ib_transport_protocol.cpp"
+                    "../ib_transport_protocol/read_req_table.cpp"
+                    "../ib_transport_protocol/transport_timer.cpp"
+                    "../ib_transport_protocol/retransmitter/retransmitter.cpp"
+                    "../ib_transport_protocol/state_table.cpp"
+                    "../ib_transport_protocol/conn_table.cpp"
+                    "../ib_transport_protocol/msn_table.cpp"
+                 TB_FILES
+                    "test_rocev2.cpp"
+                 HLS_FLAGS
+                    "-DFNS_DATA_WIDTH=${FNS_DATA_WIDTH} -DROCE_STACK_MAX_QPS=${FNS_ROCE_STACK_MAX_QPS}"
+                 PLATFORM_PART ${FNS_PLATFORM_PART}
+                 VENDOR "ethz.systems.fpga"
+                 DISPLAY_NAME "RoCEv2 Endpoint"
+                 DESCRIPTION ""
+                 VERSION ${PROJECT_VERSION})
 
-set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
-set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
-set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
-# RoCE parameters
-set(ROCE_STACK_MAX_QPS 500 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
-
-# Find Xilinx Vitis HLS
-find_package(VitisHLS REQUIRED)
-if (NOT VITIS_HLS_FOUND)
-  message(FATAL_ERROR "Vitis HLS not found.")
-endif()
-
-# Installation directory
-if (DEFINED ENV{IPREPO_DIR})
-   set(IPREPO_DIR $ENV{IPREPO_DIR})
-elseif(NOT  IPREPO_DIR)
-   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo/)
-endif()
-
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/../ipv4/ipv4_config.hpp.in ipv4_config.hpp)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/../ipv6/ipv6_config.hpp.in ipv6_config.hpp)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/../udp/udp_config.hpp.in udp_config.hpp)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/rocev2_config.hpp.in rocev2_config.hpp)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
-
-
-set(EXAMPLE_HLS_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/rocev2.cpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/rocev2.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/rocev2_config.hpp.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_rocev2.cpp)
-
-
-#Setup HLS custom targets
-set(HLS_TARGETS synthesis csim ip installip)
-
-foreach (target ${HLS_TARGETS})
-   if (NOT TARGET ${target})
-      add_custom_target(${target})
-   endif()
-
-   add_custom_target(${target}.${PROJECT_NAME}
-      COMMAND ${VITIS_HLS_BINARY} -f make.tcl -tclargs ${target}
-      DEPENDS ${EXAMPLE_HLS_DEPENDS})
-   add_dependencies(${target} ${target}.${PROJECT_NAME})
-endforeach()
-
-#target dependencies
-add_dependencies(ip.${PROJECT_NAME} synthesis.${PROJECT_NAME})
-add_dependencies(installip.${PROJECT_NAME} ip.${PROJECT_NAME})
+# TODO
+# csim_design -argv {${CMAKE_CURRENT_SOURCE_DIR}/write_read_read_large_receiver.in ${CMAKE_CURRENT_SOURCE_DIR}/write_read_read_large_receiver.out ${CMAKE_CURRENT_SOURCE_DIR}/rdma_txwriteread.in ${CMAKE_CURRENT_SOURCE_DIR}/rdma_txwriteread.out}

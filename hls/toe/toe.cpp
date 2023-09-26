@@ -25,7 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "toe_config.hpp"
 #include "toe.hpp"
 #include "toe_internals.hpp"
 
@@ -90,7 +89,6 @@ void timerWrapper(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetransmitT
 					stream<openStatus>&					rtTimer2txApp_notification)
 {
 	#pragma HLS INLINE
-	// #pragma HLS PIPELINE II=1
 	
 	static stream<ap_uint<16> > closeTimer2stateTable_releaseState("closeTimer2stateTable_releaseState");
 	static stream<ap_uint<16> > rtTimer2stateTable_releaseState("rtTimer2stateTable_releaseState");
@@ -439,7 +437,7 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
  *  @param[out]		txDataRsp
  */
 template <int WIDTH>
-void toe(	// Data & Memory Interface
+void toe_core(	// Data & Memory Interface
 			stream<net_axis<WIDTH> >&						ipRxData,
 #if !(RX_DDR_BYPASS)
 			stream<mmStatus>&						rxBufferWriteStatus,
@@ -825,7 +823,7 @@ void toe(	// Data & Memory Interface
 
 }
 
-void toe_top(	// Data & Memory Interface
+void toe(	// Data & Memory Interface
 			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						ipRxData,
 #if !(RX_DDR_BYPASS)
 			stream<mmStatus>&						rxBufferWriteStatus,
@@ -996,7 +994,7 @@ void toe_top(	// Data & Memory Interface
 				
 	
 
-	toe<DATA_WIDTH>(ipRxData_internal,
+	toe_core<DATA_WIDTH>(ipRxData_internal,
 #if !(RX_DDR_BYPASS)
 					rxBufferWriteStatus,
 #endif

@@ -277,7 +277,7 @@ int main()
 		return -1;
 	}
 	while (count < 1000) {
-		dhcp_client(	openPort,
+		dhcp_client(openPort,
 						confirmPortStatus,
 						dataInMeta,
 						dataIn,

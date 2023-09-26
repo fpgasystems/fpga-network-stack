@@ -1,74 +1,29 @@
-# Author:  David Sidler (david.sidler@inf.ethz.ch)
+# Author: David Sidler (david.sidler@inf.ethz.ch)
 
 cmake_minimum_required(VERSION 3.0)
 
-set (PROJECT_NAME dhcp_client)
-project(${PROJECT_NAME})
+project(dhcp_client
+        VERSION 1.05)
 
-# Include custom Find<Module>.cmake scripts to enable searching for Vitis HLS
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
+# Target options
+set(FNS_PLATFORM_PART "xcu55c-fsvh2892-2L-e" CACHE STRING "FPGA platform part")
 
-# Without this variable set, CMake will build tests when running install
-#set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+# Domain options
+set(FNS_DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 
-# Generate Doxygen if available
-#find_package(Doxygen)
-#if(Doxygen_FOUND)
-#  configure_file(${CMAKE_SOURCE_DIR}/Doxyfile.in Doxyfile)
-#  add_custom_target(doxygen ALL
-#      COMMAND ${DOXYGEN_EXECUTABLE} Doxyfile 
-#      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-#endif()
+# Find Vitis
+find_package(Vitis REQUIRED)
 
-
-set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
-#set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
-set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
-
-
-# Find Xilinx Vitis HLS
-find_package(VitisHLS REQUIRED)
-if (NOT VITIS_HLS_FOUND)
-  message(FATAL_ERROR "Vitis HLS not found.")
-endif()
-
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/dhcp_client_config.hpp.in dhcp_client_config.hpp)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
-
-
-set(EXAMPLE_HLS_DEPENDS
-    ${CMAKE_CURRENT_SOURCE_DIR}/dhcp_client.cpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/dhcp_client.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/dhcp_client_config.hpp.in)
-
-
-#Setup HLS custom targets
-set(HLS_TARGETS synthesis csim ip installip)
-
-foreach (target ${HLS_TARGETS})
-   if (NOT TARGET ${target})
-      add_custom_target(${target})
-   endif()
-
-   add_custom_target(${target}.${PROJECT_NAME}
-      COMMAND ${VITIS_HLS_BINARY} -f make.tcl -tclargs ${target}
-      DEPENDS ${EXAMPLE_HLS_DEPENDS})
-   add_dependencies(${target} ${target}.${PROJECT_NAME})
-endforeach()
-
-#target dependencies
-add_dependencies(ip.${PROJECT_NAME} synthesis.${PROJECT_NAME})
-add_dependencies(installip.${PROJECT_NAME} ip.${PROJECT_NAME})
-
-# Installation
-if (DEFINED ENV{IPREPO_DIR})
-   set(IPREPO_DIR $ENV{IPREPO_DIR})
-elseif(NOT  IPREPO_DIR)
-   set(IPREPO_DIR ${CMAKE_CURRENT_SOURCE_DIR}/iprepo/)
-endif()
-#install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip/
-#   DESTINATION ${IPREPO_DIR}/${PROJECT_NAME}/)
-                                   
+add_vitis_ip(${PROJECT_NAME}
+                 FILES
+                    "dhcp_client.cpp"
+                    "dhcp_client.hpp"
+                 TB_FILES
+                    "test_dhcp_client.cpp"
+                 HLS_FLAGS
+                    "-DFNS_DATA_WIDTH=${FNS_DATA_WIDTH}"
+                 PLATFORM_PART ${FNS_PLATFORM_PART}
+                 VENDOR "xilinx.labs"
+                 DISPLAY_NAME "DHCP Client"
+                 DESCRIPTION "DHCP Client to be used with the Xilinx Labs TCP & UDP offload engines."
+                 VERSION ${PROJECT_VERSION})

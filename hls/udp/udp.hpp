@@ -31,6 +31,7 @@
 #include "../packet.hpp"
 #include "../ipv4/ipv4.hpp"
 //#include "../ipv6/ipv6.hpp"
+#include "../fns_config.hpp"
 
 #define IP_VERSION 4
 
@@ -109,7 +110,7 @@ public:
 };
 
 template <int WIDTH>
-void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
+void udp_core(		hls::stream<ipMeta>&		s_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,

@@ -24,7 +24,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "ipv4_config.hpp"
 #include "ipv4.hpp"
 
 template <int WIDTH>
@@ -241,7 +240,7 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 
 
 template <int WIDTH>
-void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+void ipv4_core(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipv4Meta>&		m_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
 				hls::stream<ipv4Meta>&		s_axis_tx_meta,
@@ -277,7 +276,7 @@ void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	ipv4_generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address, protocol);
 }
 
-void ipv4_top(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
+void ipv4(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
 				hls::stream<ipv4Meta>&		m_axis_rx_meta,
 				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_rx_data,
 				hls::stream<ipv4Meta>&		s_axis_tx_meta,
@@ -322,7 +321,7 @@ void ipv4_top(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
 	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tx_data_internal, 
 							m_axis_tx_data);
 
-   	ipv4<DATA_WIDTH>(s_axis_rx_data_internal,
+	ipv4_core<DATA_WIDTH>(s_axis_rx_data_internal,
         m_axis_rx_meta,
         m_axis_rx_data_internal,
         s_axis_tx_meta,
@@ -330,7 +329,4 @@ void ipv4_top(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
         m_axis_tx_data_internal,
         local_ipv4_address,
 		protocol);
-
 };
-
-

@@ -28,6 +28,7 @@
 
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
+#include "../fns_config.hpp"
 
 const uint32_t IPV4_HEADER_SIZE = 160;
 
@@ -652,7 +653,7 @@ public:
 };
 
 template <int WIDTH>
-void ipv4(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+void ipv4_core(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 			hls::stream<ipv4Meta>&	m_axis_rx_meta,
 			hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
 			hls::stream<ipv4Meta>&	s_axis_tx_meta,

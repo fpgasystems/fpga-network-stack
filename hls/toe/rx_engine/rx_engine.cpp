@@ -25,8 +25,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#include "toe_config.hpp"
 #include "rx_engine.hpp"
 #include "../../ipv4/ipv4.hpp"
 #include "../two_complement_subchecksums.hpp"
@@ -938,18 +936,18 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta));
 
 				// read state
-				/*rxEng2stateTable_upd_req.write(stateQuery(mh_lup.sessionID));
-				// read rxSar & txSar
-				if (!(mh_meta.syn && !mh_meta.rst && !mh_meta.fin)) // Do not read rx_sar for SYN(+ACK)(+ANYTHING) => (!syn || rst || fin
-				{
-					rxEng2rxSar_upd_req.write(rxSarRecvd(mh_lup.sessionID));
-				}
-				if (mh_meta.ack) // Do not read for SYN (ACK+ANYTHING)
-				{
-					rxEng2txSar_upd_req.write(rxTxSarQuery(mh_lup.sessionID));
-				}*/
+				// rxEng2stateTable_upd_req.write(stateQuery(mh_lup.sessionID));
+				// // read rxSar & txSar
+				// if (!(mh_meta.syn && !mh_meta.rst && !mh_meta.fin)) // Do not read rx_sar for SYN(+ACK)(+ANYTHING) => (!syn || rst || fin
+				// {
+				// 	rxEng2rxSar_upd_req.write(rxSarRecvd(mh_lup.sessionID));
+				// }
+				// if (mh_meta.ack) // Do not read for SYN (ACK+ANYTHING)
+				// {
+				// 	rxEng2txSar_upd_req.write(rxTxSarQuery(mh_lup.sessionID));
+				// }
 				//mh_state = META;
-			//}
+			//}*/
 			mh_state = META;
 		}
 

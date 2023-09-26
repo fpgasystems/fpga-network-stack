@@ -28,8 +28,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ************************************************/
 #pragma once
 #include "../axi_utils.hpp"
-#include <hash_table_config.hpp>
 #include <math.h>
+
+const uint32_t MAX_NUMBER_OF_ENTRIES = TCP_STACK_MAX_SESSIONS;
 
 //Copied from hlslib by Johannes de Fine Licht https://github.com/definelicht/hlslib/blob/master/include/hlslib/xilinx/Utility.h
 constexpr unsigned long ConstLog2(unsigned long val) {
@@ -107,7 +108,7 @@ struct htEntry
 
 
 template <int K, int V>
-void hash_table(hls::stream<htLookupReq<K> >&      s_axis_lup_req,
+void hash_table_core(hls::stream<htLookupReq<K> >&      s_axis_lup_req,
                hls::stream<htUpdateReq<K,V> >&     s_axis_upd_req,
                hls::stream<htLookupResp<K,V> >&    m_axis_lup_rsp,
                hls::stream<htUpdateResp<K,V> >&    m_axis_upd_rsp,

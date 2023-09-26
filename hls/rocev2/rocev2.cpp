@@ -24,7 +24,6 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "rocev2_config.hpp"
 #include "rocev2.hpp"
 
 
@@ -571,7 +570,7 @@ void round_robin_merger(stream<ap_uint<32> >& in1,
 }
 
 template <int WIDTH>
-void rocev2(hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
+void rocev2_core(hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 			hls::stream<net_axis<WIDTH> >&	m_axis_tx_data,
 				
 			//Cmd
@@ -744,7 +743,7 @@ void rocev2(hls::stream<net_axis<WIDTH> >& s_axis_rx_data,
 #endif
 }
 
-void rocev2_top(
+void rocev2(
 				stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 				stream<net_axis<DATA_WIDTH> >& m_axis_tx_data,
 				
@@ -800,9 +799,8 @@ void rocev2_top(
 	//DEBUG
 	#pragma HLS INTERFACE ap_vld port=regCrcDropPkgCount
 
-   rocev2<DATA_WIDTH>(			s_axis_rx_data,
+   rocev2_core<DATA_WIDTH>(s_axis_rx_data,
 								m_axis_tx_data,
-								
 								s_axis_tx_meta,
 								m_axis_rx_rpc_params,
 								
