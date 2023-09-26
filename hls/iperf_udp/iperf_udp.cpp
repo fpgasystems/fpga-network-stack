@@ -282,13 +282,13 @@ void iperf_udp(	hls::stream<ipUdpMeta>&	rxMetaData,
 	#pragma HLS INTERFACE axis register port=rxData name=s_axis_rx_data
 	#pragma HLS INTERFACE axis register port=txMetaData name=m_axis_tx_metadata
 	#pragma HLS INTERFACE axis register port=txData name=m_axis_tx_data
-	#pragma HLS DATA_PACK variable=rxMetaData
-	#pragma HLS DATA_PACK variable=txMetaData
+	#pragma HLS aggregate  variable=rxMetaData compact=bit
+	#pragma HLS aggregate  variable=txMetaData compact=bit
 
-	#pragma HLS INTERFACE ap_stable register port=runExperiment
-	#pragma HLS INTERFACE ap_stable register port=pkgWordCount
-	#pragma HLS INTERFACE ap_stable register port=packetGap
-	#pragma HLS INTERFACE ap_stable register port=targetIpAddress
+	#pragma HLS INTERFACE ap_none register port=runExperiment
+	#pragma HLS INTERFACE ap_none register port=pkgWordCount
+	#pragma HLS INTERFACE ap_none register port=packetGap
+	#pragma HLS INTERFACE ap_none register port=targetIpAddress
 
 
 	static hls::stream<bool>		startSignalFifo("startSignalFifo");
@@ -344,13 +344,13 @@ void iperf_udp(	hls::stream<ipUdpMeta>&	rxMetaData,
 	#pragma HLS resource core=AXI4Stream variable=rxData metadata="-bus_bundle s_axis_rx_data"
 	#pragma HLS resource core=AXI4Stream variable=txMetaData metadata="-bus_bundle m_axis_tx_metadata"
 	#pragma HLS resource core=AXI4Stream variable=txData metadata="-bus_bundle m_axis_tx_data"
-	#pragma HLS DATA_PACK variable=rxMetaData
-	#pragma HLS DATA_PACK variable=txMetaData
+	#pragma HLS aggregate  variable=rxMetaData compact=bit
+	#pragma HLS aggregate  variable=txMetaData compact=bit
 
-	#pragma HLS INTERFACE ap_stable register port=runExperiment
-	#pragma HLS INTERFACE ap_stable register port=pkgWordCount
-	#pragma HLS INTERFACE ap_stable register port=packetGap
-	#pragma HLS INTERFACE ap_stable register port=targetIpAddress
+	#pragma HLS INTERFACE ap_none register port=runExperiment
+	#pragma HLS INTERFACE ap_none register port=pkgWordCount
+	#pragma HLS INTERFACE ap_none register port=packetGap
+	#pragma HLS INTERFACE ap_none register port=targetIpAddress
 
 	iperf_udp<DATA_WIDTH>(rxMetaData,
 							rxData,

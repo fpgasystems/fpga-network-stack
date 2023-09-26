@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.0)
 set (PROJECT_NAME rocev2)
 project(${PROJECT_NAME})
 
-# Include custom Find<Module>.cmake scripts to enable searching for Vivado HLS
+# Include custom Find<Module>.cmake scripts to enable searching for Vitis HLS
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
 
 # Without this variable set, CMake will build tests when running install
@@ -27,10 +27,10 @@ set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
 # RoCE parameters
 set(ROCE_STACK_MAX_QPS 500 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
 
-# Find Xilinx Vivado HLS
-find_package(VivadoHLS REQUIRED)
-if (NOT VIVADO_HLS_FOUND)
-  message(FATAL_ERROR "Vivado HLS not found.")
+# Find Xilinx Vitis HLS
+find_package(VitisHLS REQUIRED)
+if (NOT VITIS_HLS_FOUND)
+  message(FATAL_ERROR "Vitis HLS not found.")
 endif()
 
 # Installation directory
@@ -66,7 +66,7 @@ foreach (target ${HLS_TARGETS})
    endif()
 
    add_custom_target(${target}.${PROJECT_NAME}
-      COMMAND ${VIVADO_HLS_BINARY} -f make.tcl -tclargs ${target}
+      COMMAND ${VITIS_HLS_BINARY} -f make.tcl -tclargs ${target}
       DEPENDS ${EXAMPLE_HLS_DEPENDS})
    add_dependencies(${target} ${target}.${PROJECT_NAME})
 endforeach()

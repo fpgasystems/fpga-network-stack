@@ -90,7 +90,7 @@ void timerWrapper(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetransmitT
 					stream<openStatus>&					rtTimer2txApp_notification)
 {
 	#pragma HLS INLINE
-	#pragma HLS PIPELINE II=1
+	// #pragma HLS PIPELINE II=1
 	
 	static stream<ap_uint<16> > closeTimer2stateTable_releaseState("closeTimer2stateTable_releaseState");
 	static stream<ap_uint<16> > rtTimer2stateTable_releaseState("rtTimer2stateTable_releaseState");
@@ -370,7 +370,7 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 					stream<net_axis<WIDTH> > 				&rxDataRsp)
 {
 	#pragma HLS INLINE
-	#pragma HLS PIPELINE II=1
+	// #pragma HLS PIPELINE II=1
 
 	static stream<mmCmd>			rxAppStreamIf2memAccessBreakdown("rxAppStreamIf2memAccessBreakdown");
 	static stream<ap_uint<1> >		rxAppDoubleAccess("rxAppDoubleAccess");
@@ -509,11 +509,11 @@ void toe(	// Data & Memory Interface
 	#pragma HLS stream variable=sLookup2txApp_rsp			depth=4
 	#pragma HLS stream variable=txEng2sLookup_rev_req		depth=4
 	#pragma HLS stream variable=sLookup2txEng_rev_rsp		depth=4
-	#pragma HLS DATA_PACK variable=rxEng2sLookup_req
-	#pragma HLS DATA_PACK variable=sLookup2rxEng_rsp
-	#pragma HLS DATA_PACK variable=txApp2sLookup_req
-	#pragma HLS DATA_PACK variable=sLookup2txApp_rsp
-	#pragma HLS DATA_PACK variable=sLookup2txEng_rev_rsp
+	#pragma HLS aggregate variable=rxEng2sLookup_req compact=bit
+	#pragma HLS aggregate variable=sLookup2rxEng_rsp compact=bit
+	#pragma HLS aggregate variable=txApp2sLookup_req compact=bit
+	#pragma HLS aggregate variable=sLookup2txApp_rsp compact=bit
+	#pragma HLS aggregate variable=sLookup2txEng_rev_rsp compact=bit
 
 	// State Table
 	static stream<stateQuery>			rxEng2stateTable_upd_req("rxEng2stateTable_upd_req");
@@ -530,9 +530,9 @@ void toe(	// Data & Memory Interface
 	#pragma HLS stream variable=txApp2stateTable_req				depth=2
 	#pragma HLS stream variable=stateTable2txApp_rsp				depth=2
 	#pragma HLS stream variable=stateTable2sLookup_releaseSession	depth=2
-	#pragma HLS DATA_PACK variable=rxEng2stateTable_upd_req
-	#pragma HLS DATA_PACK variable=txApp2stateTable_upd_req
-	//#pragma HLS DATA_PACK variable=txApp2stateTable_req
+	#pragma HLS aggregate variable=rxEng2stateTable_upd_req compact=bit
+	#pragma HLS aggregate variable=txApp2stateTable_upd_req compact=bit
+	//#pragma HLS aggregate variable=txApp2stateTable_req compact=bit
 
 	// RX Sar Table
 	static stream<rxSarRecvd>			rxEng2rxSar_upd_req("rxEng2rxSar_upd_req");
@@ -547,11 +547,11 @@ void toe(	// Data & Memory Interface
 	#pragma HLS stream variable=rxSar2rxApp_upd_rsp		depth=2
 	#pragma HLS stream variable=txEng2rxSar_req			depth=2
 	#pragma HLS stream variable=rxSar2txEng_rsp			depth=2
-	#pragma HLS DATA_PACK variable=rxEng2rxSar_upd_req
-	#pragma HLS DATA_PACK variable=rxSar2rxEng_upd_rsp
-	#pragma HLS DATA_PACK variable=rxApp2rxSar_upd_req
-	#pragma HLS DATA_PACK variable=rxSar2rxApp_upd_rsp
-	#pragma HLS DATA_PACK variable=rxSar2txEng_rsp
+	#pragma HLS aggregate variable=rxEng2rxSar_upd_req compact=bit
+	#pragma HLS aggregate variable=rxSar2rxEng_upd_rsp compact=bit
+	#pragma HLS aggregate variable=rxApp2rxSar_upd_req compact=bit
+	#pragma HLS aggregate variable=rxSar2rxApp_upd_rsp compact=bit
+	#pragma HLS aggregate variable=rxSar2txEng_rsp compact=bit
 
 	// TX Sar Table
 	static stream<txTxSarQuery>			txEng2txSar_upd_req("txEng2txSar_upd_req");
@@ -562,30 +562,30 @@ void toe(	// Data & Memory Interface
 	static stream<rxTxSarReply>			txSar2rxEng_upd_rsp("txSar2rxEng_upd_rsp");
 	static stream<txSarAckPush>			txSar2txApp_ack_push("txSar2txApp_ack_push");
 	static stream<txAppTxSarPush>		txApp2txSar_push("txApp2txSar_push");
-	#pragma HLS stream variable=txEng2txSar_upd_req		depth=2
-	#pragma HLS stream variable=txSar2txEng_upd_rsp		depth=2
+	#pragma HLS stream variable=txEng2txSar_upd_req		depth=16
+	#pragma HLS stream variable=txSar2txEng_upd_rsp		depth=16
 	//#pragma HLS stream variable=txApp2txSar_upd_req		depth=2
 	//#pragma HLS stream variable=txSar2txApp_upd_rsp		depth=2
-	#pragma HLS stream variable=rxEng2txSar_upd_req		depth=2
-	#pragma HLS stream variable=txSar2rxEng_upd_rsp		depth=2
-	#pragma HLS stream variable=txSar2txApp_ack_push	depth=2
-	#pragma HLS stream variable=txApp2txSar_push		depth=2
-	#pragma HLS DATA_PACK variable=txEng2txSar_upd_req
-	#pragma HLS DATA_PACK variable=txSar2txEng_upd_rsp
-	//#pragma HLS DATA_PACK variable=txApp2txSar_upd_req
-	//#pragma HLS DATA_PACK variable=txSar2txApp_upd_rsp
-	#pragma HLS DATA_PACK variable=rxEng2txSar_upd_req
-	#pragma HLS DATA_PACK variable=txSar2rxEng_upd_rsp
-	#pragma HLS DATA_PACK variable=txSar2txApp_ack_push
-	#pragma HLS DATA_PACK variable=txApp2txSar_push
+	#pragma HLS stream variable=rxEng2txSar_upd_req		depth=16
+	#pragma HLS stream variable=txSar2rxEng_upd_rsp		depth=16
+	#pragma HLS stream variable=txSar2txApp_ack_push	depth=16
+	#pragma HLS stream variable=txApp2txSar_push		depth=16
+	#pragma HLS aggregate variable=txEng2txSar_upd_req compact=bit
+	#pragma HLS aggregate variable=txSar2txEng_upd_rsp compact=bit
+	//#pragma HLS aggregate variable=txApp2txSar_upd_req compact=bit
+	//#pragma HLS aggregate variable=txSar2txApp_upd_rsp compact=bit
+	#pragma HLS aggregate variable=rxEng2txSar_upd_req compact=bit
+	#pragma HLS aggregate variable=txSar2rxEng_upd_rsp compact=bit
+	#pragma HLS aggregate variable=txSar2txApp_ack_push compact=bit
+	#pragma HLS aggregate variable=txApp2txSar_push compact=bit
 
 	// Retransmit Timer
 	static stream<rxRetransmitTimerUpdate>		rxEng2timer_clearRetransmitTimer("rxEng2timer_clearRetransmitTimer");
 	static stream<txRetransmitTimerSet>			txEng2timer_setRetransmitTimer("txEng2timer_setRetransmitTimer");
 	#pragma HLS stream variable=rxEng2timer_clearRetransmitTimer depth=2
 	#pragma HLS stream variable=txEng2timer_setRetransmitTimer depth=2
-	#pragma HLS DATA_PACK variable=rxEng2timer_clearRetransmitTimer
-	#pragma HLS DATA_PACK variable=txEng2timer_setRetransmitTimer
+	#pragma HLS aggregate variable=rxEng2timer_clearRetransmitTimer compact=bit
+	#pragma HLS aggregate variable=txEng2timer_setRetransmitTimer compact=bit
 	// Probe Timer
 	static stream<ap_uint<16> >					rxEng2timer_clearProbeTimer("rxEng2timer_clearProbeTimer");
 	static stream<ap_uint<16> >					txEng2timer_setProbeTimer("txEng2timer_setProbeTimer");
@@ -606,20 +606,20 @@ void toe(	// Data & Memory Interface
 	static stream<extendedEvent>			eventEng2ackDelay_event("eventEng2ackDelay_event");
 	static stream<extendedEvent>			eventEng2txEng_event("eventEng2txEng_event");
 	#pragma HLS stream variable=rxEng2eventEng_setEvent				depth=512
-	#pragma HLS stream variable=txApp2eventEng_setEvent			depth=4
-	#pragma HLS stream variable=timer2eventEng_setEvent			depth=4 //TODO maybe reduce to 2, there should be no evil cycle
-	#pragma HLS stream variable=eventEng2ackDelay_event				depth=4
-	#pragma HLS stream variable=eventEng2txEng_event				depth=16
-	#pragma HLS DATA_PACK variable=rxEng2eventEng_setEvent
-	#pragma HLS DATA_PACK variable=txApp2eventEng_setEvent
-	#pragma HLS DATA_PACK variable=timer2eventEng_setEvent
-	#pragma HLS DATA_PACK variable=eventEng2ackDelay_event
-	#pragma HLS DATA_PACK variable=eventEng2txEng_event
+	#pragma HLS stream variable=txApp2eventEng_setEvent			depth=64
+	#pragma HLS stream variable=timer2eventEng_setEvent			depth=64 //TODO maybe reduce to 2, there should be no evil cycle
+	#pragma HLS stream variable=eventEng2ackDelay_event				depth=64
+	#pragma HLS stream variable=eventEng2txEng_event				depth=64
+	#pragma HLS aggregate variable=rxEng2eventEng_setEvent compact=bit
+	#pragma HLS aggregate variable=txApp2eventEng_setEvent compact=bit
+	#pragma HLS aggregate variable=timer2eventEng_setEvent compact=bit
+	#pragma HLS aggregate variable=eventEng2ackDelay_event compact=bit
+	#pragma HLS aggregate variable=eventEng2txEng_event compact=bit
 
 	// Application Interface
 	static stream<openStatus>				conEstablishedFifo("conEstablishedFifo");
 	#pragma HLS stream variable=conEstablishedFifo depth=4
-	#pragma HLS DATA_PACK variable=conEstablishedFifo
+	#pragma HLS aggregate variable=conEstablishedFifo compact=bit
 
 	static stream<appNotification> 			rxEng2rxApp_notification("rxEng2rxApp_notification");
 	static stream<appNotification>			timer2rxApp_notification("timer2rxApp_notification");
@@ -627,9 +627,9 @@ void toe(	// Data & Memory Interface
 	#pragma HLS stream variable=rxEng2rxApp_notification		depth=4
 	#pragma HLS stream variable=timer2rxApp_notification		depth=4
 	#pragma HLS stream variable=timer2txApp_notification		depth=4
-	#pragma HLS DATA_PACK variable=rxEng2rxApp_notification
-	#pragma HLS DATA_PACK variable=timer2rxApp_notification
-	#pragma HLS DATA_PACK variable=timer2txApp_notification
+	#pragma HLS aggregate variable=rxEng2rxApp_notification compact=bit
+	#pragma HLS aggregate variable=timer2rxApp_notification compact=bit
+	#pragma HLS aggregate variable=timer2txApp_notification compact=bit
 
 	// Port Table
 	static stream<ap_uint<16> >				rxEng2portTable_check_req("rxEng2portTable_check_req");
@@ -714,11 +714,11 @@ void toe(	// Data & Memory Interface
 					timer2txApp_notification);
 
 	static stream<ap_uint<1> > ackDelayFifoReadCount("ackDelayFifoReadCount");
-	#pragma HLS stream variable=ackDelayFifoReadCount		depth=2
+	#pragma HLS stream variable=ackDelayFifoReadCount		depth=64
 	static stream<ap_uint<1> > ackDelayFifoWriteCount("ackDelayFifoWriteCount");
-	#pragma HLS stream variable=ackDelayFifoWriteCount		depth=2
+	#pragma HLS stream variable=ackDelayFifoWriteCount		depth=64
 	static stream<ap_uint<1> > txEngFifoReadCount("txEngFifoReadCount");
-	#pragma HLS stream variable=txEngFifoReadCount		depth=2
+	#pragma HLS stream variable=txEngFifoReadCount		depth=64
 	event_engine(txApp2eventEng_setEvent, rxEng2eventEng_setEvent, timer2eventEng_setEvent, eventEng2ackDelay_event,
 					ackDelayFifoReadCount, ackDelayFifoWriteCount, txEngFifoReadCount);
 	ack_delay(eventEng2ackDelay_event, eventEng2txEng_event, ackDelayFifoReadCount, ackDelayFifoWriteCount);
@@ -826,22 +826,22 @@ void toe(	// Data & Memory Interface
 }
 
 void toe_top(	// Data & Memory Interface
-			stream<net_axis<DATA_WIDTH> >&						ipRxData,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						ipRxData,
 #if !(RX_DDR_BYPASS)
 			stream<mmStatus>&						rxBufferWriteStatus,
 #endif
 			stream<mmStatus>&						txBufferWriteStatus,
-			stream<net_axis<DATA_WIDTH> >&						rxBufferReadData,
-			stream<net_axis<DATA_WIDTH> >&						txBufferReadData,
-			stream<net_axis<DATA_WIDTH> >&						ipTxData,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						rxBufferReadData,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						txBufferReadData,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						ipTxData,
 #if !(RX_DDR_BYPASS)
 			stream<mmCmd>&							rxBufferWriteCmd,
 			stream<mmCmd>&							rxBufferReadCmd,
 #endif
 			stream<mmCmd>&							txBufferWriteCmd,
 			stream<mmCmd>&							txBufferReadCmd,
-			stream<net_axis<DATA_WIDTH> >&						rxBufferWriteData,
-			stream<net_axis<DATA_WIDTH> >&						txBufferWriteData,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						rxBufferWriteData,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						txBufferWriteData,
 
 			// SmartCam Interface
 			stream<rtlSessionLookupReply>&			sessionLookup_rsp,
@@ -856,12 +856,12 @@ void toe_top(	// Data & Memory Interface
 			stream<ipTuple>&						openConnReq,
 			stream<ap_uint<16> >&					closeConnReq,
 			stream<appTxMeta>&					   txDataReqMeta,
-			stream<net_axis<DATA_WIDTH> >&						txDataReq,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						txDataReq,
 
 			stream<bool>&							listenPortRsp,
 			stream<appNotification>&				notification,
 			stream<ap_uint<16> >&					rxDataRspMeta,
-			stream<net_axis<DATA_WIDTH> >&						rxDataRsp,
+			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
 			stream<appTxRsp>&					txDataRsp,
 #if RX_DDR_BYPASS
@@ -893,32 +893,32 @@ void toe_top(	// Data & Memory Interface
 #if !(RX_DDR_BYPASS)
 	#pragma HLS INTERFACE axis register port=rxBufferWriteCmd name=m_axis_rxwrite_cmd
 	#pragma HLS INTERFACE axis register port=rxBufferReadCmd name=m_axis_rxread_cmd
-	#pragma HLS DATA_PACK variable=rxBufferWriteCmd
-	#pragma HLS DATA_PACK variable=rxBufferReadCmd
+	#pragma HLS aggregate variable=rxBufferWriteCmd compact=bit
+	#pragma HLS aggregate variable=rxBufferReadCmd compact=bit
 #endif
 	#pragma HLS INTERFACE axis register port=txBufferWriteCmd name=m_axis_txwrite_cmd
 	#pragma HLS INTERFACE axis register port=txBufferReadCmd name=m_axis_txread_cmd
-	#pragma HLS DATA_PACK variable=txBufferWriteCmd
-	#pragma HLS DATA_PACK variable=txBufferReadCmd
+	#pragma HLS aggregate variable=txBufferWriteCmd compact=bit
+	#pragma HLS aggregate variable=txBufferReadCmd compact=bit
 
 
 
 #if !(RX_DDR_BYPASS)
 	#pragma HLS INTERFACE axis register port=rxBufferWriteStatus name=s_axis_rxwrite_sts
-	#pragma HLS DATA_PACK variable=rxBufferWriteStatus
+	#pragma HLS aggregate variable=rxBufferWriteStatus compact=bit
 #endif
 	#pragma HLS INTERFACE axis register port=txBufferWriteStatus name=s_axis_txwrite_sts
-	#pragma HLS DATA_PACK variable=txBufferWriteStatus
+	#pragma HLS aggregate variable=txBufferWriteStatus compact=bit
 
 	// SmartCam Interface
 	#pragma HLS INTERFACE axis register port=sessionLookup_req name=m_axis_session_lup_req
 	#pragma HLS INTERFACE axis register port=sessionLookup_rsp name=s_axis_session_lup_rsp
 	#pragma HLS INTERFACE axis register port=sessionUpdate_req name=m_axis_session_upd_req
 	#pragma HLS INTERFACE axis register port=sessionUpdate_rsp name=s_axis_session_upd_rsp
-	#pragma HLS DATA_PACK variable=sessionLookup_req
-	#pragma HLS DATA_PACK variable=sessionLookup_rsp
-	#pragma HLS DATA_PACK variable=sessionUpdate_req
-	#pragma HLS DATA_PACK variable=sessionUpdate_rsp
+	#pragma HLS aggregate variable=sessionLookup_req compact=bit
+	#pragma HLS aggregate variable=sessionLookup_rsp compact=bit
+	#pragma HLS aggregate variable=sessionUpdate_req compact=bit
+	#pragma HLS aggregate variable=sessionUpdate_rsp compact=bit
 
 	// Application Interface
 	#pragma HLS INTERFACE axis register port=listenPortRsp name=m_axis_listen_port_rsp
@@ -937,37 +937,81 @@ void toe_top(	// Data & Memory Interface
 	#pragma HLS INTERFACE axis register port=txDataReqMeta name=s_axis_tx_data_req_metadata
 	#pragma HLS INTERFACE axis register port=txDataReq name=s_axis_tx_data_req
 	#pragma HLS INTERFACE axis register port=txDataRsp name=m_axis_tx_data_rsp
-	#pragma HLS DATA_PACK variable=notification
-	#pragma HLS DATA_PACK variable=rxDataReq
-	#pragma HLS DATA_PACK variable=openConnReq
-	#pragma HLS DATA_PACK variable=openConnRsp
-	#pragma HLS DATA_PACK variable=txDataReqMeta
-	#pragma HLS DATA_PACK variable=txDataRsp
+	#pragma HLS aggregate variable=notification compact=bit
+	#pragma HLS aggregate variable=rxDataReq compact=bit
+	#pragma HLS aggregate variable=openConnReq compact=bit
+	#pragma HLS aggregate variable=openConnRsp compact=bit
+	#pragma HLS aggregate variable=txDataReqMeta compact=bit
+	#pragma HLS aggregate variable=txDataRsp compact=bit
 
 #if RX_DDR_BYPASS
-	#pragma HLS INTERFACE ap_stable register port=axis_data_count
-	#pragma HLS INTERFACE ap_stable register port=axis_max_data_count
+	#pragma HLS INTERFACE ap_none register port=axis_data_count
+	#pragma HLS INTERFACE ap_none register port=axis_max_data_count
 #endif
 
-	#pragma HLS INTERFACE ap_stable register port=myIpAddress
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
 	#pragma HLS INTERFACE ap_vld port=regSessionCount
 
-	toe<DATA_WIDTH>(ipRxData,
+
+	static hls::stream<net_axis<DATA_WIDTH> > ipRxData_internal;
+	#pragma HLS STREAM depth=2 variable=ipRxData_internal
+	static hls::stream<net_axis<DATA_WIDTH> > rxBufferReadData_internal;
+	#pragma HLS STREAM depth=2 variable=rxBufferReadData_internal
+	static hls::stream<net_axis<DATA_WIDTH> > txBufferReadData_internal;
+	#pragma HLS STREAM depth=2 variable=txBufferReadData_internal
+	static hls::stream<net_axis<DATA_WIDTH> > ipTxData_internal;
+	#pragma HLS STREAM depth=2 variable=ipTxData_internal
+	static hls::stream<net_axis<DATA_WIDTH> > rxBufferWriteData_internal;
+	#pragma HLS STREAM depth=2 variable=rxBufferWriteData_internal
+	static hls::stream<net_axis<DATA_WIDTH> > txBufferWriteData_internal;
+	#pragma HLS STREAM depth=2 variable=txBufferWriteData_internal
+	static hls::stream<net_axis<DATA_WIDTH> > txDataReq_internal;
+	#pragma HLS STREAM depth=2 variable=txDataReq_internal
+	static hls::stream<net_axis<DATA_WIDTH> > rxDataRsp_internal;
+	#pragma HLS STREAM depth=2 variable=rxDataRsp_internal
+
+	convert_axis_to_net_axis<DATA_WIDTH>(ipRxData, 
+							ipRxData_internal);
+
+	convert_axis_to_net_axis<DATA_WIDTH>(rxBufferReadData, 
+							rxBufferReadData_internal);
+
+	convert_axis_to_net_axis<DATA_WIDTH>(txBufferReadData, 
+							txBufferReadData_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(ipTxData_internal, 
+							ipTxData);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(rxBufferWriteData_internal, 
+							rxBufferWriteData);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(txBufferWriteData_internal, 
+							txBufferWriteData);
+
+	convert_axis_to_net_axis<DATA_WIDTH>(txDataReq, 
+							txDataReq_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(rxDataRsp_internal, 
+							rxDataRsp);
+				
+	
+
+	toe<DATA_WIDTH>(ipRxData_internal,
 #if !(RX_DDR_BYPASS)
 					rxBufferWriteStatus,
 #endif
 					txBufferWriteStatus,
-					rxBufferReadData,
-					txBufferReadData,
-					ipTxData,
+					rxBufferReadData_internal,
+					txBufferReadData_internal,
+					ipTxData_internal,
 #if !(RX_DDR_BYPASS)
 					rxBufferWriteCmd,
 					rxBufferReadCmd,
 #endif
 					txBufferWriteCmd,
 					txBufferReadCmd,
-					rxBufferWriteData,
-					txBufferWriteData,
+					rxBufferWriteData_internal,
+					txBufferWriteData_internal,
 					sessionLookup_rsp,
 					sessionUpdate_rsp,
 					sessionLookup_req,
@@ -978,11 +1022,11 @@ void toe_top(	// Data & Memory Interface
 					openConnReq,
 					closeConnReq,
 					txDataReqMeta,
-					txDataReq,
+					txDataReq_internal,
 					listenPortRsp,
 					notification,
 					rxDataRspMeta,
-					rxDataRsp,
+					rxDataRsp_internal,
 					openConnRsp,
 					txDataRsp,
 #if (RX_DDR_BYPASS)

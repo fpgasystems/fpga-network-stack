@@ -2138,10 +2138,10 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=4 variable=rx_aethSift2mergerFifo
 	#pragma HLS STREAM depth=2 variable=rx_pkgSplitTypeFifo
 	#pragma HLS STREAM depth=2 variable=rx_pkgShiftTypeFifo
-	#pragma HLS DATA_PACK variable=rx_ibh2fsm_MetaFifo
-	#pragma HLS DATA_PACK variable=rx_fsm2exh_MetaFifo
-	#pragma HLS DATA_PACK variable=rx_pkgSplitTypeFifo
-	#pragma HLS DATA_PACK variable=rx_pkgShiftTypeFifo
+	#pragma HLS aggregate  variable=rx_ibh2fsm_MetaFifo compact=bit
+	#pragma HLS aggregate  variable=rx_fsm2exh_MetaFifo compact=bit
+	#pragma HLS aggregate  variable=rx_pkgSplitTypeFifo compact=bit
+	#pragma HLS aggregate  variable=rx_pkgShiftTypeFifo compact=bit
 
 	static stream<ackEvent>  rx_ibhEventFifo("rx_ibhEventFifo"); //TODO rename
 	static stream<ackEvent>  rx_exhEventMetaFifo("rx_exhEventMetaFifo");
@@ -2149,9 +2149,9 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=2 variable=rx_ibhEventFifo
 	#pragma HLS STREAM depth=2 variable=rx_exhEventMetaFifo
 	#pragma HLS STREAM depth=512 variable=rx_remoteMemCmd
-	#pragma HLS DATA_PACK variable=rx_ibhEventFifo
-	#pragma HLS DATA_PACK variable=rx_exhEventMetaFifo
-	#pragma HLS DATA_PACK variable=rx_remoteMemCmd
+	#pragma HLS aggregate  variable=rx_ibhEventFifo compact=bit
+	#pragma HLS aggregate  variable=rx_exhEventMetaFifo compact=bit
+	#pragma HLS aggregate  variable=rx_remoteMemCmd compact=bit
 
 	static stream<ibhMeta>	tx_ibhMetaFifo("tx_ibhMetaFifo");
 	static stream<event>	tx_appMetaFifo("tx_appMetaFifo");
@@ -2182,21 +2182,21 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=4 variable=tx_exh2payFifo
 	#pragma HLS STREAM depth=2 variable=tx_ibhHeaderFifo
 	#pragma HLS STREAM depth=2 variable=tx_localMemCmdFifo
-	#pragma HLS DATA_PACK variable=tx_exhMetaFifo
-	#pragma HLS DATA_PACK variable=tx_ibhHeaderFifo
-	#pragma HLS DATA_PACK variable=tx_localMemCmdFifo
+	#pragma HLS aggregate  variable=tx_exhMetaFifo compact=bit
+	#pragma HLS aggregate  variable=tx_ibhHeaderFifo compact=bit
+	#pragma HLS aggregate  variable=tx_localMemCmdFifo compact=bit
 
 	static stream<txPacketInfo>	tx_packetInfoFifo("tx_packetInfoFifo");
 	static stream<ap_uint<16> > tx_lengthFifo("tx_lengthFifo");
 	#pragma HLS STREAM depth=2 variable=tx_packetInfoFifo
 	#pragma HLS STREAM depth=4 variable=tx_lengthFifo
-	#pragma HLS DATA_PACK variable=tx_packetInfoFifo
+	#pragma HLS aggregate  variable=tx_packetInfoFifo compact=bit
 
 	static stream<bool> rx_ibhDropFifo("rx_ibhDropFifo");
 	static stream<fwdPolicy> rx_ibhDropMetaFifo("rx_ibhDropMetaFifo");
 	#pragma HLS STREAM depth=2 variable=rx_ibhDropFifo
 	#pragma HLS STREAM depth=2 variable=rx_ibhDropMetaFifo
-	#pragma HLS DATA_PACK variable=rx_ibhDropMetaFifo
+	#pragma HLS aggregate  variable=rx_ibhDropMetaFifo compact=bit
 
 	//Connection Table
 	static stream<ap_uint<16> >	tx_ibhconnTable_req("tx_ibhconnTable_req");
@@ -2205,7 +2205,7 @@ void ib_transport_protocol(	// RX - net module
 	//static stream<connTableEntry> connTable2qpi_rsp("connTable2qpi_rsp");
 	#pragma HLS STREAM depth=2 variable=tx_ibhconnTable_req
 	#pragma HLS STREAM depth=8 variable=tx_connTable2ibh_rsp
-	#pragma HLS DATA_PACK variable=tx_connTable2qpi_rsp
+	#pragma HLS aggregate  variable=tx_connTable2qpi_rsp compact=bit
 
 	//State Table Fifos
 	static stream<rxStateReq> rxIbh2stateTable_upd_req("rxIbh2stateTable_upd_req");
@@ -2220,12 +2220,12 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=2 variable=stateTable2rxIbh_rsp
 	#pragma HLS STREAM depth=2 variable=stateTable2txIbh_rsp
 	#pragma HLS STREAM depth=2 variable=stateTable2qpi_rsp
-	#pragma HLS DATA_PACK variable=rxIbh2stateTable_upd_req
-	#pragma HLS DATA_PACK variable=txIbh2stateTable_upd_req
-	#pragma HLS DATA_PACK variable=qpi2stateTable_upd_req
-	#pragma HLS DATA_PACK variable=stateTable2rxIbh_rsp
-	#pragma HLS DATA_PACK variable=stateTable2txIbh_rsp
-	#pragma HLS DATA_PACK variable=stateTable2qpi_rsp
+	#pragma HLS aggregate  variable=rxIbh2stateTable_upd_req compact=bit
+	#pragma HLS aggregate  variable=txIbh2stateTable_upd_req compact=bit
+	#pragma HLS aggregate  variable=qpi2stateTable_upd_req compact=bit
+	#pragma HLS aggregate  variable=stateTable2rxIbh_rsp compact=bit
+	#pragma HLS aggregate  variable=stateTable2txIbh_rsp compact=bit
+	#pragma HLS aggregate  variable=stateTable2qpi_rsp compact=bit
 
 	// MSN Table
 	static stream<rxMsnReq>		rxExh2msnTable_upd_req("rxExh2msnTable_upd_req");
@@ -2238,10 +2238,10 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=2 variable=if2msnTable_init
 	#pragma HLS STREAM depth=2 variable=msnTable2rxExh_rsp
 	#pragma HLS STREAM depth=2 variable=msnTable2txExh_rsp
-	#pragma HLS DATA_PACK variable=rxExh2msnTable_upd_req
-	#pragma HLS DATA_PACK variable=if2msnTable_init
-	#pragma HLS DATA_PACK variable=msnTable2rxExh_rsp
-	#pragma HLS DATA_PACK variable=msnTable2txExh_rsp
+	#pragma HLS aggregate  variable=rxExh2msnTable_upd_req compact=bit
+	#pragma HLS aggregate  variable=if2msnTable_init compact=bit
+	#pragma HLS aggregate  variable=msnTable2rxExh_rsp compact=bit
+	#pragma HLS aggregate  variable=msnTable2txExh_rsp compact=bit
 
 	static stream<ap_uint<16> > exh_lengthFifo("exh_lengthFifo");
 	static stream<readRequest>	rx_readRequestFifo("rx_readRequestFifo");
@@ -2251,9 +2251,9 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=8 variable=rx_readRequestFifo
 	#pragma HLS STREAM depth=512 variable=rx_readEvenFifo
 	#pragma HLS STREAM depth=4 variable=rx_ackEventFifo
-	#pragma HLS DATA_PACK variable=rx_readRequestFifo
-	#pragma HLS DATA_PACK variable=rx_readEvenFifo
-	#pragma HLS DATA_PACK variable=rx_ackEventFifo
+	#pragma HLS aggregate  variable=rx_readRequestFifo compact=bit
+	#pragma HLS aggregate  variable=rx_readEvenFifo compact=bit
+	#pragma HLS aggregate  variable=rx_ackEventFifo compact=bit
 
 	// Read Req Table
 	static stream<txReadReqUpdate>	tx_readReqTable_upd("tx_readReqTable_upd");
@@ -2262,9 +2262,9 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=2 variable=tx_readReqTable_upd
 	#pragma HLS STREAM depth=2 variable=rx_readReqTable_upd_req
 	#pragma HLS STREAM depth=2 variable=rx_readReqTable_upd_rsp
-	#pragma HLS DATA_PACK variable=tx_readReqTable_upd
-	#pragma HLS DATA_PACK variable=rx_readReqTable_upd_req
-	#pragma HLS DATA_PACK variable=rx_readReqTable_upd_rsp
+	#pragma HLS aggregate  variable=tx_readReqTable_upd compact=bit
+	#pragma HLS aggregate  variable=rx_readReqTable_upd_req compact=bit
+	#pragma HLS aggregate  variable=rx_readReqTable_upd_rsp compact=bit
 
 	// Outstanding Read Req Table
 	//TODO merge these two
@@ -2274,8 +2274,8 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=2 variable=tx_readReqAddr_push
 	#pragma HLS STREAM depth=2 variable=rx_readReqAddr_pop_req
 	#pragma HLS STREAM depth=2 variable=rx_readReqAddr_pop_rsp
-	#pragma HLS DATA_PACK variable=rx_readReqAddr_pop_req
-	#pragma HLS DATA_PACK variable=rx_readReqAddr_pop_rsp
+	#pragma HLS aggregate  variable=rx_readReqAddr_pop_req compact=bit
+	#pragma HLS aggregate  variable=rx_readReqAddr_pop_rsp compact=bit
 
 
 	/*
@@ -2322,10 +2322,10 @@ void ib_transport_protocol(	// RX - net module
 	#pragma HLS STREAM depth=8 variable=rx_exh2drop_MetaFifo
 	#pragma HLS STREAM depth=2 variable=rx_drop2exhFsm_MetaFifo
 	#pragma HLS STREAM depth=2 variable=rx_exhMetaFifo
-	#pragma HLS DATA_PACK variable=rx_ibh2exh_MetaFifo
-	#pragma HLS DATA_PACK variable=rx_exh2drop_MetaFifo
-	#pragma HLS DATA_PACK variable=rx_drop2exhFsm_MetaFifo
-	#pragma HLS DATA_PACK variable=rx_exhMetaFifo
+	#pragma HLS aggregate  variable=rx_ibh2exh_MetaFifo compact=bit
+	#pragma HLS aggregate  variable=rx_exh2drop_MetaFifo compact=bit
+	#pragma HLS aggregate  variable=rx_drop2exhFsm_MetaFifo compact=bit
+	#pragma HLS aggregate  variable=rx_exhMetaFifo compact=bit
 
 	rx_process_ibh(s_axis_rx_data, rx_ibh2fsm_MetaFifo,rx_ibh2exh_MetaFifo, rx_ibh2shiftFifo);
 

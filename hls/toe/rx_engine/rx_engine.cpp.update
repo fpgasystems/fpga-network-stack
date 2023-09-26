@@ -1496,10 +1496,10 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 	#pragma HLS stream variable=rxEng_dataBuffer1 depth=8
 	#pragma HLS stream variable=rxEng_dataBuffer2 depth=256 //critical, tcp checksum computation
 	#pragma HLS stream variable=rxEng_dataBuffer3 depth=8
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer0
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer1
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer2
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer3
+	#pragma HLS aggregate  variable=rxEng_dataBuffer0 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer1 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer2 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer3 compact=bit
 
 	// Meta Streams/FIFOs
 	static stream<bool>					rxEng_tcpValidFifo("rx_tcpValidFifo");
@@ -1511,22 +1511,22 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 	#pragma HLS stream variable=rxEng_metaDataFifo depth=2
 	#pragma HLS stream variable=rxEng_tupleBuffer depth=2
 	#pragma HLS stream variable=rxEng_tcpLenFifo depth=2
-	#pragma HLS DATA_PACK variable=rxEng_metaDataFifo
-	#pragma HLS DATA_PACK variable=rxEng_tupleBuffer
+	#pragma HLS aggregate  variable=rxEng_metaDataFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_tupleBuffer compact=bit
 
 	static stream<extendedEvent>		rxEng_metaHandlerEventFifo("rxEng_metaHandlerEventFifo");
 	static stream<event>				rxEng_fsmEventFifo("rxEng_fsmEventFifo");
 	#pragma HLS stream variable=rxEng_metaHandlerEventFifo depth=2
 	#pragma HLS stream variable=rxEng_fsmEventFifo depth=2
-	#pragma HLS DATA_PACK variable=rxEng_metaHandlerEventFifo
-	#pragma HLS DATA_PACK variable=rxEng_fsmEventFifo
+	#pragma HLS aggregate  variable=rxEng_metaHandlerEventFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmEventFifo compact=bit
 
 	static stream<bool>					rxEng_metaHandlerDropFifo("rxEng_metaHandlerDropFifo");
 	static stream<bool>					rxEng_fsmDropFifo("rxEng_fsmDropFifo");
 	#pragma HLS stream variable=rxEng_metaHandlerDropFifo depth=2
 	#pragma HLS stream variable=rxEng_fsmDropFifo depth=2
-	#pragma HLS DATA_PACK variable=rxEng_metaHandlerDropFifo
-	#pragma HLS DATA_PACK variable=rxEng_fsmDropFifo
+	#pragma HLS aggregate  variable=rxEng_metaHandlerDropFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmDropFifo compact=bit
 
 	static stream<appNotification> rx_internalNotificationFifo("rx_internalNotificationFifo");
 	static stream<appNotification> rx_delayedNotificationFifo("rx_delayedNotificationFifo");
@@ -1536,18 +1536,18 @@ void rx_engine(	stream<axiWord>&					ipRxData,
 	#pragma HLS stream variable=rx_delayedNotificationFifo depth=2 //This depends on the memory delay
 	#pragma HLS stream variable=rx_payloadNotificationFifo depth=2 //This depends on the memory delay
 	#pragma HLS stream variable=rx_otherNotificationFifo depth=2 //This depends on the memory delay
-	#pragma HLS DATA_PACK variable=rx_internalNotificationFifo
-	#pragma HLS DATA_PACK variable=rx_delayedNotificationFifo
-	#pragma HLS DATA_PACK variable=rx_payloadNotificationFifo
-	#pragma HLS DATA_PACK variable=rx_otherNotificationFifo
+	#pragma HLS aggregate  variable=rx_internalNotificationFifo compact=bit
+	#pragma HLS aggregate  variable=rx_delayedNotificationFifo compact=bit
+	#pragma HLS aggregate  variable=rx_payloadNotificationFifo compact=bit
+	#pragma HLS aggregate  variable=rx_otherNotificationFifo compact=bit
 
 	static stream<mmCmd> 					rxTcpFsm2wrAccessBreakdown("rxTcpFsm2wrAccessBreakdown");
 	#pragma HLS stream variable=rxTcpFsm2wrAccessBreakdown depth=2
-	#pragma HLS DATA_PACK variable=rxTcpFsm2wrAccessBreakdown
+	#pragma HLS aggregate  variable=rxTcpFsm2wrAccessBreakdown compact=bit
 
 	static stream<axiWord> 					rxPkgDrop2rxMemWriter("rxPkgDrop2rxMemWriter");
 	#pragma HLS stream variable=rxPkgDrop2rxMemWriter depth=16
-	#pragma HLS DATA_PACK variable=rxPkgDrop2rxMemWriter
+	#pragma HLS aggregate  variable=rxPkgDrop2rxMemWriter compact=bit
 
 	static stream<bool>				rxEngDoubleAccess("rxEngDoubleAccess");
 	#pragma HLS stream variable=rxEngDoubleAccess depth=1 //was 8

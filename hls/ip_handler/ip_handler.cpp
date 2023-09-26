@@ -507,12 +507,12 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 	#pragma HLS STREAM variable=validIpAddressFifo depth=32
 	#pragma HLS STREAM variable=ipv4ValidFifo depth=8
 
-	#pragma HLS DATA_PACK variable=ipDataFifo
-	#pragma HLS DATA_PACK variable=ipDataCheckFifo
-	#pragma HLS DATA_PACK variable=ipDataDropFifo
-	#pragma HLS DATA_PACK variable=iph_subSumsFifoOut
-	#pragma HLS DATA_PACK variable=ipDataCutFifo
-	#pragma HLS DATA_PACK variable=udpDataFifo
+	#pragma HLS aggregate  variable=ipDataFifo compact=bit
+	#pragma HLS aggregate  variable=ipDataCheckFifo compact=bit
+	#pragma HLS aggregate  variable=ipDataDropFifo compact=bit
+	#pragma HLS aggregate  variable=iph_subSumsFifoOut compact=bit
+	#pragma HLS aggregate  variable=ipDataCutFifo compact=bit
+	#pragma HLS aggregate  variable=udpDataFifo compact=bit
 
 	static hls::stream<net_axis<WIDTH> > ipv6DataFifo("ipv6DataFifo");
 	#pragma HLS STREAM variable=ipv6DataFifo depth=2
@@ -524,14 +524,14 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 
 	route_by_eth_protocol(etherTypeFifo, ethDataFifo, m_axis_ARP, ipv4ShiftFifo, ipv6ShiftFifo);
 
-	rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 1>(((ETH_HEADER_SIZE%WIDTH)/8), ipv4ShiftFifo, ipDataFifo);	
-	rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 2>(((ETH_HEADER_SIZE%WIDTH)/8), ipv6ShiftFifo, ipv6DataFifo);	
+	ip_handler_rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 1>(((ETH_HEADER_SIZE%WIDTH)/8), ipv4ShiftFifo, ipDataFifo);	
+	ip_handler_rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 3>(((ETH_HEADER_SIZE%WIDTH)/8), ipv6ShiftFifo, ipv6DataFifo);	
 
 	extract_ip_meta(ipDataFifo, ipDataMetaFifo, ipv4ProtocolFifo, validIpAddressFifo, myIpAddress);
 
-	compute_ipv4_checksum(ipDataMetaFifo, ipDataCheckFifo, iph_subSumsFifoOut);
+	ip_handler_compute_ipv4_checksum(ipDataMetaFifo, ipDataCheckFifo, iph_subSumsFifoOut);
 
-	check_ipv4_checksum<WIDTH/16>(iph_subSumsFifoOut, validChecksumFifo);
+	ip_handler_check_ipv4_checksum<WIDTH/16>(iph_subSumsFifoOut, validChecksumFifo);
 
 	ip_invalid_dropper(ipDataCheckFifo, validChecksumFifo, validIpAddressFifo, ipDataDropFifo, ipv4ValidFifo);
 
@@ -543,18 +543,18 @@ void ip_handler(hls::stream<net_axis<WIDTH> >&		s_axis_raw,
 
 	// Altough RoCEv2 is using IPv4 & UDP, we cannot parse the IPv4 header here and remove it, due ot the ICRC of RoCE.
 	// The best solution is to duplicate the packet and let the UDP/IP and RoCE stack do filtering according to the port number
-	duplicate_stream(udpDataFifo, m_axis_UDP, m_axis_ROCE);
+	ip_handler_duplicate_stream(udpDataFifo, m_axis_UDP, m_axis_ROCE);
 
 }
 
-void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
-					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_arp,
-					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_icmpv6,
-					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_ipv6udp,
-					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_icmp,
-					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_udp,
-					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_tcp,
-					hls::stream<net_axis<DATA_WIDTH> >&		m_axis_roce,
+void ip_handler_top(hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		s_axis_raw,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_arp,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_icmpv6,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_ipv6udp,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_icmp,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_udp,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_tcp,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		m_axis_roce,
 					ap_uint<32>								myIpAddress)
 {
 	#pragma HLS DATAFLOW disable_start_propagation
@@ -569,15 +569,57 @@ void ip_handler_top(hls::stream<net_axis<DATA_WIDTH> >&		s_axis_raw,
 	#pragma HLS INTERFACE axis register port=m_axis_tcp // leads to Combinatorial Loops
 	#pragma HLS INTERFACE axis register port=m_axis_roce
 	
-	#pragma HLS INTERFACE ap_stable register port=myIpAddress
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
 
-   ip_handler<DATA_WIDTH>(s_axis_raw,
-                           m_axis_arp,
-                           m_axis_icmpv6,
-                           m_axis_ipv6udp,
-                           m_axis_icmp,
-                           m_axis_udp,
-                           m_axis_tcp,
-                           m_axis_roce,
+
+	static hls::stream<net_axis<DATA_WIDTH> > s_axis_raw_internal;
+	#pragma HLS STREAM depth=2 variable=s_axis_raw_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_arp_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_arp_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_icmpv6_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_icmpv6_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_ipv6udp_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_ipv6udp_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_icmp_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_icmp_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_udp_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_udp_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_tcp_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_tcp_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_roce_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_roce_internal
+
+	convert_axis_to_net_axis<DATA_WIDTH>(s_axis_raw, 
+							s_axis_raw_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_arp_internal, 
+							m_axis_arp);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_icmpv6_internal, 
+							m_axis_icmpv6);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_ipv6udp_internal, 
+							m_axis_ipv6udp);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_icmp_internal, 
+							m_axis_icmp);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_udp_internal, 
+							m_axis_udp);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tcp_internal, 
+							m_axis_tcp);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_roce_internal, 
+							m_axis_roce);
+
+   	ip_handler<DATA_WIDTH>(s_axis_raw_internal,
+                           m_axis_arp_internal,
+                           m_axis_icmpv6_internal,
+                           m_axis_ipv6udp_internal,
+                           m_axis_icmp_internal,
+                           m_axis_udp_internal,
+                           m_axis_tcp_internal,
+                           m_axis_roce_internal,
                            myIpAddress);
 }

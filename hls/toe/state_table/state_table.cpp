@@ -58,7 +58,7 @@ void state_table(	stream<stateQuery>&			rxEng2stateTable_upd_req,
 #pragma HLS PIPELINE II=1
 
 	static sessionState state_table[MAX_SESSIONS];
-	#pragma HLS RESOURCE variable=state_table core=RAM_2P_BRAM
+	#pragma HLS bind_storage variable=state_table type=RAM_2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=state_table inter false
 
 	static ap_uint<16> stt_txSessionID;

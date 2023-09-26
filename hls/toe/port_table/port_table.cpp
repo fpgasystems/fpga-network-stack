@@ -51,7 +51,7 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 #pragma HLS INLINE off
 
 	static bool listeningPortTable[32768];
-	#pragma HLS RESOURCE variable=listeningPortTable core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=listeningPortTable type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=listeningPortTable inter false
 
 	ap_uint<16> currPort;
@@ -102,7 +102,7 @@ void free_port_table(	stream<ap_uint<16> >&	sLookup2portTable_releasePort,
 #pragma HLS INLINE off
 
 	static bool freePortTable[32768];
-	#pragma HLS RESOURCE variable=freePortTable core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=freePortTable type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=freePortTable inter false
 
 
@@ -260,12 +260,12 @@ void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
 //#pragma HLS DATAFLOW
 #pragma HLS INLINE
 
-#pragma HLS DATA_PACK variable=rxEng2portTable_check_req
-#pragma HLS DATA_PACK variable=rxApp2portTable_listen_req
-#pragma HLS DATA_PACK variable=sLookup2portTable_releasePort
-#pragma HLS DATA_PACK variable=portTable2rxEng_check_rsp
-#pragma HLS DATA_PACK variable=portTable2rxApp_listen_rsp
-#pragma HLS DATA_PACK variable=portTable2txApp_port_rsp
+#pragma HLS aggregate  variable=rxEng2portTable_check_req compact=bit
+#pragma HLS aggregate  variable=rxApp2portTable_listen_req compact=bit
+#pragma HLS aggregate  variable=sLookup2portTable_releasePort compact=bit
+#pragma HLS aggregate  variable=portTable2rxEng_check_rsp compact=bit
+#pragma HLS aggregate  variable=portTable2rxApp_listen_rsp compact=bit
+#pragma HLS aggregate  variable=portTable2txApp_port_rsp compact=bit
 
 	/*
 	 * Fifos necessary for multiplexing Check requests

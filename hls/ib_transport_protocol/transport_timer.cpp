@@ -45,8 +45,8 @@ void transport_timer(	stream<rxTimerUpdate>&	rxClearTimer_req,
 #pragma HLS INLINE off
 
 	static transportTimerEntry transportTimerTable[MAX_QPS];
-	#pragma HLS RESOURCE variable=transportTimerTable core=RAM_T2P_BRAM
-	#pragma HLS DATA_PACK variable=transportTimerTable
+	#pragma HLS bind_storage variable=transportTimerTable type=RAM_T2P impl=BRAM
+	#pragma HLS aggregate  variable=transportTimerTable compact=bit
 	#pragma HLS DEPENDENCE variable=transportTimerTable inter false
 
 	static ap_uint<16>			tt_currPosition = 0;

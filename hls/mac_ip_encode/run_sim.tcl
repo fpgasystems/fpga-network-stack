@@ -9,7 +9,7 @@ open_solution "solution1"
 set_part {xcvu9p-flga2104-2L-e}
 create_clock -period 6.4 -name default
 
-config_rtl -disable_start_propagation
+# config_rtl -disable_start_propagation
 csim_design
 
 exit

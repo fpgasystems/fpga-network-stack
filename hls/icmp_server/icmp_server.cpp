@@ -40,8 +40,8 @@ ap_uint<16> byteSwap16(ap_uint<16> inputVector) {
  *  @param[out]		icmpValidFifoOut
  *  @param[out]		checksumFifoOut
  */
-void check_icmp_checksum(	stream<axiWord>& dataIn,
-							stream<axiWord>& dataOut,
+void check_icmp_checksum(	stream<net_axis<64> >& dataIn,
+							stream<net_axis<64> >& dataOut,
 							stream<bool>& ValidFifoOut,
 							stream<ap_uint<16> >& checksumFifoOut) {
 #pragma HLS INLINE off
@@ -49,7 +49,7 @@ void check_icmp_checksum(	stream<axiWord>& dataIn,
 
 	static ap_uint<17> cics_sums[4] = {0, 0, 0, 0};
 	static ap_uint<16> cics_wordCount = 0;
-	static axiWord cics_prevWord;
+	static net_axis<64> cics_prevWord;
 	static bool cics_writeLastOne = false;
 	static bool cics_computeCs = false;
 	static ap_uint<2> cics_state = 0;
@@ -59,8 +59,8 @@ void check_icmp_checksum(	stream<axiWord>& dataIn,
 	static ap_uint<8>	icmpType;
 	static ap_uint<8>	icmpCode;
 
-	axiWord currWord;
-	axiWord sendWord;
+	net_axis<64> currWord;
+	net_axis<64> sendWord;
 
 	currWord.last = 0;
 	if (cics_writeLastOne) {
@@ -166,7 +166,7 @@ void check_icmp_checksum(	stream<axiWord>& dataIn,
 	}
 }
 
-void udpPortUnreachable(stream<axiWord> &udpIn, stream<axiWord> &ttlIn, stream<axiWord> &udpPort2addIpHeader_data, 
+void udpPortUnreachable(stream<net_axis<64> > &udpIn, stream<net_axis<64> > &ttlIn, stream<net_axis<64> > &udpPort2addIpHeader_data, 
 						stream<ap_uint<64> > &udpPort2addIpHeader_header, stream<ap_uint<16> > &udpPort2insertChecksum_value) {
 	#pragma HLS INLINE off
 	#pragma HLS pipeline II=1
@@ -183,7 +183,7 @@ void udpPortUnreachable(stream<axiWord> &udpIn, stream<axiWord> &ttlIn, stream<a
 		case UDP_IDLE:
 			if ((udpInEmpty == 0 || ttlInEmpty == 0) && !udpPort2addIpHeader_data.full()) { // If there are data in the queue, don't read them in but start assembling the ICMP header
 				ipWordCounter = 0;
-				axiWord tempWord = {0, 0xFF, 0};
+				net_axis<64> tempWord = {0, 0xFF, 0};
 				if (udpInEmpty == 0) {
 					tempWord.data = 0x0000000000000303;
 					streamSource = 0;
@@ -199,7 +199,7 @@ void udpPortUnreachable(stream<axiWord> &udpIn, stream<axiWord> &ttlIn, stream<a
 			break;
 		case UDP_IP:
 			if (((streamSource == 0 && udpInEmpty == 0) || (streamSource == 1 && ttlInEmpty == 0)) && !udpPort2addIpHeader_data.full() && !udpPort2addIpHeader_header.full()) { // If there are data in the queue start reading them
-				axiWord tempWord = {0, 0, 0};
+				net_axis<64> tempWord = {0, 0, 0};
 				if (streamSource == 0)
 					tempWord = udpIn.read();
 				else if (streamSource == 1)
@@ -215,7 +215,7 @@ void udpPortUnreachable(stream<axiWord> &udpIn, stream<axiWord> &ttlIn, stream<a
 			break;	
 		case UDP_STREAM:
 			if (((streamSource == 0 && udpInEmpty == 0) || (streamSource == 1 && ttlInEmpty == 0)) && !udpPort2addIpHeader_data.full()) { // If there are data in the queue start reading them
-				axiWord tempWord = {0, 0, 0};
+				net_axis<64> tempWord = {0, 0, 0};
 				if (streamSource == 0)
 					tempWord = udpIn.read();
 				else if (streamSource == 1)
@@ -238,13 +238,13 @@ void udpPortUnreachable(stream<axiWord> &udpIn, stream<axiWord> &ttlIn, stream<a
 	}
 }
 
-void udpAddIpHeader(stream<axiWord> &udpPort2addIpHeader_data, stream<ap_uint<64> > &udpPort2addIpHeader_header, 
-					stream<axiWord> &addIpHeader2insertChecksum) {
+void udpAddIpHeader(stream<net_axis<64> > &udpPort2addIpHeader_data, stream<ap_uint<64> > &udpPort2addIpHeader_header, 
+					stream<net_axis<64> > &addIpHeader2insertChecksum) {
 	#pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
 	static enum aState{AIP_IDLE, AIP_IP, AIP_MERGE, AIP_STREAM, AIP_RESIDUE} addIpState;
-	static axiWord tempWord 	= {0, 0, 0};
+	static net_axis<64> tempWord 	= {0, 0, 0};
 	static ap_int<32> sourceIP	= 0;
 	
 	switch(addIpState) {
@@ -277,7 +277,7 @@ void udpAddIpHeader(stream<axiWord> &udpPort2addIpHeader_data, stream<ap_uint<64
 				udpPort2addIpHeader_header.read();
 				ap_uint<64> tempData = sourceIP;
 				tempWord = udpPort2addIpHeader_data.read();
-				axiWord outputWord = {0, 0xFF, 0};
+				net_axis<64> outputWord = {0, 0xFF, 0};
 				outputWord.data = tempData;
 				outputWord.data.range(63, 32) = tempWord.data.range(31,  0);
 				addIpHeader2insertChecksum.write(outputWord);
@@ -286,7 +286,7 @@ void udpAddIpHeader(stream<axiWord> &udpPort2addIpHeader_data, stream<ap_uint<64
 			break;
 		case AIP_STREAM:
 			if (!udpPort2addIpHeader_data.empty() && !addIpHeader2insertChecksum.full()) {
-				axiWord outputWord = {0, 0xFF, 0};
+				net_axis<64> outputWord = {0, 0xFF, 0};
 				outputWord.data.range(31, 0) = tempWord.data.range(63,  32);
 				tempWord = udpPort2addIpHeader_data.read();
 				outputWord.data.range(63, 32) = tempWord.data.range(31,  0);
@@ -304,7 +304,7 @@ void udpAddIpHeader(stream<axiWord> &udpPort2addIpHeader_data, stream<ap_uint<64
 			break;
 		case AIP_RESIDUE:
 			if (!addIpHeader2insertChecksum.full()) {
-				axiWord outputWord 				= {0, 0, 1};
+				net_axis<64> outputWord 				= {0, 0, 1};
 				outputWord.data.range(31, 0) 	= tempWord.data.range(63, 32);
 				outputWord.keep.range(3, 0)		= tempWord.keep.range(7, 4);
 				addIpHeader2insertChecksum.write(outputWord);
@@ -320,11 +320,13 @@ void udpAddIpHeader(stream<axiWord> &udpPort2addIpHeader_data, stream<ap_uint<64
  *  @param[in]		validFifoIn
  *  @param[out]		dataOut
  */
-void dropper(stream<axiWord>& dataIn, stream<bool>& validFifoIn, stream<axiWord>& dataOut) {
+void dropper(stream<net_axis<64> >& dataIn, stream<bool>& validFifoIn, stream<net_axis<64> >& dataOut) {
+#pragma HLS pipeline II=1
+
 	static bool d_isFirstWord 	= true;
 	static bool d_drop 			= false;
 	bool d_valid;
-	axiWord currWord;
+	net_axis<64> currWord;
 
 	if (!dataIn.empty()) {
 		if(d_isFirstWord) {
@@ -358,11 +360,11 @@ void dropper(stream<axiWord>& dataIn, stream<bool>& validFifoIn, stream<axiWord>
  *  @param[out]		dataOut
  */
  
- void insertChecksum(stream<axiWord> inputStreams[2], stream<ap_uint<16> > checksumStreams[2], stream<axiWord> &outputStream) {
+ void insertChecksum(stream<net_axis<64> > inputStreams[2], stream<ap_uint<16> > checksumStreams[2], stream<net_axis<64> > &outputStream) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
  
-	axiWord 			inputWord 		= {0, 0, 0};
+	net_axis<64> 			inputWord 		= {0, 0, 0};
 	ap_uint<16> 		icmpChecksum	= 0;
 	static ap_uint<16> 	ic_wordCount 	= 0;
     static ap_uint<1>	streamSource    = 0; 
@@ -409,25 +411,19 @@ void dropper(stream<axiWord>& dataIn, stream<bool>& validFifoIn, stream<axiWord>
  *  @param[in]		dataIn
  *  @param[out]		dataOut
  */
-void icmp_server(stream<axiWord>&	dataIn,
-				 stream<axiWord>&	udpIn,
-				 stream<axiWord>&	ttlIn,
-				 stream<axiWord>&	dataOut) {
-	#pragma HLS DATAFLOW disable_start_propagation
-	#pragma HLS INTERFACE ap_ctrl_none port=return
+void icmp_server(stream<net_axis<64> >&	dataIn,
+				 stream<net_axis<64> >&	udpIn,
+				 stream<net_axis<64> >&	ttlIn,
+				 stream<net_axis<64> >&	dataOut) {
+	#pragma HLS INLINE
 
-	#pragma HLS INTERFACE axis register port=dataIn name=s_axis
-	#pragma HLS INTERFACE axis register port=udpIn name=udpIn
-	#pragma HLS INTERFACE axis register port=ttlIn name=ttlIn
-	#pragma HLS INTERFACE axis register port=dataOut name=m_axis
+	static hls::stream<net_axis<64> >			packageBuffer1("packageBuffer1");
+	static hls::stream<net_axis<64> >			udpPort2insertChecksum("udpPort2insertChecksum");
+	static hls::stream<bool>				validFifo("validFifo");
+	static hls::stream<ap_uint<64> > 	udpPort2addIpHeader_header("udpPort2addIpHeader");
+	static hls::stream<net_axis<64> >			udpPort2addIpHeader_data("udpPort2addIpHeader_data");
 
-	static stream<axiWord>			packageBuffer1("packageBuffer1");
-	static stream<axiWord>			udpPort2insertChecksum("udpPort2insertChecksum");
-	static stream<bool>				validFifo("validFifo");
-	static stream<ap_uint<64> > 	udpPort2addIpHeader_header("udpPort2addIpHeader");
-	static stream<axiWord>			udpPort2addIpHeader_data("udpPort2addIpHeader_data");
-
-	static stream<axiWord> dataStreams[2];
+	static stream<net_axis<64> > dataStreams[2];
 	#pragma HLS STREAM variable=dataStreams depth=16
 	static stream<ap_uint<16> > checksumStreams[2];
 	#pragma HLS STREAM variable=checksumStreams depth=16
@@ -437,8 +433,8 @@ void icmp_server(stream<axiWord>&	dataIn,
 	#pragma HLS stream 		variable=udpPort2addIpHeader_data 	depth=192
 	#pragma HLS stream 		variable=validFifo 					depth=8
 	#pragma HLS stream 		variable=udpPort2addIpHeader_header	depth=64
-	#pragma HLS DATA_PACK 	variable=packageBuffer1
-	#pragma HLS DATA_PACK 	variable=udpPort2insertChecksum
+	#pragma HLS aggregate  	variable=packageBuffer1 compact=bit
+	#pragma HLS aggregate  	variable=udpPort2insertChecksum compact=bit
 
 	check_icmp_checksum(dataIn, packageBuffer1, validFifo, checksumStreams[0]);
 	udpPortUnreachable(udpIn, ttlIn, udpPort2addIpHeader_data, udpPort2addIpHeader_header, checksumStreams[1]);
@@ -448,3 +444,42 @@ void icmp_server(stream<axiWord>&	dataIn,
 }
 
 
+void icmp_server_top(stream<ap_axiu<64, 0, 0, 0> >&	dataIn,
+				 stream<ap_axiu<64, 0, 0, 0> >&	udpIn,
+				 stream<ap_axiu<64, 0, 0, 0> >&	ttlIn,
+				 stream<ap_axiu<64, 0, 0, 0> >&	dataOut) {
+
+	#pragma HLS DATAFLOW disable_start_propagation
+	#pragma HLS INTERFACE ap_ctrl_none port=return
+
+	#pragma HLS INTERFACE axis register port=dataIn name=s_axis
+	#pragma HLS INTERFACE axis register port=udpIn 
+	#pragma HLS INTERFACE axis register port=ttlIn 
+	#pragma HLS INTERFACE axis register port=dataOut name=m_axis
+
+	static hls::stream<net_axis<64> > dataIn_internal;
+	#pragma HLS STREAM depth=2 variable=dataIn_internal
+	static hls::stream<net_axis<64> > udpIn_internal;
+	#pragma HLS STREAM depth=2 variable=udpIn_internal
+	static hls::stream<net_axis<64> > ttlIn_internal;
+	#pragma HLS STREAM depth=2 variable=ttlIn_internal
+	static hls::stream<net_axis<64> > dataOut_internal;
+	#pragma HLS STREAM depth=2 variable=dataOut_internal
+
+	convert_axis_to_net_axis<64>(dataIn, 
+							dataIn_internal);
+
+	convert_axis_to_net_axis<64>(udpIn, 
+							udpIn_internal);
+	
+	convert_axis_to_net_axis<64>(ttlIn, 
+							ttlIn_internal);
+
+	convert_net_axis_to_axis<64>(dataOut_internal, 
+							dataOut);
+
+	icmp_server(dataIn_internal,
+				udpIn_internal,
+				ttlIn_internal,
+				dataOut_internal);
+}

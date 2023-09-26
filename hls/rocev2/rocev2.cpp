@@ -773,10 +773,7 @@ void rocev2_top(
 	#pragma HLS INTERFACE axis register port=s_axis_rx_data
 	#pragma HLS INTERFACE axis register port=m_axis_tx_meta
 	#pragma HLS INTERFACE axis register port=m_axis_tx_data
-
-	//CMD
-	#pragma HLS DATA_PACK variable=s_axis_tx_meta
-	#pragma HLS INTERFACE axis register port=m_axis_rx_rpc_params
+	#pragma HLS aggregate  variable=s_axis_tx_meta compact=bit
 
 	//MEMORY
 	#pragma HLS INTERFACE axis register port=m_axis_mem_write_cmd
@@ -787,8 +784,16 @@ void rocev2_top(
 	//CONTROL
 	#pragma HLS INTERFACE axis register port=s_axis_qp_interface
 	#pragma HLS INTERFACE axis register port=s_axis_qp_conn_interface
-	#pragma HLS DATA_PACK variable=s_axis_qp_interface
-	#pragma HLS DATA_PACK variable=s_axis_qp_conn_interface
+	#pragma HLS aggregate  variable=s_axis_qp_interface compact=bit
+	#pragma HLS aggregate  variable=s_axis_qp_conn_interface compact=bit
+
+	//Pointer chasing
+#if POINTER_CHASING_EN
+	#pragma HLS INTERFACE axis register port=m_axis_rx_pcmeta
+	#pragma HLS INTERFACE axis register port=s_axis_tx_pcmeta
+	#pragma HLS aggregate  variable=m_axis_rx_pcmeta compact=bit
+	#pragma HLS aggregate  variable=s_axis_tx_pcmeta compact=bit
+#endif
 
 	#pragma HLS INTERFACE ap_none register port=local_ip_address
 

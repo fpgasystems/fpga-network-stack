@@ -192,13 +192,13 @@ void udpLoopback(stream<axiWord>&       lbRxDataIn,
 	#pragma HLS resource core=AXI4Stream variable=lbTxMetadataOut 		metadata="-bus_bundle lbTxMetadataOut"
 	#pragma HLS resource core=AXI4Stream variable=lbTxLengthOut 			metadata="-bus_bundle lbTxLengthOut"
 
-  	#pragma HLS DATA_PACK variable=lbRxMetadataIn
-  	#pragma HLS DATA_PACK variable=lbTxMetadataOut
+  	#pragma HLS aggregate  variable=lbRxMetadataIn compact=bit
+  	#pragma HLS aggregate  variable=lbTxMetadataOut compact=bit
 
 	static stream<axiWord> 		lb_packetBuffer("lb_packetBuffer");
 	static stream<ap_uint<16> > lb_lengthBuffer("lb_lengthBuffer");
 	static stream<metadata>		lb_metadataBuffer("lb_metadataBuffer");
-	#pragma HLS DATA_PACK variable 	= lb_packetBuffer
+	#pragma HLS aggregate  variable 	= lb_packetBuffer compact=bit
 	#pragma HLS STREAM variable 	= lb_packetBuffer	depth = 1024
 
 	rxPath(lbRxDataIn, lbRxMetadataIn, lbRequestPortOpenOut, lbPortOpenReplyIn, lb_packetBuffer, lb_lengthBuffer, lb_metadataBuffer);

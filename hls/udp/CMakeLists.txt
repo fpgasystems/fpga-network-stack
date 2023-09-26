@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.0)
 set (PROJECT_NAME udp)
 project(${PROJECT_NAME})
 
-# Include custom Find<Module>.cmake scripts to enable searching for Vivado HLS
+# Include custom Find<Module>.cmake scripts to enable searching for Vitis HLS
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
 
 # Without this variable set, CMake will build tests when running install
@@ -26,10 +26,10 @@ set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
 
 
-# Find Xilinx Vivado HLS
-find_package(VivadoHLS REQUIRED)
-if (NOT VIVADO_HLS_FOUND)
-  message(FATAL_ERROR "Vivado HLS not found.")
+# Find Xilinx Vitis HLS
+find_package(VitisHLS REQUIRED)
+if (NOT VITIS_HLS_FOUND)
+  message(FATAL_ERROR "Vitis HLS not found.")
 endif()
 
 
@@ -54,7 +54,7 @@ foreach (target ${HLS_TARGETS})
    endif()
 
    add_custom_target(${target}.${PROJECT_NAME}
-      COMMAND ${VIVADO_HLS_BINARY} -f make.tcl -tclargs ${target}
+      COMMAND ${VITIS_HLS_BINARY} -f make.tcl -tclargs ${target}
       DEPENDS ${EXAMPLE_HLS_DEPENDS})
    add_dependencies(${target} ${target}.${PROJECT_NAME})
 endforeach()

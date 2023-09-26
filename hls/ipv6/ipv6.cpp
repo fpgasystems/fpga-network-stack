@@ -173,7 +173,7 @@ void ipv6_top(	hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 					hls::stream<net_axis<DATA_WIDTH> >&	m_axis_tx_data,
 					ap_uint<128>		reg_ip_address)
 {
-#pragma HLS DATAFLOW //disable_start_propagation
+#pragma HLS DATAFLOW disable_start_propagation
 #pragma HLS INTERFACE ap_ctrl_none  port=return
 
 #pragma HLS resource core=AXI4Stream variable=s_axis_rx_data metadata="-bus_bundle s_axis_rx_data"
@@ -182,8 +182,8 @@ void ipv6_top(	hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 #pragma HLS resource core=AXI4Stream variable=s_axis_tx_meta metadata="-bus_bundle s_axis_tx_meta"
 #pragma HLS resource core=AXI4Stream variable=s_axis_tx_data metadata="-bus_bundle s_axis_tx_data"
 #pragma HLS resource core=AXI4Stream variable=m_axis_tx_data metadata="-bus_bundle m_axis_tx_data"
-#pragma HLS DATA_PACK variable=m_axis_rx_meta
-#pragma HLS DATA_PACK variable=s_axis_tx_meta
+#pragma HLS aggregate  variable=m_axis_rx_meta compact=bit
+#pragma HLS aggregate  variable=s_axis_tx_meta compact=bit
 #pragma HLS INTERFACE ap_none register port=reg_ip_address
 
 

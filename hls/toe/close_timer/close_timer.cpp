@@ -42,12 +42,12 @@ void close_timer(	stream<ap_uint<16> >&		rxEng2timer_setCloseTimer,
 {
 #pragma HLS PIPELINE II=1
 
-#pragma HLS DATA_PACK variable=rxEng2timer_setCloseTimer
-#pragma HLS DATA_PACK variable=closeTimer2stateTable_releaseState
+#pragma HLS aggregate  variable=rxEng2timer_setCloseTimer compact=bit
+#pragma HLS aggregate  variable=closeTimer2stateTable_releaseState compact=bit
 
 	static close_timer_entry closeTimerTable[MAX_SESSIONS];
-	#pragma HLS RESOURCE variable=closeTimerTable core=RAM_T2P_BRAM
-	#pragma HLS DATA_PACK variable=closeTimerTable
+	#pragma HLS bind_storage variable=closeTimerTable type=RAM_T2P impl=BRAM
+	#pragma HLS aggregate  variable=closeTimerTable compact=bit
 	#pragma HLS DEPENDENCE variable=closeTimerTable inter false
 
 	static ap_uint<16>	ct_currSessionID = 0;

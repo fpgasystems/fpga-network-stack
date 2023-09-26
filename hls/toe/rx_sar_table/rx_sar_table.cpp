@@ -52,7 +52,7 @@ void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 
 #pragma HLS PIPELINE II=1
 
-#pragma HLS RESOURCE variable=rx_table core=RAM_1P_BRAM
+#pragma HLS bind_storage variable=rx_table type=RAM_1P impl=BRAM
 #pragma HLS DEPENDENCE variable=rx_table inter false
 
 	// Read only access from the Tx Engine

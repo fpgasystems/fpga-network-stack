@@ -41,7 +41,7 @@ void read_req_table(stream<txReadReqUpdate>&	tx_readReqTable_upd,
 #pragma HLS INLINE off
 
 	static readReqTableEntry  req_table[MAX_QPS];
-	#pragma HLS RESOURCE variable=req_table core=RAM_2P_BRAM
+	#pragma HLS bind_storage variable=req_table type=RAM_2P impl=BRAM
 
 	txReadReqUpdate update;
 	rxReadReqUpdate request;

@@ -42,7 +42,7 @@ void retrans_pointer_table(	stream<pointerReq>&					pointerReqFifo,
 #pragma HLS INLINE off
 
 	static retransPointerEntry ptr_table[MAX_QPS];
-	#pragma HLS RESOURCE variable=ptr_table core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=ptr_table type=RAM_T2P impl=BRAM
 	//#pragma HLS DEPENDENCE variable=ptr_table inter false
 
 	static ap_uint<16> pt_lockedQP;
@@ -101,7 +101,7 @@ void retrans_pointer_table(	stream<pointerReq>&					pointerReqFifo,
 #pragma HLS INLINE off
 
 	static retransPointerEntry ptr_table[MAX_QPS];
-	#pragma HLS RESOURCE variable=ptr_table core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=ptr_table type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=ptr_table inter false
 
 	retransRelease release;
@@ -162,7 +162,7 @@ void retrans_pointer_table(	stream<pointerReq>&					pointerReqFifo,
 #pragma HLS INLINE off
 
 	static retransMetaEntry meta_table[META_TABLE_SIZE];
-	#pragma HLS RESOURCE variable=meta_table core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=meta_table type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=meta_table inter false
 
 	static stream<ap_uint<16> > freeListFifo("freeListFifo");
@@ -297,7 +297,7 @@ void retrans_meta_table(stream<retransMetaReq>&		meta_upd_req,
 #pragma HLS INLINE off
 
 	static retransMetaEntry meta_table[META_TABLE_SIZE];
-	#pragma HLS RESOURCE variable=meta_table core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=meta_table type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=meta_table inter false
 	//enum rmtFsmStateType {READ, CONTINOUS};// CONTINOUS_2, IMD};
 	//static rmtFsmStateType rmt_state = READ;
@@ -471,10 +471,10 @@ void process_retransmissions(	stream<retransRelease>&	rx2retrans_release_upd,
 #pragma HLS INLINE off
 
 	/*static retransPointerEntry ptr_table[MAX_QPS];
-	#pragma HLS RESOURCE variable=ptr_table core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=ptr_table type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=ptr_table inter false*/
 	/*static retransMetaEntry meta_table[META_TABLE_SIZE];
-	#pragma HLS RESOURCE variable=meta_table core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=meta_table type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=meta_table inter false*/
 
 

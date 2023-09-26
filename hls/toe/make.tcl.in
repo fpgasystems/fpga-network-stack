@@ -30,7 +30,7 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/toe.cpp -cflags "-std=c++11 -I${CMAKE_CURR
 
 add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/toe_tb.cpp
 
-config_rtl -disable_start_propagation
+#config_rtl -disable_start_propagation
 
 
 #Check which command

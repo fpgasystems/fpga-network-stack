@@ -56,15 +56,15 @@ void retransmit_timer(	stream<rxRetransmitTimerUpdate>&	rxEng2timer_clearRetrans
 #pragma HLS PIPELINE II=1
 //#pragma HLS INLINE
 
-#pragma HLS DATA_PACK variable=rxEng2timer_clearRetransmitTimer
-#pragma HLS DATA_PACK variable=txEng2timer_setRetransmitTimer
-#pragma HLS DATA_PACK variable=rtTimer2eventEng_setEvent
-#pragma HLS DATA_PACK variable=rtTimer2stateTable_releaseState
-#pragma HLS DATA_PACK variable=rtTimer2rxApp_notification
+#pragma HLS aggregate  variable=rxEng2timer_clearRetransmitTimer compact=bit
+#pragma HLS aggregate  variable=txEng2timer_setRetransmitTimer compact=bit
+#pragma HLS aggregate  variable=rtTimer2eventEng_setEvent compact=bit
+#pragma HLS aggregate  variable=rtTimer2stateTable_releaseState compact=bit
+#pragma HLS aggregate  variable=rtTimer2rxApp_notification compact=bit
 
 	static retransmitTimerEntry retransmitTimerTable[MAX_SESSIONS];
-	#pragma HLS RESOURCE variable=retransmitTimerTable core=RAM_T2P_BRAM
-	#pragma HLS DATA_PACK variable=retransmitTimerTable
+	#pragma HLS bind_storage variable=retransmitTimerTable type=RAM_T2P impl=BRAM
+	#pragma HLS aggregate  variable=retransmitTimerTable compact=bit
 	#pragma HLS DEPENDENCE variable=retransmitTimerTable inter false
 
 	static ap_uint<16>			rt_position = 0;

@@ -26,8 +26,8 @@
  */
 #include "ethernet_frame_padding_512.hpp"
 
-void ethernet_frame_padding_512(	hls::stream<net_axis<512> >&			dataIn,
-				hls::stream<net_axis<512> >&			dataOut)
+void ethernet_frame_padding_512(	hls::stream<ap_axiu<512, 0, 0, 0> >&			dataIn,
+				hls::stream<ap_axiu<512, 0, 0, 0> >&			dataOut)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INTERFACE ap_ctrl_none port=return
@@ -40,7 +40,7 @@ void ethernet_frame_padding_512(	hls::stream<net_axis<512> >&			dataIn,
 
    if (!dataIn.empty())
    {
-      net_axis<512> currWord = dataIn.read();
+      ap_axiu<512, 0, 0, 0> currWord = dataIn.read();
 
       for (int i = 0; i < 64; i++)
       {
@@ -68,7 +68,7 @@ void ethernet_frame_padding_512(	hls::stream<net_axis<512> >&			dataIn,
 	case 0:
 		if (!dataIn.empty())
 		{
-			net_axis<512> currWord = dataIn.read();
+			ap_axiu<512, 0, 0, 0> currWord = dataIn.read();
          if (currWord.last)
          {
             for (int i = 0; i < 64; ++i)
@@ -91,7 +91,7 @@ void ethernet_frame_padding_512(	hls::stream<net_axis<512> >&			dataIn,
 	case 1:
       if (!dataIn.empty())
       {
-         net_axis<512> currWord = dataIn.read();
+         ap_axiu<512, 0, 0, 0> currWord = dataIn.read();
          dataOut.write(currWord);
 
          if (currWord.last)

@@ -219,10 +219,10 @@ void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
 	static hls::stream<udpMeta>	rx_udpMetaFifo("rx_udpMetaFifo");
 	#pragma HLS STREAM depth=2 variable=rx_udp2shiftFifo
 	#pragma HLS STREAM depth=2 variable=rx_udpMetaFifo
-	#pragma HLS DATA_PACK variable=rx_udpMetaFifo
+	#pragma HLS aggregate  variable=rx_udpMetaFifo compact=bit
 
 	process_udp<WIDTH>(s_axis_rx_data, rx_udpMetaFifo, rx_udp2shiftFifo, reg_listen_port);
-	rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 2>(((UDP_HEADER_SIZE%WIDTH)/8), rx_udp2shiftFifo, m_axis_rx_data);
+	udp_rshiftWordByOctet<net_axis<WIDTH>, WIDTH, 2>(((UDP_HEADER_SIZE%WIDTH)/8), rx_udp2shiftFifo, m_axis_rx_data);
 
 	merge_rx_meta(s_axis_rx_meta, rx_udpMetaFifo, m_axis_rx_meta);
 
@@ -238,19 +238,19 @@ void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
 
 	split_tx_meta(s_axis_tx_meta, m_axis_tx_meta, tx_udpMetaFifo);
 
-	lshiftWordByOctet<WIDTH, 1>(((UDP_HEADER_SIZE%WIDTH)/8), s_axis_tx_data, tx_shift2udpFifo);
+	udp_lshiftWordByOctet<WIDTH, 1>(((UDP_HEADER_SIZE%WIDTH)/8), s_axis_tx_data, tx_shift2udpFifo);
 
 	generate_udp<WIDTH>(tx_udpMetaFifo, tx_shift2udpFifo, m_axis_tx_data);
 }
 
 void udp_top(	hls::stream<ipMeta>&		s_axis_rx_meta,
-				hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
 				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
-				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
+				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_rx_data,
 				hls::stream<ipUdpMeta>&	s_axis_tx_meta,
-				hls::stream<net_axis<DATA_WIDTH> >&	s_axis_tx_data,
+				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_tx_data,
 				hls::stream<ipMeta>&		m_axis_tx_meta,
-				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_tx_data,
+				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_tx_data,
 				ap_uint<128>		reg_ip_address,
 				ap_uint<16>			reg_listen_port)
 
@@ -266,22 +266,42 @@ void udp_top(	hls::stream<ipMeta>&		s_axis_rx_meta,
 #pragma HLS INTERFACE axis register port=s_axis_tx_data
 #pragma HLS INTERFACE axis register port=m_axis_tx_meta
 #pragma HLS INTERFACE axis register port=m_axis_tx_data
-#pragma HLS DATA_PACK variable=s_axis_rx_meta
-#pragma HLS DATA_PACK variable=m_axis_rx_meta
-#pragma HLS DATA_PACK variable=s_axis_tx_meta
-#pragma HLS DATA_PACK variable=m_axis_tx_meta
-#pragma HLS INTERFACE ap_stable register port=reg_ip_address
-#pragma HLS INTERFACE ap_stable register port=reg_listen_port
+#pragma HLS aggregate  variable=s_axis_rx_meta compact=bit
+#pragma HLS aggregate  variable=m_axis_rx_meta compact=bit
+#pragma HLS aggregate  variable=s_axis_tx_meta compact=bit
+#pragma HLS aggregate  variable=m_axis_tx_meta compact=bit
+#pragma HLS INTERFACE ap_none register port=reg_ip_address
+#pragma HLS INTERFACE ap_none register port=reg_listen_port
 
+	static hls::stream<net_axis<DATA_WIDTH> > s_axis_rx_data_internal;
+	#pragma HLS STREAM depth=2 variable=s_axis_rx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > s_axis_tx_data_internal;
+	#pragma HLS STREAM depth=2 variable=s_axis_tx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_rx_data_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_rx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_tx_data_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_tx_data_internal
 
-   udp<DATA_WIDTH>(s_axis_rx_meta,
-                   s_axis_rx_data,
+	convert_axis_to_net_axis<DATA_WIDTH>(s_axis_rx_data, 
+							s_axis_rx_data_internal);
+
+	convert_axis_to_net_axis<DATA_WIDTH>(s_axis_tx_data, 
+							s_axis_tx_data_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_rx_data_internal,
+							m_axis_rx_data);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tx_data_internal,
+							m_axis_tx_data);
+
+   	udp<DATA_WIDTH>(s_axis_rx_meta,
+                   s_axis_rx_data_internal,
                    m_axis_rx_meta,
-                   m_axis_rx_data,
+                   m_axis_rx_data_internal,
                    s_axis_tx_meta,
-                   s_axis_tx_data,
+                   s_axis_tx_data_internal,
                    m_axis_tx_meta,
-                   m_axis_tx_data,
+                   m_axis_tx_data_internal,
                    reg_ip_address,
                    reg_listen_port);
 }

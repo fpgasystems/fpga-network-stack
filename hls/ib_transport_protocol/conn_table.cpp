@@ -37,7 +37,7 @@ void conn_table(	hls::stream<ap_uint<16> >&	tx_ibhconnTable_req,
 #pragma HLS INLINE off
 
 	static connTableEntry conn_table[MAX_QPS];
-	//#pragma HLS RESOURCE variable=conn_table core=RAM_2P_BRAM
+	//#pragma HLS bind_storage variable=conn_table type=RAM_2P impl=BRAM
 
 	ap_uint<16> txRequest;
 	ifConnReq ifRequest;

@@ -153,8 +153,8 @@ struct rxSarRecvd
 	rxSarRecvd() {}
 	rxSarRecvd(ap_uint<16> id)
 				:sessionID(id), recvd(0), write(0), init(0) {}
-	// rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd)
-	// 			:sessionID(id), recvd(recvd), write(1), init(0) {}
+	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd)
+				:sessionID(id), recvd(recvd), head(0), offset(0), gap(0), write(1), init(0) {}
 	// rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<4> win_shift)
 	// 				:sessionID(id), recvd(recvd), win_shift(win_shift), write(1), init(1) {}
 

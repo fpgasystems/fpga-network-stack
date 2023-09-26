@@ -252,7 +252,7 @@ void reverseLookupTableInterface(	stream<revLupInsert>& revTableInserts,
 #pragma HLS INLINE off
 
 	static threeTupleInternal reverseLookupTable[MAX_SESSIONS];
-	#pragma HLS RESOURCE variable=reverseLookupTable core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=reverseLookupTable type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=reverseLookupTable inter false
 	static bool tupleValid[MAX_SESSIONS];
 	#pragma HLS DEPENDENCE variable=tupleValid inter false
@@ -332,7 +332,7 @@ void session_lookup_controller(	stream<sessionLookupQuery>&			rxEng2sLookup_req,
 	// Fifos
 	static stream<sessionLookupQueryInternal> slc_lookups("slc_lookups");
 	#pragma HLS stream variable=slc_lookups depth=4
-	#pragma HLS DATA_PACK variable=slc_lookups
+	#pragma HLS aggregate  variable=slc_lookups compact=bit
 
 	static stream<ap_uint<14> > slc_sessionIdFreeList("slc_sessionIdFreeList");
 	static stream<ap_uint<14> > slc_sessionIdFinFifo("slc_sessionIdFinFifo");
@@ -352,8 +352,6 @@ void session_lookup_controller(	stream<sessionLookupQuery>&			rxEng2sLookup_req,
 	#pragma HLS STREAM variable=reverseLupInsertFifo depth=4
 
 
-	sessionIdManager(slc_sessionIdFreeList, slc_sessionIdFinFifo);
-
 	lookupReplyHandler(	sessionLookup_rsp,
 						slc_sessionInsert_rsp,
 						rxEng2sLookup_req,
@@ -371,6 +369,8 @@ void session_lookup_controller(	stream<sessionLookupQuery>&			rxEng2sLookup_req,
 						sessionUpdate_req,
 						slc_sessionIdFinFifo,
 						regSessionCount);
+
+	sessionIdManager(slc_sessionIdFreeList, slc_sessionIdFinFifo);
 
 	updateReplyHandler(	sessionUpdate_rsp,
 						slc_sessionInsert_rsp);

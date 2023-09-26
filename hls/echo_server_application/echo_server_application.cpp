@@ -225,25 +225,25 @@ void echo_server_application(	hls::stream<ap_uint<16> >&		listenPort,
 
 #pragma HLS INTERFACE axis register port=notifications name=s_axis_notifications
 #pragma HLS INTERFACE axis register port=readRequest name=m_axis_read_package
-#pragma HLS DATA_PACK variable=notifications
-#pragma HLS DATA_PACK variable=readRequest
+#pragma HLS aggregate  variable=notifications compact=bit
+#pragma HLS aggregate  variable=readRequest compact=bit
 
 #pragma HLS INTERFACE axis register port=rxMetaData name=s_axis_rx_metadata
 #pragma HLS INTERFACE axis register port=rxData name=s_axis_rx_data
-//#pragma HLS DATA_PACK variable=rxMetaData
+//#pragma HLS aggregate  variable=rxMetaData compact=bit
 
 #pragma HLS INTERFACE axis register port=openConnection name=m_axis_open_connection
 #pragma HLS INTERFACE axis register port=openConStatus name=s_axis_open_status
-#pragma HLS DATA_PACK variable=openConnection
-#pragma HLS DATA_PACK variable=openConStatus
+#pragma HLS aggregate  variable=openConnection compact=bit
+#pragma HLS aggregate  variable=openConStatus compact=bit
 
 #pragma HLS INTERFACE axis register port=closeConnection name=m_axis_close_connection
 
 #pragma HLS INTERFACE axis register port=txMetaData name=m_axis_tx_metadata
 #pragma HLS INTERFACE axis register port=txData name=m_axis_tx_data
 #pragma HLS INTERFACE axis register port=txStatus name=s_axis_tx_status
-#pragma HLS DATA_PACK variable=txMetaData
-#pragma HLS DATA_PACK variable=txStatus
+#pragma HLS aggregate  variable=txMetaData compact=bit
+#pragma HLS aggregate  variable=txStatus compact=bit
 
 
 	static hls::stream<ap_uint<16> >		esa_sessionidFifo("esa_sessionidFifo");

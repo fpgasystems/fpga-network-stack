@@ -94,14 +94,14 @@ public:
 			w = header(((idx+1)*W)-1, idx*W);
 			idx++;
 			return false;
-			/*if ((idx+1)*W > HEADER_SIZE)
+			if ((idx+1)*W > HEADER_SIZE)
 			{
 				return true;
 			}
 			else
 			{
 				return false;
-			}*//*
+			}
 		}
 		else if ((idx+1)*W <= HEADER_SIZE)
 		{
@@ -110,8 +110,8 @@ public:
 			return true;
 		}
 		return true;
-	}*/
-	/*void consumePartialWord(ap_uint<W>& w)
+	}
+	void consumePartialWord(ap_uint<W>& w)
 	{
 		if (idx*W < HEADER_SIZE)
 		{
@@ -120,7 +120,7 @@ public:
 		}
 		//return true;
 	}
-	/*bool consumeWord(ap_uint<W>& w)
+	bool consumeWord(ap_uint<W>& w)
 	{
 		if ((idx+1)*W <= HEADER_SIZE)
 		{
@@ -155,7 +155,8 @@ public:
 
 	void clear()
 	{
-#pragma HLS pipeline II=1
+//#pragma HLS pipeline II=1
+#pragma HLS INLINE
 		//header = 0;
 		ready = false;
 		idx = 0;

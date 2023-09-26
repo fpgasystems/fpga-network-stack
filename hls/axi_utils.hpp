@@ -32,7 +32,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-
+#include "ap_axi_sdata.h"
 //Adaptation of ap_axiu<>
 
 /*template <int D>
@@ -68,6 +68,65 @@ struct routed_net_axis
 	routed_net_axis(net_axis<D> w, ap_uint<R> r)
 		:data(w.data), keep(w.keep), last(w.last), dest(r) {}
 };
+
+template <int WIDTH>
+void convert_net_axis_to_axis(hls::stream<net_axis<WIDTH> >& input,
+							hls::stream<ap_axiu<WIDTH, 0, 0, 0> >& output)
+{
+#pragma HLS pipeline II=1
+
+	net_axis<WIDTH> inputWord;
+	ap_axiu<WIDTH, 0, 0, 0> outputWord;
+
+	if (!input.empty())
+	{
+		inputWord = input.read();
+		outputWord.data = inputWord.data;
+		outputWord.keep = inputWord.keep;
+		outputWord.last = inputWord.last;
+		output.write(outputWord);
+	}
+}
+
+
+template <int WIDTH>
+void convert_axis_to_net_axis(hls::stream<ap_axiu<WIDTH, 0, 0, 0> >& input,
+							hls::stream<net_axis<WIDTH> >& output)
+{
+#pragma HLS pipeline II=1
+
+	ap_axiu<WIDTH, 0, 0, 0> inputWord;
+	net_axis<WIDTH> outputWord;
+	
+	if (!input.empty())
+	{
+		inputWord = input.read();
+		outputWord.data = inputWord.data;
+		outputWord.keep = inputWord.keep;
+		outputWord.last = inputWord.last;
+		output.write(outputWord);
+	}
+}
+
+template <int WIDTH, int DST=1>
+void convert_routed_net_axis_to_axis(hls::stream<routed_net_axis<WIDTH, DST> >& input,
+							hls::stream<ap_axiu<WIDTH, 0, 0, DST> >& output)
+{
+#pragma HLS pipeline II=1
+
+	routed_net_axis<WIDTH, DST> inputWord;
+	ap_axiu<WIDTH, 0, 0, DST> outputWord;
+
+	if (!input.empty())
+	{
+		inputWord = input.read();
+		outputWord.data = inputWord.data;
+		outputWord.keep = inputWord.keep;
+		outputWord.last = inputWord.last;
+		outputWord.dest = inputWord.dest;
+		output.write(outputWord);
+	}
+}
 
 template<int D>
 ap_uint<D> reverse(const ap_uint<D>& w)
@@ -426,7 +485,6 @@ template <>
 void assignDest<routed_net_axis<512> >(routed_net_axis<512>& d, routed_net_axis<512>& s);
 
 // The 2nd template parameter is a hack to use this function multiple times
-
 template <typename T, int W, int whatever>
 void rshiftWordByOctet(	uint16_t offset,
 						hls::stream<T>& input,
@@ -975,7 +1033,23 @@ void pass_valid_pkg(hls::stream<bool>&				pkgValidIn,
 
 
 template <class T>
-void duplicate_stream(	hls::stream<T>&	in,
+void toe_duplicate_stream(	hls::stream<T>&	in,
+								hls::stream<T>&	out0,
+								hls::stream<T>& 	out1)
+{
+	#pragma HLS PIPELINE II=1
+	#pragma HLS INLINE off
+
+	if (!in.empty())
+	{
+		T item = in.read();
+		out0.write(item);
+		out1.write(item);
+	}
+}
+
+template <class T>
+void ip_handler_duplicate_stream(	hls::stream<T>&	in,
 								hls::stream<T>&	out0,
 								hls::stream<T>& 	out1)
 {
@@ -1007,4 +1081,370 @@ net_axis<WIDTH> alignWords(ap_uint<6> offset, net_axis<WIDTH>	prevWord, net_axis
 		//alignedWord.last = (currWord.keep[offset] == 0);
 
    return alignedWord;
+}
+
+
+// SOLUTION NEEDED --------------------------------------------------------------------------------------------------------------------------------------------------
+
+// The 2nd template parameter is a hack to use this function multiple times
+template <int W, int whatever>
+void udp_lshiftWordByOctet(	uint16_t offset,
+						hls::stream<net_axis<W> >& input,
+						hls::stream<net_axis<W> >& output)
+{
+#pragma HLS inline off
+#pragma HLS pipeline II=1
+	static bool ls_firstWord = true;
+	static bool ls_writeRemainder = false;
+	static net_axis<W> prevWord;
+
+	net_axis<W> currWord;
+	net_axis<W> sendWord;
+
+	//TODO use states
+	if (ls_writeRemainder)
+	{
+		sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+		sendWord.data((W-1), (8*offset)) = 0;
+		sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+		sendWord.keep((W/8-1), offset) = 0;
+		sendWord.last = 1;
+
+		output.write(sendWord);
+		ls_writeRemainder = false;
+	}
+	else if (!input.empty())
+	{
+		input.read(currWord);
+
+		if (offset == 0)
+		{
+			output.write(currWord);
+		}
+		else
+		{
+
+			if (ls_firstWord)
+			{
+				sendWord.data((8*offset)-1, 0) = 0;
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+				sendWord.keep(offset-1, 0) = 0xFFFFFFFF;
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
+			}
+			else
+			{
+				sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+
+				sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
+
+			}
+			output.write(sendWord);
+
+			prevWord = currWord;
+			ls_firstWord = false;
+			if (currWord.last)
+			{
+				ls_firstWord = true;
+				ls_writeRemainder = !sendWord.last;
+			}
+		} //else offset
+	}
+
+}
+
+// The 2nd template parameter is a hack to use this function multiple times
+template <int W, int whatever>
+void mac_lshiftWordByOctet(	uint16_t offset,
+						hls::stream<net_axis<W> >& input,
+						hls::stream<net_axis<W> >& output)
+{
+#pragma HLS inline off
+#pragma HLS pipeline II=1
+	static bool ls_firstWord = true;
+	static bool ls_writeRemainder = false;
+	static net_axis<W> prevWord;
+
+	net_axis<W> currWord;
+	net_axis<W> sendWord;
+
+	//TODO use states
+	if (ls_writeRemainder)
+	{
+		sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+		sendWord.data((W-1), (8*offset)) = 0;
+		sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+		sendWord.keep((W/8-1), offset) = 0;
+		sendWord.last = 1;
+
+		output.write(sendWord);
+		ls_writeRemainder = false;
+	}
+	else if (!input.empty())
+	{
+		input.read(currWord);
+
+		if (offset == 0)
+		{
+			output.write(currWord);
+		}
+		else
+		{
+
+			if (ls_firstWord)
+			{
+				sendWord.data((8*offset)-1, 0) = 0;
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+				sendWord.keep(offset-1, 0) = 0xFFFFFFFF;
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
+			}
+			else
+			{
+				sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+
+				sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
+
+			}
+			output.write(sendWord);
+
+			prevWord = currWord;
+			ls_firstWord = false;
+			if (currWord.last)
+			{
+				ls_firstWord = true;
+				ls_writeRemainder = !sendWord.last;
+			}
+		} //else offset
+	}
+
+}
+
+// The 2nd template parameter is a hack to use this function multiple times
+template <int W, int whatever>
+void ipv4_lshiftWordByOctet(	uint16_t offset,
+						hls::stream<net_axis<W> >& input,
+						hls::stream<net_axis<W> >& output)
+{
+#pragma HLS inline off
+#pragma HLS pipeline II=1
+	static bool ls_firstWord = true;
+	static bool ls_writeRemainder = false;
+	static net_axis<W> prevWord;
+
+	net_axis<W> currWord;
+	net_axis<W> sendWord;
+
+	//TODO use states
+	if (ls_writeRemainder)
+	{
+		sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+		sendWord.data((W-1), (8*offset)) = 0;
+		sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+		sendWord.keep((W/8-1), offset) = 0;
+		sendWord.last = 1;
+
+		output.write(sendWord);
+		ls_writeRemainder = false;
+	}
+	else if (!input.empty())
+	{
+		input.read(currWord);
+
+		if (offset == 0)
+		{
+			output.write(currWord);
+		}
+		else
+		{
+
+			if (ls_firstWord)
+			{
+				sendWord.data((8*offset)-1, 0) = 0;
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+				sendWord.keep(offset-1, 0) = 0xFFFFFFFF;
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
+			}
+			else
+			{
+				sendWord.data((8*offset)-1, 0) = prevWord.data((W-1), W-(8*offset));
+				sendWord.data((W-1), (8*offset)) = currWord.data((W-1)-(8*offset), 0);
+
+				sendWord.keep(offset-1, 0) = prevWord.keep((W/8-1), (W/8)-offset);
+				sendWord.keep((W/8-1), offset) = currWord.keep((W/8-1)-offset, 0);
+
+				sendWord.last = (currWord.keep((W/8-1), (W/8)-offset) == 0);
+
+			}
+			output.write(sendWord);
+
+			prevWord = currWord;
+			ls_firstWord = false;
+			if (currWord.last)
+			{
+				ls_firstWord = true;
+				ls_writeRemainder = !sendWord.last;
+			}
+		} //else offset
+	}
+
+}
+
+// The 2nd template parameter is a hack to use this function multiple times
+template <typename T, int W, int whatever>
+void ip_handler_rshiftWordByOctet(	uint16_t offset,
+						hls::stream<T>& input,
+						hls::stream<T>& output)
+{
+#pragma HLS inline off
+#pragma HLS pipeline II=1 //TODO this has a bug, the bug might come from how it is used
+
+	enum fsmStateType {PKG, REMAINDER};
+	static fsmStateType fsmState = PKG;
+	static bool rs_firstWord = (offset != 0);
+	static T prevWord;
+
+	T currWord;
+	T sendWord;
+
+	sendWord.last = 0;
+	switch (fsmState)
+	{
+	case PKG:
+		if (!input.empty())
+		{
+			input.read(currWord);
+
+			if (!rs_firstWord)
+			{
+				if (offset == 0)
+				{
+					sendWord = currWord;
+				}
+				else
+				{
+					sendWord.data((W-1)-(8*offset), 0) = prevWord.data((W-1), 8*offset);
+					sendWord.data((W-1), W-(8*offset)) = currWord.data((8*offset)-1, 0);
+
+					sendWord.keep((W/8-1)-offset, 0) = prevWord.keep((W/8-1), offset);
+					sendWord.keep((W/8-1), (W/8)-offset) = currWord.keep(offset-1, 0);
+
+					sendWord.last = (currWord.keep((W/8-1), offset) == 0);
+					//sendWord.dest = currWord.dest;
+					assignDest(sendWord, currWord);
+				}//else offset
+				output.write(sendWord);
+			}
+
+			prevWord = currWord;
+			rs_firstWord = false;
+			if (currWord.last)
+			{
+				rs_firstWord = (offset != 0);
+				//rs_writeRemainder = (sendWord.last == 0);
+				if (!sendWord.last)
+				{
+					fsmState = REMAINDER;
+				}
+			}
+			//}//else offset
+		}
+		break;
+	case REMAINDER:
+		sendWord.data((W-1)-(8*offset), 0) = prevWord.data((W-1), 8*offset);
+		sendWord.data((W-1), W-(8*offset)) = 0;
+		sendWord.keep((W/8-1)-offset, 0) = prevWord.keep((W/8-1), offset);
+		sendWord.keep((W/8-1), (W/8)-offset) = 0;
+		sendWord.last = 1;
+		//sendWord.dest = prevWord.dest;
+		assignDest(sendWord, currWord);
+
+		output.write(sendWord);
+		fsmState = PKG;
+		break;
+	}
+}
+
+// The 2nd template parameter is a hack to use this function multiple times
+template <typename T, int W, int whatever>
+void udp_rshiftWordByOctet(	uint16_t offset,
+						hls::stream<T>& input,
+						hls::stream<T>& output)
+{
+#pragma HLS inline off
+#pragma HLS pipeline II=1 //TODO this has a bug, the bug might come from how it is used
+
+	enum fsmStateType {PKG, REMAINDER};
+	static fsmStateType fsmState = PKG;
+	static bool rs_firstWord = (offset != 0);
+	static T prevWord;
+
+	T currWord;
+	T sendWord;
+
+	sendWord.last = 0;
+	switch (fsmState)
+	{
+	case PKG:
+		if (!input.empty())
+		{
+			input.read(currWord);
+
+			if (!rs_firstWord)
+			{
+				if (offset == 0)
+				{
+					sendWord = currWord;
+				}
+				else
+				{
+					sendWord.data((W-1)-(8*offset), 0) = prevWord.data((W-1), 8*offset);
+					sendWord.data((W-1), W-(8*offset)) = currWord.data((8*offset)-1, 0);
+
+					sendWord.keep((W/8-1)-offset, 0) = prevWord.keep((W/8-1), offset);
+					sendWord.keep((W/8-1), (W/8)-offset) = currWord.keep(offset-1, 0);
+
+					sendWord.last = (currWord.keep((W/8-1), offset) == 0);
+					//sendWord.dest = currWord.dest;
+					assignDest(sendWord, currWord);
+				}//else offset
+				output.write(sendWord);
+			}
+
+			prevWord = currWord;
+			rs_firstWord = false;
+			if (currWord.last)
+			{
+				rs_firstWord = (offset != 0);
+				//rs_writeRemainder = (sendWord.last == 0);
+				if (!sendWord.last)
+				{
+					fsmState = REMAINDER;
+				}
+			}
+			//}//else offset
+		}
+		break;
+	case REMAINDER:
+		sendWord.data((W-1)-(8*offset), 0) = prevWord.data((W-1), 8*offset);
+		sendWord.data((W-1), W-(8*offset)) = 0;
+		sendWord.keep((W/8-1)-offset, 0) = prevWord.keep((W/8-1), offset);
+		sendWord.keep((W/8-1), (W/8)-offset) = 0;
+		sendWord.last = 1;
+		//sendWord.dest = prevWord.dest;
+		assignDest(sendWord, currWord);
+
+		output.write(sendWord);
+		fsmState = PKG;
+		break;
+	}
 }

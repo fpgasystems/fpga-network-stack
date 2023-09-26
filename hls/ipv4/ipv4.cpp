@@ -154,6 +154,91 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 	}
 }
 
+template <int WIDTH>
+void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
+					stream<net_axis<WIDTH> >&	tx_shift2ipv4Fifo,
+					stream<net_axis<WIDTH> >&	m_axis_tx_data,
+					ap_uint<32>			local_ipv4_address,
+					ap_uint<8>			protocol)
+{
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+	enum fsmStateType {META, HEADER, PARTIAL_HEADER, BODY};
+	static fsmStateType gi_state=META;
+	static ipv4Header<WIDTH> header;
+
+	ipv4Meta meta;
+	net_axis<WIDTH> currWord;
+	ap_uint<16>  length;
+
+	switch (gi_state)
+	{
+	case META:
+		if (!txEng_ipMetaDataFifoIn.empty())
+		{
+			txEng_ipMetaDataFifoIn.read(meta);
+			header.clear();
+
+			length = meta.length + 20;
+			header.setLength(length);
+			header.setDstAddr(meta.their_address);
+			header.setSrcAddr(local_ipv4_address);
+			header.setProtocol(protocol);
+			if (IPV4_HEADER_SIZE >= WIDTH)
+			{
+				gi_state = HEADER;
+			}
+			else
+			{
+				gi_state = PARTIAL_HEADER;
+			}
+		}
+		break;
+	case HEADER:
+		if (header.consumeWord(currWord.data) < (WIDTH/8))
+		{
+			/*currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
+			currWord.last = 0;
+			m_axis_tx_data.write(currWord);*/
+			gi_state = PARTIAL_HEADER;
+		}
+		//else
+		{
+			currWord.keep = 0xFFFFFFFF; //TODO, set as much as required
+			currWord.last = 0;
+			m_axis_tx_data.write(currWord);
+			//gi_state = PARTIAL_HEADER;
+		}
+		break;
+	case PARTIAL_HEADER:
+		if (!tx_shift2ipv4Fifo.empty())
+		{
+			tx_shift2ipv4Fifo.read(currWord);
+			header.consumeWord(currWord.data);
+			m_axis_tx_data.write(currWord);
+			gi_state = BODY;
+
+			if (currWord.last)
+			{
+				gi_state = META;
+			}
+		}
+		break;
+	case BODY:
+		if (!tx_shift2ipv4Fifo.empty())
+		{
+			tx_shift2ipv4Fifo.read(currWord);
+			m_axis_tx_data.write(currWord);
+			if (currWord.last)
+			{
+				gi_state = META;
+			}
+		}
+		break;
+	}
+}
+
 
 template <int WIDTH>
 void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
@@ -183,26 +268,26 @@ void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	 */
 	process_ipv4(s_axis_rx_data, rx_process2dropLengthFifo, m_axis_rx_meta, rx_process2dropFifo);
 	//Assumes for WIDTH > 64 no optional fields
-	drop_optional_ip_header(rx_process2dropLengthFifo, rx_process2dropFifo, m_axis_rx_data);
+	ipv4_drop_optional_ip_header(rx_process2dropLengthFifo, rx_process2dropFifo, m_axis_rx_data);
 
 	/*
 	 * TX PATH
 	 */
-	lshiftWordByOctet<WIDTH, 2>(((IPV4_HEADER_SIZE%WIDTH)/8), s_axis_tx_data, tx_shift2ipv4Fifo);
-	generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address, protocol);
+	ipv4_lshiftWordByOctet<WIDTH, 2>(((IPV4_HEADER_SIZE%WIDTH)/8), s_axis_tx_data, tx_shift2ipv4Fifo);
+	ipv4_generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address, protocol);
 }
 
-void ipv4_top(		hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+void ipv4_top(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
 				hls::stream<ipv4Meta>&		m_axis_rx_meta,
-				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
+				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_rx_data,
 				hls::stream<ipv4Meta>&		s_axis_tx_meta,
-				hls::stream<net_axis<DATA_WIDTH> >&	s_axis_tx_data,
-				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_tx_data,
+				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_tx_data,
+				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_tx_data,
 				ap_uint<32>			local_ipv4_address,
 				ap_uint<8>			protocol)
 {
 #pragma HLS DATAFLOW disable_start_propagation
-#pragma HLS INTERFACE ap_ctrl_none register port=return
+#pragma HLS INTERFACE ap_ctrl_none port=return
 
 #pragma HLS INTERFACE axis register port=s_axis_rx_data
 #pragma HLS INTERFACE axis register port=m_axis_rx_meta
@@ -210,17 +295,39 @@ void ipv4_top(		hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 #pragma HLS INTERFACE axis register port=s_axis_tx_meta
 #pragma HLS INTERFACE axis register port=s_axis_tx_data
 #pragma HLS INTERFACE axis register port=m_axis_tx_data
-#pragma HLS DATA_PACK variable=m_axis_rx_meta
-#pragma HLS DATA_PACK variable=s_axis_tx_meta
-#pragma HLS INTERFACE ap_stable register port=local_ipv4_address
-#pragma HLS INTERFACE ap_stable register port=protocol
+#pragma HLS aggregate  variable=m_axis_rx_meta compact=bit
+#pragma HLS aggregate  variable=s_axis_tx_meta compact=bit
+#pragma HLS INTERFACE ap_none register port=local_ipv4_address
+#pragma HLS INTERFACE ap_none register port=protocol
 
-   ipv4<DATA_WIDTH>(s_axis_rx_data,
+	static hls::stream<net_axis<DATA_WIDTH> > s_axis_rx_data_internal;
+	#pragma HLS STREAM depth=2 variable=s_axis_rx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > s_axis_tx_data_internal;
+	#pragma HLS STREAM depth=2 variable=s_axis_tx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_rx_data_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_rx_data_internal
+	static hls::stream<net_axis<DATA_WIDTH> > m_axis_tx_data_internal;
+	#pragma HLS STREAM depth=2 variable=m_axis_tx_data_internal
+
+
+	convert_axis_to_net_axis<DATA_WIDTH>(s_axis_rx_data, 
+							s_axis_rx_data_internal);
+
+	convert_axis_to_net_axis<DATA_WIDTH>(s_axis_tx_data, 
+							s_axis_tx_data_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_rx_data_internal, 
+							m_axis_rx_data);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tx_data_internal, 
+							m_axis_tx_data);
+
+   	ipv4<DATA_WIDTH>(s_axis_rx_data_internal,
         m_axis_rx_meta,
-        m_axis_rx_data,
+        m_axis_rx_data_internal,
         s_axis_tx_meta,
-        s_axis_tx_data,
-        m_axis_tx_data,
+        s_axis_tx_data_internal,
+        m_axis_tx_data_internal,
         local_ipv4_address,
 		protocol);
 

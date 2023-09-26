@@ -321,6 +321,8 @@ ap_uint<8> keepToLen(ap_uint<64> keepValue)
 		return 0x3F;
 	case 0xFFFFFFFFFFFFFFFF:
 		return 0x40;
+	default:
+		return 0xFF;
 //#endif
 //#endif
 //#endif

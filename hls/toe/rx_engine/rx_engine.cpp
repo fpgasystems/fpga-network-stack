@@ -1683,7 +1683,7 @@ void rxAppNotificationDelayer(	stream<mmStatus>&				rxWriteStatusIn, stream<appN
 
 	static stream<appNotification> rand_notificationBuffer("rand_notificationBuffer");
 	#pragma HLS STREAM variable=rand_notificationBuffer depth=32 //depends on memory delay
-	#pragma HLS DATA_PACK variable=rand_notificationBuffer
+	#pragma HLS aggregate  variable=rand_notificationBuffer compact=bit
 
 	static ap_uint<1>		rxAppNotificationDoubleAccessFlag = false;
 	static ap_uint<5>		rand_fifoCount = 0;
@@ -1743,7 +1743,7 @@ void rxAppNotificationDelayer(	stream<mmStatus>&				rxWriteStatusIn, stream<appN
 void rxEventMerger(stream<extendedEvent>& in1, stream<event>& in2, stream<extendedEvent>& out)
 {
 	#pragma HLS PIPELINE II=1
-	#pragma HLS INLINE
+	#pragma HLS INLINE OFF
 
 	if (!in1.empty())
 	{
@@ -1968,12 +1968,12 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	#pragma HLS stream variable=rxEng_dataBuffer3 depth=32
 	#pragma HLS stream variable=rxEng_dataBuffer3a depth=8
 	#pragma HLS stream variable=rxEng_dataBuffer3b depth=8
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer0
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer1
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer2
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer3
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer3a
-	#pragma HLS DATA_PACK variable=rxEng_dataBuffer3b
+	#pragma HLS aggregate  variable=rxEng_dataBuffer0 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer1 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer2 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer3 compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer3a compact=bit
+	#pragma HLS aggregate  variable=rxEng_dataBuffer3b compact=bit
 
 	// Meta Streams/FIFOs
 	//static stream<bool>					rxEng_tcpValidFifo("rx_tcpValidFifo");
@@ -1986,35 +1986,35 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	#pragma HLS stream variable=rxEng_fsmMetaDataFifo depth=2
 	#pragma HLS stream variable=rxEng_tupleBuffer depth=2
 	#pragma HLS stream variable=rxEng_ipMetaFifo depth=2
-	#pragma HLS DATA_PACK variable=rxEng_metaDataFifo
-	#pragma HLS DATA_PACK variable=rxEng_fsmMetaDataFifo
-	#pragma HLS DATA_PACK variable=rxEng_tupleBuffer
+	#pragma HLS aggregate  variable=rxEng_metaDataFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmMetaDataFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_tupleBuffer compact=bit
 
 	static stream<extendedEvent>		rxEng_metaHandlerEventFifo("rxEng_metaHandlerEventFifo");
 	static stream<event>				rxEng_fsmEventFifo("rxEng_fsmEventFifo");
 	#pragma HLS stream variable=rxEng_metaHandlerEventFifo depth=2
 	#pragma HLS stream variable=rxEng_fsmEventFifo depth=2
-	#pragma HLS DATA_PACK variable=rxEng_metaHandlerEventFifo
-	#pragma HLS DATA_PACK variable=rxEng_fsmEventFifo
+	#pragma HLS aggregate  variable=rxEng_metaHandlerEventFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmEventFifo compact=bit
 
 	static stream<bool>					rxEng_metaHandlerDropFifo("rxEng_metaHandlerDropFifo");
 	static stream<bool>					rxEng_fsmDropFifo("rxEng_fsmDropFifo");
 	#pragma HLS stream variable=rxEng_metaHandlerDropFifo depth=2
 	#pragma HLS stream variable=rxEng_fsmDropFifo depth=2
-	#pragma HLS DATA_PACK variable=rxEng_metaHandlerDropFifo
-	#pragma HLS DATA_PACK variable=rxEng_fsmDropFifo
+	#pragma HLS aggregate  variable=rxEng_metaHandlerDropFifo compact=bit
+	#pragma HLS aggregate  variable=rxEng_fsmDropFifo compact=bit
 
 	static stream<appNotification> rx_internalNotificationFifo("rx_internalNotificationFifo");
 	#pragma HLS stream variable=rx_internalNotificationFifo depth=8 //This depends on the memory delay
-	#pragma HLS DATA_PACK variable=rx_internalNotificationFifo
+	#pragma HLS aggregate  variable=rx_internalNotificationFifo compact=bit
 
 	static stream<mmCmd> 					rxTcpFsm2wrAccessBreakdown("rxTcpFsm2wrAccessBreakdown");
 	#pragma HLS stream variable=rxTcpFsm2wrAccessBreakdown depth=8
-	#pragma HLS DATA_PACK variable=rxTcpFsm2wrAccessBreakdown
+	#pragma HLS aggregate  variable=rxTcpFsm2wrAccessBreakdown compact=bit
 
 	static stream<net_axis<WIDTH> > 					rxPkgDrop2rxMemWriter("rxPkgDrop2rxMemWriter");
 	#pragma HLS stream variable=rxPkgDrop2rxMemWriter depth=16
-	#pragma HLS DATA_PACK variable=rxPkgDrop2rxMemWriter
+	#pragma HLS aggregate  variable=rxPkgDrop2rxMemWriter compact=bit
 
 	static stream<ap_uint<1> >				rxEngDoubleAccess("rxEngDoubleAccess");
 	#pragma HLS stream variable=rxEngDoubleAccess depth=8

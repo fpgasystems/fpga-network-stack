@@ -58,7 +58,7 @@ void open_dhcp_port(stream<ap_uint<16> >&	openPort,
 
 
 void receive_message(	stream<udpMetadata>&	dataInMeta,
-						stream<net_axis<DATA_WIDTH> >&		dataIn,
+						stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		dataIn,
 						stream<dhcpReplyMeta>&	metaOut,
 						ap_uint<48>				myMacAddress) {
 #pragma HLS PIPELINE II=1
@@ -70,7 +70,7 @@ void receive_message(	stream<udpMetadata>&	dataInMeta,
 	static ap_uint<6> rm_wordCount 	= 0;
 	static dhcpReplyMeta meta;
 
-	net_axis<DATA_WIDTH> currWord;
+	ap_axiu<DATA_WIDTH, 0, 0, 0> currWord;
 
 	if (!dataIn.empty()) {
 		dataIn.read(currWord);
@@ -132,7 +132,7 @@ void receive_message(	stream<udpMetadata>&	dataInMeta,
 void send_message(	stream<dhcpRequestMeta>&	metaIn,
 					stream<udpMetadata>&		dataOutMeta,
 					stream<ap_uint<16> >&		dataOutLength,
-					stream<net_axis<DATA_WIDTH> >&			dataOut,
+					stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataOut,
 					ap_uint<48> 				myMacAddress)
 {
 #pragma HLS PIPELINE II=1
@@ -140,7 +140,7 @@ void send_message(	stream<dhcpRequestMeta>&	metaIn,
 
 	static ap_uint<6> sm_wordCount = 0;
 	static dhcpRequestMeta meta;
-	net_axis<DATA_WIDTH> sendWord;
+	ap_axiu<DATA_WIDTH, 0, 0, 0> sendWord;
 
    sendWord.data = 0;
    sendWord.keep = 0xff;
@@ -335,10 +335,10 @@ void dhcp_client(	stream<ap_uint<16> >&	openPort,
 					stream<bool>&			confirmPortStatus,
 					//stream<ap_uint<16> >&	realeasePort,
 					stream<udpMetadata>&	dataInMeta,
-					stream<net_axis<DATA_WIDTH> >&		dataIn,
+					stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		dataIn,
 					stream<udpMetadata>&	dataOutMeta,
 					stream<ap_uint<16> >&	dataOutLength,
-					stream<net_axis<DATA_WIDTH> >&		dataOut,
+					stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&		dataOut,
 					ap_uint<1>&				dhcpEnable,
 					ap_uint<32>&			inputIpAddress,
 					ap_uint<32>&			dhcpIpAddressOut,
@@ -353,19 +353,19 @@ void dhcp_client(	stream<ap_uint<16> >&	openPort,
 	#pragma HLS INTERFACE axis register port=dataOutMeta name=m_axis_tx_metadata
 	#pragma HLS INTERFACE axis register port=dataOutLength name=m_axis_tx_length
 	#pragma HLS INTERFACE axis register port=dataOut name=m_axis_tx_data
-	#pragma HLS DATA_PACK variable=dataOutMeta
+	#pragma HLS aggregate variable=dataOutMeta compact=bit
 
-	#pragma HLS INTERFACE ap_stable register	port=dhcpEnable
-	#pragma HLS INTERFACE ap_stable register	port=dhcpIpAddressOut
-	#pragma HLS INTERFACE ap_stable			port=myMacAddress
-	#pragma HLS INTERFACE ap_stable register	port=inputIpAddress
+	#pragma HLS INTERFACE ap_none register	port=dhcpEnable
+	#pragma HLS INTERFACE ap_none register	port=dhcpIpAddressOut
+	#pragma HLS INTERFACE ap_none register	port=myMacAddress
+	#pragma HLS INTERFACE ap_none register	port=inputIpAddress
 
 	static stream<dhcpReplyMeta>		dhcp_replyMetaFifo("dhcp_replyMetaFifo");
 	static stream<dhcpRequestMeta>		dhcp_requestMetaFifo("dhcp_requestMetaFifo");
 	#pragma HLS stream variable=dhcp_replyMetaFifo depth=4
 	#pragma HLS stream variable=dhcp_requestMetaFifo depth=4
-	#pragma HLS DATA_PACK variable=dhcp_replyMetaFifo
-	#pragma HLS DATA_PACK variable=dhcp_requestMetaFifo
+	#pragma HLS aggregate variable=dhcp_replyMetaFifo compact=bit
+	#pragma HLS aggregate variable=dhcp_requestMetaFifo compact=bit
 	static stream<ap_uint<1> >		portOpen("portOpen");
 
 	open_dhcp_port(openPort, confirmPortStatus, portOpen);

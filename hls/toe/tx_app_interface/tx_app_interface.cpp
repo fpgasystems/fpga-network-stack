@@ -72,6 +72,7 @@ void txAppStatusHandler(stream<mmStatus>&				txBufferWriteStatus,
    enum fsmStatus {READ_EV, READ_STATUS_1, READ_STATUS_2};
 	static fsmStatus tash_state = READ_EV;
 	static event ev;
+	ap_uint<32> tempLength;
 
 	switch (tash_state) {
 	case READ_EV:
@@ -95,8 +96,8 @@ void txAppStatusHandler(stream<mmStatus>&				txBufferWriteStatus,
 			mmStatus status = txBufferWriteStatus.read();
 			if (status.okay)
 			{
-				ap_uint<WINDOW_BITS+1> tempLength = ev.address + ev.length;
-				if (tempLength[WINDOW_BITS] == 1)// tempLength > BUFFER_SIZE
+				tempLength = ev.address + ev.length;
+				if (tempLength > BUFFER_SIZE) //(tempLength[WINDOW_BITS] == 1) 
 				{
 					tash_state = READ_STATUS_2;
 				}
@@ -220,24 +221,24 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 	// Fifos
 	static stream<event> txApp2eventEng_mergeEvent("txApp2eventEng_mergeEvent");
 	static stream<event> txAppStream2event_mergeEvent("txAppStream2event_mergeEvent");
-	#pragma HLS stream variable=txApp2eventEng_mergeEvent		depth=2
-	#pragma HLS stream variable=txAppStream2event_mergeEvent	depth=2
-	#pragma HLS DATA_PACK variable=txApp2eventEng_mergeEvent
-	#pragma HLS DATA_PACK variable=txAppStream2event_mergeEvent
+	#pragma HLS stream variable=txApp2eventEng_mergeEvent		depth=64
+	#pragma HLS stream variable=txAppStream2event_mergeEvent	depth=64
+	#pragma HLS aggregate  variable=txApp2eventEng_mergeEvent compact=bit
+	#pragma HLS aggregate  variable=txAppStream2event_mergeEvent compact=bit
 
 	static stream<event> txApp_eventCacheFifo("txApp_eventCacheFifo");
 	static stream<event> txApp_txEventCache("txApp_txEventCache");
-	#pragma HLS stream variable=txApp_eventCacheFifo	depth=2
-	#pragma HLS DATA_PACK variable=txApp_eventCacheFifo
+	#pragma HLS stream variable=txApp_eventCacheFifo	depth=64
+	#pragma HLS aggregate  variable=txApp_eventCacheFifo compact=bit
 	#pragma HLS stream variable=txApp_txEventCache	depth=64
-	#pragma HLS DATA_PACK variable=txApp_txEventCache
+	#pragma HLS aggregate  variable=txApp_txEventCache compact=bit
 
 	static stream<txAppTxSarQuery>		txApp2txSar_upd_req("txApp2txSar_upd_req");
 	static stream<txAppTxSarReply>		txSar2txApp_upd_rsp("txSar2txApp_upd_rsp");
-	#pragma HLS stream variable=txApp2txSar_upd_req		depth=2
-	#pragma HLS stream variable=txSar2txApp_upd_rsp		depth=2
-	#pragma HLS DATA_PACK variable=txApp2txSar_upd_req
-	#pragma HLS DATA_PACK variable=txSar2txApp_upd_rsp
+	#pragma HLS stream variable=txApp2txSar_upd_req		depth=64
+	#pragma HLS stream variable=txSar2txApp_upd_rsp		depth=64
+	#pragma HLS aggregate  variable=txApp2txSar_upd_req compact=bit
+	#pragma HLS aggregate  variable=txSar2txApp_upd_rsp compact=bit
 
 	// Before merging, check status for TX
 	//txAppEvSplitter(txAppStream2event_mergeEvent, tasi_txSplit2mergeFifo, txApp_txEventCache);

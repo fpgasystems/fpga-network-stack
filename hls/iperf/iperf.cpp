@@ -48,25 +48,25 @@ void iperf(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 
 	#pragma HLS resource core=AXI4Stream variable=notifications metadata="-bus_bundle s_axis_notifications"
 	#pragma HLS resource core=AXI4Stream variable=readRequest metadata="-bus_bundle m_axis_read_package"
-	#pragma HLS DATA_PACK variable=notifications
-	#pragma HLS DATA_PACK variable=readRequest
+	#pragma HLS aggregate  variable=notifications compact=bit
+	#pragma HLS aggregate  variable=readRequest compact=bit
 
 	#pragma HLS resource core=AXI4Stream variable=rxMetaData metadata="-bus_bundle s_axis_rx_metadata"
 	#pragma HLS resource core=AXI4Stream variable=rxData metadata="-bus_bundle s_axis_rx_data"
-	#pragma HLS DATA_PACK variable=rxData
+	#pragma HLS aggregate  variable=rxData compact=bit
 
 	#pragma HLS resource core=AXI4Stream variable=openConnection metadata="-bus_bundle m_axis_open_connection"
 	#pragma HLS resource core=AXI4Stream variable=openConStatus metadata="-bus_bundle s_axis_open_status"
-	#pragma HLS DATA_PACK variable=openConnection
-	#pragma HLS DATA_PACK variable=openConStatus
+	#pragma HLS aggregate  variable=openConnection compact=bit
+	#pragma HLS aggregate  variable=openConStatus compact=bit
 
 	#pragma HLS resource core=AXI4Stream variable=closeConnection metadata="-bus_bundle m_axis_close_connection"
 
 	#pragma HLS resource core=AXI4Stream variable=txMetaData metadata="-bus_bundle m_axis_tx_metadata"
 	#pragma HLS resource core=AXI4Stream variable=txData metadata="-bus_bundle m_axis_tx_data"
 	#pragma HLS resource core=AXI4Stream variable=txStatus metadata="-bus_bundle s_axis_tx_status"
-	#pragma HLS DATA_PACK variable=txMetaData
-	#pragma HLS DATA_PACK variable=txData
+	#pragma HLS aggregate  variable=txMetaData compact=bit
+	#pragma HLS aggregate  variable=txData compact=bit
 
 	static bool listenDone = false;
 	static bool runningExperiment = false;

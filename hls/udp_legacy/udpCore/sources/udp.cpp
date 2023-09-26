@@ -66,7 +66,7 @@ void portTable(stream<ap_uint<16> >&	rxEng2portTable_check_req,		// Input stream
 #pragma HLS pipeline II=1 enable_flush
 
 	static bool portTable[65536];
-	#pragma HLS RESOURCE variable=portTable core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=portTable type=RAM_T2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=portTable inter false
 
 	if (!rxEng2portTable_check_req.empty())	{					// This part handles querying the state of a port when a packet is received on the Rx side.
@@ -720,8 +720,8 @@ void txEngine(stream<axiWord> &outputPathInData, stream<metadata> &outputPathInM
 	static stream<ipTuple>		outputPathRead2addIpHeader_ipAddress("outputPathRead2addIpHeader_ipAddress");
 	static stream<ap_uint<16> > outputPathReadFunction2addIpHeader_length("outputPathReadFunction2addIpHeader_length");
 	
-	#pragma HLS DATA_PACK 	variable=udpMetadata
-	#pragma HLS DATA_PACK 	variable=outputPathRead2addIpHeader_ipAddress
+	#pragma HLS aggregate  	variable=udpMetadata compact=bit
+	#pragma HLS aggregate  	variable=outputPathRead2addIpHeader_ipAddress compact=bit
 	
 	#pragma HLS STREAM variable=packetData 									depth=4096
 	#pragma HLS STREAM variable=packetLength								depth=8
@@ -743,8 +743,8 @@ void udp(stream<axiWord> &inputPathInData, stream<axiWord> &inputpathOutData, st
 	#pragma HLS INTERFACE ap_ctrl_none port=return 			// The block-level interface protocol is removed.
 	#pragma HLS DATAFLOW interval=1
 	
-	#pragma HLS DATA_PACK 	variable=inputPathOutputMetadata
-	#pragma HLS DATA_PACK 	variable=outputPathInMetadata
+	#pragma HLS aggregate  	variable=inputPathOutputMetadata compact=bit
+	#pragma HLS aggregate  	variable=outputPathInMetadata compact=bit
 	// Set all of the interfaces to AXI4S
 	/*#pragma HLS INTERFACE 	port=inputPathInData 				axis
 	#pragma HLS INTERFACE 	port=inputpathOutData 				axis

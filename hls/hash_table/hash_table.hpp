@@ -49,15 +49,15 @@ const uint32_t MAX_TRIALS = 10;
 
 //The hash table can easily support NUM_TABLES-1 * TABLE_SIZE
 //for NUM_TABLES = 9 -> this equals to a load factor of 0.88
-
+enum lookupSource {RX, TX_APP};
 
 template <int K>
 struct htLookupReq
 {
    ap_uint<K>  key;
-   ap_uint<1>  source;
+   lookupSource  source;
    htLookupReq<K>() {}
-   htLookupReq<K>(ap_uint<K> key, ap_uint<1> source)
+   htLookupReq<K>(ap_uint<K> key, lookupSource source)
       :key(key), source(source) {}
 };
 
@@ -67,7 +67,7 @@ struct htLookupResp
    ap_uint<K>  key;
    ap_uint<V>  value;
    bool        hit;
-   ap_uint<1>  source;
+   lookupSource  source;
 };
 
 typedef enum {KV_INSERT, KV_DELETE} kvOperation;
@@ -78,9 +78,9 @@ struct htUpdateReq
    kvOperation op;
    ap_uint<K>  key;
    ap_uint<V>  value;
-   ap_uint<1>  source;
+   lookupSource  source;
    htUpdateReq<K,V>() {}
-   htUpdateReq<K,V>(kvOperation op, ap_uint<K> key, ap_uint<V> value, ap_uint<1> source)
+   htUpdateReq<K,V>(kvOperation op, ap_uint<K> key, ap_uint<V> value, lookupSource source)
       :op(op), key(key), value(value), source(source) {}
 };
 
@@ -91,7 +91,7 @@ struct htUpdateResp
    ap_uint<K>  key;
    ap_uint<V>  value;
    bool        success;
-   ap_uint<1>  source;
+   lookupSource  source;
 };
 
 template <int K, int V>

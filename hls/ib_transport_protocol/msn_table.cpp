@@ -39,7 +39,7 @@ void msn_table(hls::stream<rxMsnReq>&		rxExh2msnTable_upd_req,
 #pragma HLS INLINE off
 
 	static dmaState  msn_table[MAX_QPS];
-	#pragma HLS RESOURCE variable=msn_table core=RAM_2P_BRAM
+	#pragma HLS bind_storage variable=msn_table type=RAM_2P impl=BRAM
 
 	rxMsnReq rxRequest;
 	ifMsnReq ifRequest;

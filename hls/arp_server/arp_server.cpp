@@ -287,7 +287,7 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
 				        ap_uint<32> myIpAddress)
 {
 	#pragma HLS INTERFACE ap_ctrl_none port=return
-	#pragma HLS DATAFLOW
+	#pragma HLS DATAFLOW disable_start_propagation
 
 	#pragma  HLS resource core=AXI4Stream variable=arpDataIn 		metadata = "-bus_bundle arpDataIn"
 	#pragma  HLS resource core=AXI4Stream variable=arpDataOut 		metadata = "-bus_bundle arpDataOut"
@@ -298,8 +298,8 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
 	#pragma	 HLS resource core=AXI4Stream variable = macUpdate_req	metadata = "-bus_bundle macUpdate_req"
 	#pragma	 HLS resource core=AXI4Stream variable = macUpdate_resp	metadata = "-bus_bundle macUpdate_resp"
 
-	#pragma HLS INTERFACE ap_stable register port=myMacAddress
-	#pragma HLS INTERFACE ap_stable register port=myIpAddress
+	#pragma HLS INTERFACE ap_none register port=myMacAddress
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
 
 	/*#pragma HLS INTERFACE port=arpDataIn 		axis
 	#pragma HLS INTERFACE port=arpDataOut 		axis
@@ -310,24 +310,24 @@ void arp_server(  stream<axiWord>&          	arpDataIn,
 	#pragma HLS INTERFACE port=macUpdate_req 	axis
 	#pragma HLS INTERFACE port=macUpdate_resp	axis*/
 
-  	#pragma HLS DATA_PACK variable=macIpEncode_rsp
-	#pragma HLS DATA_PACK variable=macLookup_req
-	#pragma HLS DATA_PACK variable=macLookup_resp
-	#pragma HLS DATA_PACK variable=macUpdate_req
-	#pragma HLS DATA_PACK variable=macUpdate_resp
+  	#pragma HLS aggregate  variable=macIpEncode_rsp compact=bit
+	#pragma HLS aggregate  variable=macLookup_req compact=bit
+	#pragma HLS aggregate  variable=macLookup_resp compact=bit
+	#pragma HLS aggregate  variable=macUpdate_req compact=bit
+	#pragma HLS aggregate  variable=macUpdate_resp compact=bit
 
 
   static stream<arpReplyMeta>     arpReplyMetaFifo("arpReplyMetaFifo");
   #pragma HLS STREAM variable=arpReplyMetaFifo depth=4
-  #pragma HLS DATA_PACK variable=arpReplyMetaFifo
+  #pragma HLS aggregate  variable=arpReplyMetaFifo compact=bit
   
   static stream<ap_uint<32> >   arpRequestMetaFifo("arpRequestMetaFifo");
   #pragma HLS STREAM variable=arpRequestMetaFifo depth=4
-  //#pragma HLS DATA_PACK variable=arpRequestMetaFifo
+  //#pragma HLS aggregate  variable=arpRequestMetaFifo compact=bit
 
   static stream<arpTableEntry>    arpTableInsertFifo("arpTableInsertFifo");
   #pragma HLS STREAM variable=arpTableInsertFifo depth=4
-  #pragma HLS DATA_PACK variable=arpTableInsertFifo
+  #pragma HLS aggregate  variable=arpTableInsertFifo compact=bit
 
   arp_pkg_receiver(arpDataIn, arpReplyMetaFifo, arpTableInsertFifo, myIpAddress);
   

@@ -387,11 +387,11 @@ void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 	#pragma HLS stream variable=dataStreamBuffer2 depth=2
 	#pragma HLS stream variable=dataStreamBuffer3 depth=2
 	#pragma HLS stream variable=dataStreamBuffer4 depth=2
-	#pragma HLS DATA_PACK variable=dataStreamBuffer0
-	#pragma HLS DATA_PACK variable=dataStreamBuffer1
-	#pragma HLS DATA_PACK variable=dataStreamBuffer2
-	#pragma HLS DATA_PACK variable=dataStreamBuffer3
-	#pragma HLS DATA_PACK variable=dataStreamBuffer4
+	#pragma HLS aggregate  variable=dataStreamBuffer0 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer1 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer2 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer3 compact=bit
+	#pragma HLS aggregate  variable=dataStreamBuffer4 compact=bit
 
 	static hls::stream<subSums<WIDTH/16> >	subSumFifo("subSumFifo");
 	static hls::stream<ap_uint<16> >		checksumFifo("checksumFifo");
@@ -399,26 +399,26 @@ void mac_ip_encode( hls::stream<net_axis<WIDTH> >&			dataIn,
 	#pragma HLS stream variable=subSumFifo depth=2
 	#pragma HLS stream variable=checksumFifo depth=16
 	#pragma HLS stream variable=headerFifo depth=2
-	#pragma HLS DATA_PACK variable=headerFifo
+	#pragma HLS aggregate  variable=headerFifo compact=bit
 
 	extract_ip_address(dataIn, dataStreamBuffer0, arpTableOut, regSubNetMask, regDefaultGateway);
 
-	compute_ipv4_checksum(dataStreamBuffer0, dataStreamBuffer1, subSumFifo, true);
-	finalize_ipv4_checksum<WIDTH/16>(subSumFifo, checksumFifo);
+	mac_compute_ipv4_checksum(dataStreamBuffer0, dataStreamBuffer1, subSumFifo, true);
+	mac_finalize_ipv4_checksum<WIDTH/16>(subSumFifo, checksumFifo);
 
 	insert_ip_checksum(dataStreamBuffer1, checksumFifo, dataStreamBuffer2);
 
 
 	handle_arp_reply(arpTableIn, dataStreamBuffer2, headerFifo, dataStreamBuffer3, myMacAddress);
-	lshiftWordByOctet<WIDTH, 1>(((ETH_HEADER_SIZE%WIDTH)/8), dataStreamBuffer3, dataStreamBuffer4);
+	mac_lshiftWordByOctet<WIDTH, 1>(((ETH_HEADER_SIZE%WIDTH)/8), dataStreamBuffer3, dataStreamBuffer4);
 	insert_ethernet_header(headerFifo, dataStreamBuffer4, dataOut);
 
 	//generate_ethernet(dataStreamBuffer3, arpTableIn, dataOut, myMacAddress);
 }
 
-void mac_ip_encode_top( hls::stream<net_axis<DATA_WIDTH> >&			dataIn,
+void mac_ip_encode_top( hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataIn,
 					hls::stream<arpTableReply>&		arpTableIn,
-					hls::stream<net_axis<DATA_WIDTH> >&			dataOut,
+					hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&			dataOut,
 					hls::stream<ap_uint<32> >&		arpTableOut,
 					ap_uint<48>					myMacAddress,
 					ap_uint<32>					regSubNetMask,
@@ -432,15 +432,26 @@ void mac_ip_encode_top( hls::stream<net_axis<DATA_WIDTH> >&			dataIn,
 	#pragma HLS INTERFACE axis register port=arpTableIn name=s_axis_arp_lookup_reply
 	#pragma HLS INTERFACE axis register port=arpTableOut name=m_axis_arp_lookup_request
 
-	#pragma HLS DATA_PACK variable=arpTableIn
+	#pragma HLS aggregate  variable=arpTableIn compact=bit
 
-	#pragma HLS INTERFACE ap_stable register port=myMacAddress
-	#pragma HLS INTERFACE ap_stable register port=regSubNetMask
-	#pragma HLS INTERFACE ap_stable register port=regDefaultGateway
+	#pragma HLS INTERFACE ap_none register port=myMacAddress
+	#pragma HLS INTERFACE ap_none register port=regSubNetMask
+	#pragma HLS INTERFACE ap_none register port=regDefaultGateway
 
-   mac_ip_encode<DATA_WIDTH>( dataIn,
+	static hls::stream<net_axis<DATA_WIDTH> > dataIn_internal;
+	#pragma HLS STREAM depth=2 variable=dataIn_internal
+	static hls::stream<net_axis<DATA_WIDTH> > dataOut_internal;
+	#pragma HLS STREAM depth=2 variable=dataOut_internal
+
+	convert_axis_to_net_axis<DATA_WIDTH>(dataIn, 
+							dataIn_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(dataOut_internal, 
+							dataOut);
+
+   	mac_ip_encode<DATA_WIDTH>( dataIn_internal,
                               arpTableIn,
-                              dataOut,
+                              dataOut_internal,
                               arpTableOut,
                               myMacAddress,
                               regSubNetMask,

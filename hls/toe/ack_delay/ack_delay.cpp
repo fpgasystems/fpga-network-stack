@@ -39,7 +39,7 @@ void ack_delay(	stream<extendedEvent>&	input,
 #pragma HLS PIPELINE II=1
 
 	static ap_uint<12> ack_table[MAX_SESSIONS]; //TODO why is it 12
-	#pragma HLS RESOURCE variable=ack_table core=RAM_2P_BRAM
+	#pragma HLS bind_storage variable=ack_table type=RAM_2P impl=BRAM
 	#pragma HLS DEPENDENCE variable=ack_table inter false
 	static ap_uint<16>	ad_pointer = 0;
 	//static ap_uint<4>	ad_readCounter = 0;

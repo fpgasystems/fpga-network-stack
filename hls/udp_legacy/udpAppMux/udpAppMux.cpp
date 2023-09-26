@@ -219,12 +219,12 @@ void udpAppMux(stream<axiWord>			&rxDataIn, 		stream<metadata>&     	rxMetadataI
 	#pragma HLS resource core=AXI4Stream variable=txMetadataInApp 		metadata="-bus_bundle txMetadataInApp"
 	#pragma HLS resource core=AXI4Stream variable=txLengthInApp 		metadata="-bus_bundle txLengthInApp"
 
-  	#pragma HLS DATA_PACK variable=rxMetadataIn
-  	#pragma HLS DATA_PACK variable=rxMetadataOutDhcp
-  	#pragma HLS DATA_PACK variable=rxMetadataOutApp
-  	#pragma HLS DATA_PACK variable=txMetadataOut
-  	#pragma HLS DATA_PACK variable=txMetadataInDhcp
-  	#pragma HLS DATA_PACK variable=txMetadataInApp
+  	#pragma HLS aggregate  variable=rxMetadataIn compact=bit
+  	#pragma HLS aggregate  variable=rxMetadataOutDhcp compact=bit
+  	#pragma HLS aggregate  variable=rxMetadataOutApp compact=bit
+  	#pragma HLS aggregate  variable=txMetadataOut compact=bit
+  	#pragma HLS aggregate  variable=txMetadataInDhcp compact=bit
+  	#pragma HLS aggregate  variable=txMetadataInApp compact=bit
 
 	appMuxRxPath(rxDataIn, rxMetadataIn, 
 		   rxDataOutDhcp, rxMetadataOutDhcp,

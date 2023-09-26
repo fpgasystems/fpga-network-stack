@@ -40,7 +40,7 @@ void state_table(	hls::stream<rxStateReq>& rxIbh2stateTable_upd_req,
 #pragma HLS INLINE off
 
 	static stateTableEntry state_table[MAX_QPS];
-	#pragma HLS RESOURCE variable=state_table core=RAM_2P_BRAM
+	#pragma HLS bind_storage variable=state_table type=RAM_2P impl=BRAM
 
 	rxStateReq rxRequest;
 	txStateReq txRequest;

@@ -5,7 +5,7 @@ open_solution "solution1"
 set_part ${FPGA_PART}
 create_clock -period ${CLOCK_PERIOD} -name default
 
-set_top ${PROJECT_NAME}
+set_top ${PROJECT_NAME}_top
 
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/icmp_server.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 

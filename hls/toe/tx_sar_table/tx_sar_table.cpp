@@ -53,7 +53,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 
 	static txSarEntry tx_table[MAX_SESSIONS];
 	#pragma HLS DEPENDENCE variable=tx_table inter false
-	#pragma HLS RESOURCE variable=tx_table core=RAM_T2P_BRAM
+	#pragma HLS bind_storage variable=tx_table type=RAM_T2P impl=BRAM
 
 	// TX Engine
 	if (!txEng2txSar_upd_req.empty())

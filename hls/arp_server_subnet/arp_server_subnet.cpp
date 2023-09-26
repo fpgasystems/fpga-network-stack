@@ -174,7 +174,7 @@ void arp_table( stream<arpTableEntry>&    	arpTableInsertFifo,
 #pragma HLS PIPELINE II=1
 
 	static arpTableEntry		arpTable[256];
-	#pragma HLS RESOURCE variable=arpTable core=RAM_1P_BRAM
+	#pragma HLS bind_storage variable=arpTable type=RAM_1P impl=BRAM
 	#pragma HLS DEPENDENCE variable=arpTable inter false
 
 	ap_uint<32>			query_ip;
@@ -227,15 +227,15 @@ void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
 
 	static hls::stream<arpReplyMeta>     arpReplyMetaFifo("arpReplyMetaFifo");
 	#pragma HLS STREAM variable=arpReplyMetaFifo depth=4
-	#pragma HLS DATA_PACK variable=arpReplyMetaFifo
+	#pragma HLS aggregate variable=arpReplyMetaFifo compact=bit 
 
 	static hls::stream<ap_uint<32> >   arpRequestMetaFifo("arpRequestMetaFifo");
 	#pragma HLS STREAM variable=arpRequestMetaFifo depth=4
-	//#pragma HLS DATA_PACK variable=arpRequestMetaFifo
+	//#pragma HLS aggregate variable=arpRequestMetaFifo compact=bit 
 
 	static hls::stream<arpTableEntry>    arpTableInsertFifo("arpTableInsertFifo");
 	#pragma HLS STREAM variable=arpTableInsertFifo depth=4
-	#pragma HLS DATA_PACK variable=arpTableInsertFifo
+	#pragma HLS aggregate variable=arpTableInsertFifo compact=bit 
 
 	process_arp_pkg<WIDTH>(arpDataIn,
   					arpReplyMetaFifo,
@@ -258,10 +258,10 @@ void arp_server_subnet(	hls::stream<net_axis<WIDTH> >&          arpDataIn,
 				arpRequestMetaFifo);
 }
 
-void arp_server_subnet_top(	hls::stream<net_axis<DATA_WIDTH> >&          arpDataIn,
+void arp_server_subnet_top(	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&          arpDataIn,
                   	  	hls::stream<ap_uint<32> >&     macIpEncode_req,
                   	  	hls::stream<ap_uint<32> >&     hostIpEncode_req,
-				        hls::stream<net_axis<DATA_WIDTH> >&          arpDataOut,
+				        hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&          arpDataOut,
 				        hls::stream<arpTableReply>&    macIpEncode_rsp,
 				        hls::stream<arpTableReply>&    hostIpEncode_rsp,
 				        ap_uint<48>				myMacAddress,
@@ -278,15 +278,26 @@ void arp_server_subnet_top(	hls::stream<net_axis<DATA_WIDTH> >&          arpData
 	#pragma HLS INTERFACE axis register port=macIpEncode_rsp name=m_axis_arp_lookup_reply
 	#pragma HLS INTERFACE axis register port=hostIpEncode_req name=s_axis_host_arp_lookup_request
 	#pragma HLS INTERFACE axis register port=hostIpEncode_rsp name=m_axis_host_arp_lookup_reply
-	#pragma HLS DATA_PACK variable=macIpEncode_rsp
-	#pragma HLS DATA_PACK variable=hostIpEncode_rsp
-   #pragma HLS INTERFACE ap_stable register port=myMacAddress
-	#pragma HLS INTERFACE ap_stable register port=myIpAddress
+	#pragma HLS aggregate variable=macIpEncode_rsp compact=bit
+	#pragma HLS aggregate variable=hostIpEncode_rsp compact=bit
+    #pragma HLS INTERFACE ap_none register port=myMacAddress
+	#pragma HLS INTERFACE ap_none register port=myIpAddress
 
-   arp_server_subnet<DATA_WIDTH>(arpDataIn,
+	static hls::stream<net_axis<DATA_WIDTH> > arpDataIn_internal;
+	#pragma HLS STREAM depth=2 variable=arpDataIn_internal
+	static hls::stream<net_axis<DATA_WIDTH> > arpDataOut_internal;
+	#pragma HLS STREAM depth=2 variable=arpDataOut_internal
+
+	convert_axis_to_net_axis<DATA_WIDTH>(arpDataIn, 
+							arpDataIn_internal);
+
+	convert_net_axis_to_axis<DATA_WIDTH>(arpDataOut_internal, 
+							arpDataOut);
+
+   	arp_server_subnet<DATA_WIDTH>(arpDataIn_internal,
                                  macIpEncode_req,
                                  hostIpEncode_req,
-                                 arpDataOut,
+                                 arpDataOut_internal,
                                  macIpEncode_rsp,
                                  hostIpEncode_rsp,
                                  myMacAddress,
