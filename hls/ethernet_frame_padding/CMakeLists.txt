@@ -14,7 +14,6 @@ set(FNS_DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 # Find Vitis
 find_package(Vitis REQUIRED)
 
-<<<<<<< HEAD
 add_vitis_ip(${PROJECT_NAME}
                  FILES
                     "ethernet_frame_padding.cpp"
