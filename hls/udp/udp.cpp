@@ -24,6 +24,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "fns_config.hpp"
 #include "udp.hpp"
 
 template <int WIDTH>
@@ -196,7 +197,9 @@ void merge_rx_meta(	stream<ipMeta>&		ipMetaIn,
 
 
 template <int WIDTH>
-void udp_core(		hls::stream<ipMeta>&		s_axis_rx_meta,
+
+// Renamed from udp_core to just udp
+void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
@@ -242,17 +245,18 @@ void udp_core(		hls::stream<ipMeta>&		s_axis_rx_meta,
 	generate_udp<WIDTH>(tx_udpMetaFifo, tx_shift2udpFifo, m_axis_tx_data);
 }
 
-void udp(	hls::stream<ipMeta>&		s_axis_rx_meta,
-				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
-				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
-				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_rx_data,
-				hls::stream<ipUdpMeta>&	s_axis_tx_meta,
-				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_tx_data,
-				hls::stream<ipMeta>&		m_axis_tx_meta,
-				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_tx_data,
-				ap_uint<128>		reg_ip_address,
-				ap_uint<16>			reg_listen_port)
-
+// renamed from udp to udp_top
+void udp_top(
+	hls::stream<ipMeta>&		s_axis_rx_meta,
+	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
+	hls::stream<ipUdpMeta>&	m_axis_rx_meta,
+	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_rx_data,
+	hls::stream<ipUdpMeta>&	s_axis_tx_meta,
+	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_tx_data,
+	hls::stream<ipMeta>&		m_axis_tx_meta,
+	hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_tx_data,
+	ap_uint<128>		reg_ip_address,
+	ap_uint<16>			reg_listen_port)
 {
 #pragma HLS DATAFLOW disable_start_propagation
 #pragma HLS INTERFACE ap_ctrl_none port=return
@@ -293,7 +297,8 @@ void udp(	hls::stream<ipMeta>&		s_axis_rx_meta,
 	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tx_data_internal,
 							m_axis_tx_data);
 
-  udp_core<DATA_WIDTH>(s_axis_rx_meta,
+    // Renamed from udp_core to just udp
+   	udp<DATA_WIDTH>(s_axis_rx_meta,
                    s_axis_rx_data_internal,
                    m_axis_rx_meta,
                    m_axis_rx_data_internal,

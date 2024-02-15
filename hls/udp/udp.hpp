@@ -110,7 +110,9 @@ public:
 };
 
 template <int WIDTH>
-void udp_core(		hls::stream<ipMeta>&		s_axis_rx_meta,
+
+// Renamed from udp_core to just udp
+void udp(		hls::stream<ipMeta>&		s_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipUdpMeta>&	m_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
