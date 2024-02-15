@@ -184,6 +184,8 @@ Waveform of requesting a data transmit and transmitting the data.
 
 ### RoCE (RDMA over Converged Ethernet)
 
+The new RDMA-version (02/2024) is adapted from the one used in Coyote and fully compatible to the RoCE-v2 standard, thus able to communicate to standard NICs (such as i.e. Mellanox-cards).
+
 #### Load Queue Pair (QP)
 Before any RDMA operations can be executed the Queue Pairs have to established out-of-band (e.g. over TCP/IP) by the hosts. The host can the load the QP into the RoCE stack through the `s_axis_qp_interface` and `s_axis_qp_conn_interface` interface.
 
