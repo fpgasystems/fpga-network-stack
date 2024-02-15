@@ -24,6 +24,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "ipv4_config.hpp"
 #include "ipv4.hpp"
 
 template <int WIDTH>
@@ -99,6 +100,11 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setDstAddr(meta.their_address);
 			header.setSrcAddr(local_ipv4_address);
 			header.setProtocol(protocol);
+
+			// Set ECN and flags accordingly - added compared to previous version
+			header.setECN(2);
+			header.setFlags(2);
+
 			if (IPV4_HEADER_SIZE >= WIDTH)
 			{
 				gi_state = HEADER;
@@ -184,6 +190,11 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setDstAddr(meta.their_address);
 			header.setSrcAddr(local_ipv4_address);
 			header.setProtocol(protocol);
+
+			// Set ECN and flags accordingly - added compared to previous
+			header.setECN(1);
+			header.setFlags(1);
+
 			if (IPV4_HEADER_SIZE >= WIDTH)
 			{
 				gi_state = HEADER;
@@ -238,9 +249,11 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 	}
 }
 
-
+#if defined( __VITIS_HLS__)
 template <int WIDTH>
-void ipv4_core(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+
+// Name changed from ipv4_core to just ipv4
+void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipv4Meta>&		m_axis_rx_meta,
 				hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
 				hls::stream<ipv4Meta>&		s_axis_tx_meta,
@@ -276,7 +289,8 @@ void ipv4_core(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	ipv4_generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address, protocol);
 }
 
-void ipv4(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
+// Name changed from ipv4 to ipv4_top
+void ipv4_top(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
 				hls::stream<ipv4Meta>&		m_axis_rx_meta,
 				hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	m_axis_rx_data,
 				hls::stream<ipv4Meta>&		s_axis_tx_meta,
@@ -321,7 +335,8 @@ void ipv4(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
 	convert_net_axis_to_axis<DATA_WIDTH>(m_axis_tx_data_internal, 
 							m_axis_tx_data);
 
-	ipv4_core<DATA_WIDTH>(s_axis_rx_data_internal,
+    // Name changed from ipv4_core to just ipv4
+   	ipv4<DATA_WIDTH>(s_axis_rx_data_internal,
         m_axis_rx_meta,
         m_axis_rx_data_internal,
         s_axis_tx_meta,
@@ -330,3 +345,5 @@ void ipv4(		hls::stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&	s_axis_rx_data,
         local_ipv4_address,
 		protocol);
 };
+
+

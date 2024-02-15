@@ -28,7 +28,6 @@
 
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
-#include "../fns_config.hpp"
 
 const uint32_t IPV4_HEADER_SIZE = 160;
 
@@ -611,7 +610,9 @@ public:
 	ipv4Header()
 	{
 		header(7, 0) = 0x45; // version & IHL
-		header(71, 64) = 0x40; // TTL
+
+        // Was 0x40, had to be changed to 0x64 for RoCE-v2 compatibility
+		header(71, 64) = 0x64; // TTL
 	}
 
 	void setSrcAddr(const ap_uint<32>& addr)
@@ -638,12 +639,25 @@ public:
 	{
 		return reverse((ap_uint<16>)header(31,16));
 	}
+
+	// New function to set the flag bits 
+	void setFlags(const ap_uint<1> flag)
+	{
+		header[54] = flag; 
+	}
+
+	// New function to set ECN
+	void setECN(const ap_uint<1> ECN)
+	{
+		header[9] = ECN;
+	}
+	
 	void setProtocol(const ap_uint<8>& protocol)
 	{
 		header(79, 72) = protocol;
 	}
 	ap_uint<8> getProtocol()
-	{
+	{/*  */
 		return header(79, 72);
 	}
 	ap_uint<4> getHeaderLength()
@@ -652,8 +666,9 @@ public:
 	}
 };
 
+// Renamed from ipv4_core to just ipv4
 template <int WIDTH>
-void ipv4_core(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
+void ipv4(	hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 			hls::stream<ipv4Meta>&	m_axis_rx_meta,
 			hls::stream<net_axis<WIDTH> >&	m_axis_rx_data,
 			hls::stream<ipv4Meta>&	s_axis_tx_meta,
