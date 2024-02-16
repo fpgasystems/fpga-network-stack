@@ -29,6 +29,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "../axi_utils.hpp"
+#include <rocev2_config.hpp> //defines MAX_QPS
 using namespace hls;
 
 struct txReadReqUpdate
@@ -68,10 +69,55 @@ struct readReqTableEntry
 	ap_uint<24> max_fwd_readreq;
 };
 
+template <int INSTID>
 void read_req_table(stream<txReadReqUpdate>&	tx_readReqTable_upd,
-#if !RETRANS_EN
-					stream<rxReadReqUpdate>&	rx_readReqTable_upd_req);
-#else
+#ifdef RETRANS_EN
 					stream<rxReadReqUpdate>&	rx_readReqTable_upd_req,
 					stream<rxReadReqRsp>&		rx_readReqTable_upd_rsp);
+#else
+					stream<rxReadReqUpdate>&	rx_readReqTable_upd_req);
 #endif
+
+template <int INSTID = 0>
+void read_req_table(stream<txReadReqUpdate>&	tx_readReqTable_upd,
+#ifdef RETRANS_EN
+					stream<rxReadReqUpdate>&	rx_readReqTable_upd_req,
+					stream<rxReadReqRsp>&		rx_readReqTable_upd_rsp)
+#else
+					stream<rxReadReqUpdate>&	rx_readReqTable_upd_req)
+#endif
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
+	static readReqTableEntry  req_table[MAX_QPS];
+#if defined( __VITIS_HLS__)
+	#pragma HLS bind_storage variable=req_table type=RAM_2P impl=BRAM
+#else
+	#pragma HLS RESOURCE variable=req_table core=RAM_2P_BRAM
+#endif
+
+	txReadReqUpdate update;
+	rxReadReqUpdate request;
+
+	if (!tx_readReqTable_upd.empty())
+	{
+		tx_readReqTable_upd.read(update);
+		req_table[update.qpn].max_fwd_readreq = update.max_fwd_readreq;
+	}
+	else if (!rx_readReqTable_upd_req.empty())
+	{
+		rx_readReqTable_upd_req.read(request);
+		if (request.write)
+		{
+			req_table[request.qpn].oldest_outstanding_readreq = request.oldest_outstanding_readreq;
+		}
+#ifdef RETRANS_EN
+		else
+		{
+			bool valid = (req_table[request.qpn].oldest_outstanding_readreq < req_table[request.qpn].max_fwd_readreq);
+			rx_readReqTable_upd_rsp.write(rxReadReqRsp(req_table[request.qpn].oldest_outstanding_readreq, valid));
+		}
+#endif
+	}
+}

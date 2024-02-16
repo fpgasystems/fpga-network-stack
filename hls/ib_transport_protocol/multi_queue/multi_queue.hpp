@@ -115,7 +115,7 @@ struct mqPointerUpdate
 //Value: T
 
 
-template <int NUM_QUEUES>
+template <int NUM_QUEUES, int INSTID = 0>
 void mq_pointer_table(	hls::stream<mqPointerReq>&			pointerReqFifo,
 						hls::stream<mqPointerUpdate>&		pointerUpdFifo,
 						hls::stream<mqPointerEntry>& 		pointerRspFifo)
@@ -124,7 +124,11 @@ void mq_pointer_table(	hls::stream<mqPointerReq>&			pointerReqFifo,
 #pragma HLS INLINE off
 
 	static mqPointerEntry ptr_table[NUM_QUEUES];
+#if defined( __VITIS_HLS__)
 	#pragma HLS bind_storage variable=ptr_table type=RAM_T2P impl=BRAM
+#else
+	#pragma HLS RESOURCE variable=ptr_table core=RAM_T2P_BRAM
+#endif
 	//#pragma HLS DEPENDENCE variable=ptr_table inter false
 
 	static ap_uint<16> mq_lockedKey;
@@ -172,7 +176,7 @@ void mq_pointer_table(	hls::stream<mqPointerReq>&			pointerReqFifo,
 	}
 }
 
-template <int MULTI_QUEUE_SIZE>
+template <int MULTI_QUEUE_SIZE, int INSTID = 0>
 void mq_freelist_handler(	hls::stream<ap_uint<16> >& rt_releaseFifo,
 						hls::stream<ap_uint<16> >& rt_freeListFifo)
 {
@@ -193,7 +197,7 @@ void mq_freelist_handler(	hls::stream<ap_uint<16> >& rt_releaseFifo,
 	}
 }
 
-template <class T, int MULTI_QUEUE_SIZE>
+template <class T, int MULTI_QUEUE_SIZE, int INSTID = 0>
 void mq_meta_table(	hls::stream<mqMetaReq<T> >&		meta_upd_req,
 					hls::stream<mqMetaEntry<T> >&		meta_rsp)
 {
@@ -201,7 +205,11 @@ void mq_meta_table(	hls::stream<mqMetaReq<T> >&		meta_upd_req,
 #pragma HLS INLINE off
 
 	static mqMetaEntry<T> meta_table[MULTI_QUEUE_SIZE];
+#if defined( __VITIS_HLS__)
 	#pragma HLS bind_storage variable=meta_table type=RAM_T2P impl=BRAM
+#else
+	#pragma HLS RESOURCE variable=meta_table core=RAM_T2P_BRAM
+#endif
 	//#pragma HLS DEPENDENCE variable=meta_table inter false
 	mqMetaReq<T> req;
 
@@ -228,7 +236,7 @@ void mq_meta_table(	hls::stream<mqMetaReq<T> >&		meta_upd_req,
 
 }
 
-template <class T>
+template <class T, int INSTID = 0>
 void mq_process_requests(	//stream<retransRelease>&	rx2retrans_release_upd,
 					//stream<retransmission>& rx2retrans_req,
 					hls::stream<mqPopReq>&			multiQueue_pop_req, //stream<retransmission>& timer2retrans_req, //pop
@@ -519,13 +527,13 @@ void mq_process_requests(	//stream<retransRelease>&	rx2retrans_release_upd,
 		}//switch
 }
 
-template <class T, int NUM_QUEUES, int MULTI_QUEUE_SIZE>
+template <class T, int NUM_QUEUES, int MULTI_QUEUE_SIZE, int INSTID = 0>
 void multi_queue(	hls::stream<mqInsertReq<T> >&	multiQueue_push,
 					hls::stream<mqPopReq>&			multiQueue_pop_req,
 					hls::stream<T>&					multiQueue_pop_rsp)
 {
-#pragma HLS DATAFLOW disable_start_propagation
-#pragma HLS INLINE
+#pragma HLS DATAFLOW
+//#pragma HLS INLINE
 
 	static hls::stream<mqPointerReq>		mq_pointerReqFifo("mq_pointerReqFifo");
 	static hls::stream<mqPointerUpdate>		mq_pointerUpdFifo("mq_pointerUpdFifo");
@@ -547,14 +555,14 @@ void multi_queue(	hls::stream<mqInsertReq<T> >&	multiQueue_push,
 	#pragma HLS STREAM depth=MULTI_QUEUE_SIZE variable=mq_freeListFifo
 	#pragma HLS STREAM depth=2 variable=mq_releaseFifo
 
-	mq_freelist_handler<MULTI_QUEUE_SIZE>(mq_releaseFifo, mq_freeListFifo);
+	mq_freelist_handler<MULTI_QUEUE_SIZE,INSTID>(mq_releaseFifo, mq_freeListFifo);
 
-	mq_pointer_table<NUM_QUEUES>(mq_pointerReqFifo, mq_pointerUpdFifo, mq_pointerRspFifo);
+	mq_pointer_table<NUM_QUEUES,INSTID>(mq_pointerReqFifo, mq_pointerUpdFifo, mq_pointerRspFifo);
 
-	mq_meta_table<T,MULTI_QUEUE_SIZE>(mq_metaReqFifo,
+	mq_meta_table<T,MULTI_QUEUE_SIZE,INSTID>(mq_metaReqFifo,
 									mq_metaRspFifo);
 
-	mq_process_requests<T>(	multiQueue_pop_req,
+	mq_process_requests<T,INSTID>(	multiQueue_pop_req,
 							multiQueue_push,
 							mq_pointerReqFifo,
 							mq_pointerUpdFifo,
