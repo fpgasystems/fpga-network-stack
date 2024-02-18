@@ -197,7 +197,7 @@ The packet processing pipeline is coded in Vitis-HLS and included in "roce_v2_ip
 For actual usage of the RDMA-stack, it needs to be integrated into a full FPGA-networking stack and combined with some kind of shell that enables DMA-exchange with the host for both commands and memory access. An example for that is Coyote with a networking stack as depicted in the following block diagram: 
 
 <picture>
-  <img src="img/Balboa Stack Overview.pdf" width = 900>
+  <img src="img/Balboa Stack Overview-1.png" width = 900>
 </picture>
 
 To be able to integrate the RDMA-stack into a shell-design, one must be aware of the essential interfaces. These are the following: 
