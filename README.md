@@ -197,13 +197,16 @@ The packet processing pipeline is coded in Vitis-HLS and included in "roce_v2_ip
 For actual usage of the RDMA-stack, it needs to be integrated into a full FPGA-networking stack and combined with some kind of shell that enables DMA-exchange with the host for both commands and memory access. An example for that is Coyote with a networking stack as depicted in the following block diagram: 
 
 <picture>
-  <img src="Balboa Stack Overview.pdf" width = 900>
+  <img src="img/Balboa Stack Overview.pdf" width = 900>
 </picture>
 
+To be able to integrate the RDMA-stack into a shell-design, one must be aware of the essential interfaces. These are the following: 
 
-#### Load Queue Pair (QP)
-Before any RDMA operations can be executed the Queue Pairs have to established out-of-band (e.g. over TCP/IP) by the hosts. The host can the load the QP into the RoCE stack through the `s_axis_qp_interface` and `s_axis_qp_conn_interface` interface. 
-Interface definition in HLS:
+#### Network Data Path 
+The two ports `s_axis_rx` and `m_axis_tx` are 512-bit AXI4-Stream interfaces and used to transfer network traffic from the shell to the RDMA-stack. With the Ethernet-Header already processed in earlier parts of the networking environment, the RDMA-core expects a leading IP-Header, followed by a UDP- and InfiniBand-Header, payload and a final ICRC-checksum. 
+
+#### Meta Interfaces for Connection Setup
+RDMA operates on so-called Queue Pairs at remote communication nodes. The initial connection between Queues has to be established out-of-band (i.e. via TCP/IP) by the hosts. To exchanged meta-information then needs to be communicated to the RDMA-stack via the two meta-interfaces `s_axis_qp_interface` and `s_axis_qp_conn_interface`. The interface definition in HLS looks like this:  
 ```c
 typedef enum {RESET, INIT, READY_RECV, READY_SEND, SQ_ERROR, ERROR} qpState;
 
@@ -227,27 +230,51 @@ hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
 ```
 
 #### Issue RDMA commands
-RDMA commands can be issued to RoCE stack through the `s_axis_tx_meta` interface. In case the commands transmits data. This data can be either originate from the host memory as specified by the `local_vaddr` or can originate from the application on the FPGA. In the latter case the `local_vaddr` is set to 0 and the data is provided through the `s_axis_tx_data` interface.
+The actual RDMA-operations are handled between the shell and the RDMA-core through the interfaces `s_rdma_sq` for initiated RDMA-operations and `m_rdma_ack` to signal automatically generated ACKs from the stack to the shell. 
 
-Interface definition in HLS:
-```c
-typedef enum {APP_READ, APP_WRITE, APP_PART, APP_POINTER, APP_READ_CONSISTENT} appOpCode;
+Definition of `s_rdma_sq`: 
+- 20 Bit `rsrvd`
+- 64 Bit `message_size`
+- 64 Bit `local vaddr`
+- 64 Bit `remote vaddr`
+- 4 Bit `offs`
+- 24 Bit `ssn`
+- 4 Bit `cmplt`
+- 4 Bit `last`
+- 4 Bit `mode`
+- 4 Bit `host`
+- 12 Bit `qpn`
+- 8 Bit `opcode` (i.e. RDMA_WRITE, RDMA_READ, RDMA_SEND etc.)
 
-struct txMeta {
-	appOpCode 	op_code;
-	ap_uint<24> qpn;
-	ap_uint<48> local_vaddr;
-	ap_uint<48> remote_vaddr;
-	ap_uint<32> length;
-};
-hls::stream<txMeta>& s_axis_tx_meta,
-hls::stream<net_axis<WIDTH> >& s_axis_tx_data,
-```
-Waveform of issuing a RDMA read request:
-![signal roce-read-handshake](https://svg.wavedrom.com/github/fpgasystems/fpga-network-stack/master/waveforms/roce-read-handshake.json5)
+Definition of `m_rdma_ack`: 
+- 24 Bit `ssn`
+- 4 Bit `vfid` - Coyote-specific 
+- 8 Bit `pid` - Coyote-specific 
+- 4 Bit `cmplt`
+- 4 Bit `rd`
 
-Waveform of issuing an RDMA write request where data on the FPGA is transmitted:
-![signal roce-write-handshake](https://svg.wavedrom.com/github/fpgasystems/fpga-network-stack/master/waveforms/roce-write-handshake.json5)
+
+#### Memory Interface 
+The RDMA stack as published here and originally developed for use with the Coyote-shell is designed to use the QDMA IP-core. Therefore, the memory-control interfaces `m_rdma_rd_req` and `m_rdma_wr_req` are designed to hold all information required for communication with those cores. The two data interfaces for transportation of memory content `m_axis_rdma_wr` and `s_axis_rdma_rd` are 512-bit AXI4-Stream interfaces. 
+
+Definition of `m_rdma_rd_req` / `m_rdma_wr_req`: 
+- 4 Bit `vfid`
+- 48 Bit `vaddr`
+- 4 Bit `sync`
+- 4 Bit `stream`
+- 8 Bit `pid`
+- 28 Bit `len`
+- 4 Bit `host`
+- 12 Bit `dest`
+- 4 Bit `ctl`
+
+
+#### Example of RDMA WRITE-Flow
+The following flow chart shows an exemplaric RDMA WRITE-exchange between a remote node with an ASIC-based NIC and a local node with a FPGA-NIC implementing the RDMA-stack. It depicts the FPGA-internal communication between RDMA-stack and Shell as well as the network data-exchange between the two nodes: 
+
+<picture>
+  <img src="img/RDMA Flow_Mem-1.png" width = 900>
+</picture>
 
 ## Publications
 - D. Sidler, G. Alonso, M. Blott, K. Karras et al., *Scalable 10Gbps
