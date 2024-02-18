@@ -200,6 +200,7 @@ For actual usage of the RDMA-stack, it needs to be integrated into a full FPGA-n
   <img src="img/Balboa Stack Overview-1.png" width = 900>
 </picture>
 
+The RDMA-stack presented in this repository is the blue `roce_stack`. Surrounding modules would need to be provided by users to integrate the RDMA-capability in their projects. 
 To be able to integrate the RDMA-stack into a shell-design, one must be aware of the essential interfaces. These are the following: 
 
 #### Network Data Path 
