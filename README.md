@@ -184,7 +184,15 @@ Waveform of requesting a data transmit and transmitting the data.
 
 ### RoCE (RDMA over Converged Ethernet)
 
-The new RDMA-version (02/2024) is adapted from the one used in Coyote and fully compatible to the RoCE-v2 standard, thus able to communicate to standard NICs (such as i.e. Mellanox-cards).
+The new RDMA-version (02/2024) is adapted from the one used in Coyote (https://github.com/fpgasystems/Coyote) and fully compatible to the RoCE-v2 standard, thus able to communicate to standard NICs (such as i.e. Mellanox-cards). It is proven to run at 100 Gbit / s, allowing for low latency and high throughput comparable to the results achievable with mentioned ASIC-based NICs. 
+
+The whole included design is defined in a Block Diagram as follows: 
+
+<picture>
+  <img src="img/RDMA_Block_Diagram.png" width = 500>
+</picture>
+
+The packet processing pipeline is coded in Vitis-HLS and included in "roce_v2_ip", consisting of separate modules for the IPv4-, UDP- and InfiniBand-Headers. In the top-level-module "roce_stack.sv", this pipeline is then combined with HDL-coded ICRC-calculation and RDMA-flow control. 
 
 #### Load Queue Pair (QP)
 Before any RDMA operations can be executed the Queue Pairs have to established out-of-band (e.g. over TCP/IP) by the hosts. The host can the load the QP into the RoCE stack through the `s_axis_qp_interface` and `s_axis_qp_conn_interface` interface.
