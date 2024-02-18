@@ -194,15 +194,15 @@ The whole included design is defined in a Block Diagram as follows:
 
 The packet processing pipeline is coded in Vitis-HLS and included in "roce_v2_ip", consisting of separate modules for the IPv4-, UDP- and InfiniBand-Headers. In the top-level-module "roce_stack.sv", this pipeline is then combined with HDL-coded ICRC-calculation and RDMA-flow control. 
 
-For actual usage of the RDMA-stack, it needs to be integrated into a full FPGA-networking stack and combined with some kind of shell that enables DMA-exchange with the host for both commands and memory access. 
-
-#### Load Queue Pair (QP)
-Before any RDMA operations can be executed the Queue Pairs have to established out-of-band (e.g. over TCP/IP) by the hosts. The host can the load the QP into the RoCE stack through the `s_axis_qp_interface` and `s_axis_qp_conn_interface` interface. An example for that is Coyote with a networking stack as depicted in the following block diagram: 
+For actual usage of the RDMA-stack, it needs to be integrated into a full FPGA-networking stack and combined with some kind of shell that enables DMA-exchange with the host for both commands and memory access. An example for that is Coyote with a networking stack as depicted in the following block diagram: 
 
 <picture>
   <img src="Balboa Stack Overview.pdf" width = 900>
 </picture>
 
+
+#### Load Queue Pair (QP)
+Before any RDMA operations can be executed the Queue Pairs have to established out-of-band (e.g. over TCP/IP) by the hosts. The host can the load the QP into the RoCE stack through the `s_axis_qp_interface` and `s_axis_qp_conn_interface` interface. 
 Interface definition in HLS:
 ```c
 typedef enum {RESET, INIT, READY_RECV, READY_SEND, SQ_ERROR, ERROR} qpState;
