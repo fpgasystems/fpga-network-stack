@@ -40,13 +40,13 @@ constexpr unsigned long ConstLog2(unsigned long val) {
 const uint32_t MAX_KEY_SIZE = 64;
 const uint32_t MAX_ADDRESS_BITS = 16;
 
-const uint32_t NUM_TABLES = 4;
-const uint32_t TABLE_ADDRESS_BITS = 12;
+const uint32_t NUM_TABLES = 9;
+const uint32_t TABLE_ADDRESS_BITS = ConstLog2(MAX_NUMBER_OF_ENTRIES/(NUM_TABLES-1));
 const uint32_t TABLE_SIZE = (1 << TABLE_ADDRESS_BITS);
 
 const uint32_t KEY_SIZE = 64;
-const uint32_t VALUE_SIZE = 64;
-const uint32_t MAX_TRIALS = 10;
+const uint32_t VALUE_SIZE = 16;
+const uint32_t MAX_TRIALS = 12;
 
 //The hash table can easily support NUM_TABLES-1 * TABLE_SIZE
 //for NUM_TABLES = 9 -> this equals to a load factor of 0.88
