@@ -1379,6 +1379,9 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					rxEng2eventEng_setEvent.write(event(SYN_ACK, fsm_meta.sessionID));
 					// Change State to SYN_RECEIVED
 					rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, SYN_RECEIVED, 1));
+
+                    // Fire notification
+                    rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, false, true));
 				}
 				else if (tcpState == SYN_RECEIVED)// && mh_meta.seqNumb+1 == rxSar.recvd) // Maybe Check for seq
 				{

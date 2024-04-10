@@ -40,6 +40,7 @@
 
 using namespace hls;
 #include "newFakeDram.hpp"
+#include "simSwitch.hpp"
 
 
 class fakeDRAM {
@@ -101,10 +102,10 @@ public:
 	}
 //annoying hack
 	template <int WIDTH>
-	void process_writes(stream<routedMemCmd>& cmdIn, stream<net_axis<WIDTH> >& dataIn)//, stream<mmStatus>& statusOut)
+	void process_writes(stream<memCmd>& cmdIn, stream<net_axis<WIDTH> >& dataIn)//, stream<mmStatus>& statusOut)
 	{
 		//static fsmStateType writeState = CMD;
-		routedMemCmd cmd;
+		memCmd cmd;
 		net_axis<WIDTH> inWord;
 		//static uint16_t writeAddr;
 		static int counter = 0;
@@ -115,8 +116,8 @@ public:
 				if (!cmdIn.empty())
 				{
 					cmdIn.read(cmd);
-					writeAddr = cmd.data.addr(15, 0);
-					uint16_t tempLen = (uint16_t) cmd.data.len(15, 0);
+					writeAddr = cmd.addr(15, 0);
+					uint16_t tempLen = (uint16_t) cmd.len(15, 0);
 					writeLen = (int) tempLen;
 					std::cout << "MEMORY WRITE, total length: " << std::dec << writeLen << std::endl;
 					writeState = DATA;
@@ -212,9 +213,9 @@ public:
 	}
 //annoying hack
 	template<int WIDTH>
-	void process_reads(stream<routedMemCmd>& cmdIn, stream<net_axis<WIDTH> >& dataOut)//, stream<mmStatus>& status)
+	void process_reads(stream<memCmd>& cmdIn, stream<net_axis<WIDTH> >& dataOut)//, stream<mmStatus>& status)
 	{
-		routedMemCmd cmd;
+		memCmd cmd;
 		net_axis<WIDTH> outWord;
 		//uint32_t count = 0;
 		//uint32_t* uPtr;
@@ -236,8 +237,8 @@ public:
 				if (!cmdIn.empty())
 				{
 					cmdIn.read(cmd);
-					readAddr = cmd.data.addr(15, 0);
-					uint16_t tempLen = (uint16_t) cmd.data.len(15, 0);
+					readAddr = cmd.addr(15, 0);
+					uint16_t tempLen = (uint16_t) cmd.len(15, 0);
 					readLen = (int) tempLen;
 					std::cout << "MEMORY READ, addr: " << readAddr << ", length" << readLen << std::endl;
 					readState = DATA;
@@ -297,8 +298,8 @@ private:
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	stream<net_axis<256> >		m_axis_tx_data256("m_axis_tx_data256");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<routedAxiWord>		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -541,8 +542,8 @@ int test_rx(fakeDRAM* memory, std::ifstream& inputFile, std::ofstream& outputFil
 	stream<net_axis<DATA_WIDTH> >		m_axis_tx_data("m_axis_tx_data");
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -689,8 +690,8 @@ int test_tx_host(fakeDRAM* memory, std::ifstream& inputFile, std::ofstream& outp
 	stream<net_axis<DATA_WIDTH> >		m_axis_tx_data("m_axis_tx_data");
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -832,8 +833,8 @@ int test_tx_latency(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint
 	stream<net_axis<DATA_WIDTH> >		m_axis_tx_data("m_axis_tx_data");
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -922,8 +923,8 @@ int test_tx_latency(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint
 	//process write packet
 	int pkgCount = 0;
 	count = 0;
-	routedMemCmd writeCmd;
-	routedMemCmd readCmd;
+	memCmd writeCmd;
+	memCmd readCmd;
 	bool writeCmdReady = false;
 	int firstAcks = 0;
 	int readCmdCounter = 0;
@@ -979,7 +980,7 @@ int test_tx_latency(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
 		{
 			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;
@@ -1024,8 +1025,8 @@ int test_tx_nak(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<128
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	stream<net_axis<256> >		m_axis_tx_data256("m_axis_tx_data256");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -1114,8 +1115,8 @@ int test_tx_nak(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<128
 	//process write packet
 	int pkgCount = 0;
 	count = 0;
-	routedMemCmd writeCmd;
-	routedMemCmd readCmd;
+	memCmd writeCmd;
+	memCmd readCmd;
 	bool writeCmdReady = false;
 	int firstAcks = 0;
 	int readCmdCounter = 0;
@@ -1170,7 +1171,7 @@ int test_tx_nak(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<128
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
 		{
 			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;
@@ -1215,8 +1216,8 @@ int test_rx_nak(fakeDRAM* memory, std::ifstream& inputFile, std::ofstream& outpu
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	stream<net_axis<256> >		m_axis_tx_data256("m_axis_tx_data256");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -1366,8 +1367,8 @@ int test_tx_debug(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<1
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	stream<net_axis<256> >		m_axis_tx_data256("m_axis_tx_data256");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -1456,8 +1457,8 @@ int test_tx_debug(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<1
 	//process write packet
 	int pkgCount = 0;
 	count = 0;
-	routedMemCmd writeCmd;
-	routedMemCmd readCmd;
+	memCmd writeCmd;
+	memCmd readCmd;
 	bool writeCmdReady = false;
 	int firstAcks = 0;
 	int readCmdCounter = 0;
@@ -1526,7 +1527,7 @@ int test_tx_debug(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<1
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
 		{
 			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;
@@ -1569,8 +1570,8 @@ int test_tx_read(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<12
 	stream<net_axis<DATA_WIDTH> >		m_axis_tx_data("m_axis_tx_data");
 	stream<net_axis<128> >		m_axis_tx_data128("m_axis_tx_data128");
 	//memory
-	stream<routedMemCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
-	stream<routedMemCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
+	stream<memCmd>		m_axis_mem_write_cmd("m_axis_mem_write_cmd");
+	stream<memCmd>		m_axis_mem_read_cmd("m_axis_mem_read_cmd");
 	//stream<mmStatus>	s_axis_mem_write_status("s_axis_mem_write_status");
 	stream<net_axis<DATA_WIDTH> >		m_axis_mem_write_data("m_axis_mem_write_data");
 	stream<net_axis<DATA_WIDTH> >		s_axis_mem_read_data("s_axis_mem_read_data");
@@ -1652,8 +1653,8 @@ int test_tx_read(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<12
 	//process write packet
 	int pkgCount = 0;
 	count = 0;
-	routedMemCmd writeCmd;
-	routedMemCmd readCmd;
+	memCmd writeCmd;
+	memCmd readCmd;
 	bool writeCmdReady = false;
 	int firstAcks = 0;
 	int readCmdCounter = 0;
@@ -1705,7 +1706,7 @@ int test_tx_read(std::ifstream& inputFile, std::ofstream& outputFile, ap_uint<12
 			m_axis_mem_write_cmd.read(writeCmd);
 			writeCmdReady = true;
 		}
-		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.data.len/8))
+		if (writeCmdReady && m_axis_mem_write_data.size() >= (writeCmd.len/8))
 		{
 			memory.processWrite(writeCmd, m_axis_mem_write_data);
 			writeCmdReady = false;

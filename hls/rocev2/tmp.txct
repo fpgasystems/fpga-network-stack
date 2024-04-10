@@ -1,0 +1,118 @@
+[STATE TABLE 0]: setup new connection, psn 0xac701e
+[STATE TABLE 1]: setup new connection, psn 0x3a19d6
+[STATE TABLE 0]: setup new connection, psn 0xbc701e
+[STATE TABLE 1]: setup new connection, psn 0x2a19d6
+[MSN TABLE 0]: MSN init for qpn 0x0
+[MSN TABLE 1]: MSN init for qpn 0x0
+[MSN TABLE 0]: MSN init for qpn 0x1
+[MSN TABLE 1]: MSN init for qpn 0x1
+[LOCAL REQ HANDLER 0]: opcode: 12transmission: length: 18432, local addr: 0x300, remote addres: 0x100
+[META MERGER 0]: reading from app event with qpn 0x1, psn 0x0
+[META MERGER 1]: reading from read event with qpn 0x0, psn 0xbc701e
+[META MERGER 1]: reading from read event with qpn 0, psn 12349471
+[META MERGER 1]: reading from read event with qpn 0, psn 12349472
+[META MERGER 1]: reading from read event with qpn 0, psn 12349473
+[META MERGER 1]: reading from read event with qpn 0, psn 12349474
+[GENERATE EXH 0]: RDMA_READ_RWQ
+[GENERATE EXH 1]: RDMA_READ_RESP MSN:1
+[GENERATE EXH 1]: RDMA_READ_RESP MSN:0x1
+[APPEND PAYLOAD 0]: moving to state HEADER
+[APPEND PAYLOAD 0]: moving to state INFO
+[APPEND PAYLOAD 1]: moving to state HEADER
+[APPEND PAYLOAD 1]: moving to state AETH_PAYLOAD
+[APPEND PAYLOAD 1]: moving to state RAW_PAYLOAD
+[APPEND PAYLOAD 1]: moving to state RAW_PAYLOAD
+[APPEND PAYLOAD 1]: moving to state RAW_PAYLOAD
+[APPEND PAYLOAD 1]: moving to state HEADER
+[APPEND PAYLOAD 1]: moving to state AETH_PAYLOAD
+[TX IP UDP META MERGER 0]: port 0x1388
+[TX IP UDP META MERGER 0]: port 5000
+[TX IP UDP META MERGER 0]: port 0x1388
+[TX IP UDP META MERGER 0]: port 0x1388
+[TX IP UDP META MERGER 0]: port 0x1388
+[TX IP UDP META MERGER 0]: port 0x1388
+[GENERATE IBH 0]: generate header opcode 0xc psn 0xbc701e
+[GENERATE IBH 1]: input meta, opcode 0x13 valid psn 0xbc701e
+[GENERATE IBH 1]: input meta, opcode 0xe valid psn 0xbc701f
+[GENERATE IBH 1]: input meta, opcode 0xe valid psn 0xbc7020
+[GENERATE IBH 1]: input meta, opcode 0x14 valid psn 0xbc7021
+[GENERATE IBH 1]: input meta, opcode 0xf valid psn 0xbc7022
+[PREPEND IBH HEADER 0]: going to state PARTIAL_HEADER
+[PREPEND IBH HEADER 1]: going to state PARTIAL_HEADER
+[PREPEND IBH HEADER 1]: going to state PARTIAL_HEADER
+[PREPEND IBH HEADER 1]: going to state PARTIAL_HEADER
+[PREPEND IBH HEADER 1]: going to state PARTIAL_HEADER
+[PREPEND IBH HEADER 1]: going to state PARTIAL_HEADER
+[PROCESS RETRANSMISSION 0]: inserting new meta, psn 0xbc701e, occupying pointer 0x0
+[PROCESS RETRANSMISSION 0]: inserting new entry at qpn 0x1
+[PROCESS RETRANSMISSION 0]: updating 0xbc701e
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 init entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 valid meta entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_1 forwarding local address, laddr 0x300
+[PROCESS RETRANSMISSION 0]: state UPDATE_1 packet update, psn 0xbc701f, laddr 0x1300, raddr 0x1100, len 0x3800
+[PROCESS RETRANSMISSION 0]: updating 0xbc701f
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 init entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 valid meta entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_1 packet update, psn 0xbc7020, laddr 0x2300, raddr 0x2100, len 0x2800
+[PROCESS RETRANSMISSION 0]: updating 0xbc7020
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 init entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 valid meta entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_1 packet update, psn 0xbc7021, laddr 0x3300, raddr 0x3100, len 0x1800
+[PROCESS RETRANSMISSION 0]: updating 0xbc7021
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 init entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 valid meta entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_1 packet update, psn 0xbc7022, laddr 0x4300, raddr 0x4100, len 0x0800
+[PROCESS RETRANSMISSION 0]: updating 0xbc7022
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 init entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_0 valid meta entry
+[PROCESS RETRANSMISSION 0]: state UPDATE_1 ack update, psn 0xbc7022
+[RX PROCESS IBH 1]: input psn 0xbc701e
+[RX PROCESS IBH 1]: process IBH opcode: c
+[RX PROCESS IBH 0]: input psn 0xbc701e
+[RX PROCESS IBH 0]: process IBH opcode: d
+[RX PROCESS IBH 0]: input psn 0xbc701f
+[RX PROCESS IBH 0]: process IBH opcode: e
+[RX PROCESS IBH 0]: input psn 0xbc7020
+[RX PROCESS IBH 0]: process IBH opcode: e
+[RX PROCESS IBH 0]: input psn 0xbc7021
+[RX PROCESS IBH 0]: process IBH opcode: e
+[RX PROCESS IBH 0]: input psn 0xbc7022
+[RX PROCESS IBH 0]: process IBH opcode: f
+[RX IBH FSM 1]: epsn: 0xbc701e, packet psn: 0xbc701e
+[RX IBH FSM 0]: epsn: 0xbc701e, packet psn: 0xbc701e
+[RX IBH FSM 0]: retrans update, psn 0xbc701e
+[RX IBH FSM 0]: epsn: 0xbc701f, packet psn: 0xbc701f
+[RX IBH FSM 0]: retrans update, psn 0xbc701f
+[RX IBH FSM 0]: epsn: 0xbc7020, packet psn: 0xbc7020
+[RX IBH FSM 0]: retrans update, psn 0xbc7020
+[RX IBH FSM 0]: epsn: 0xbc7021, packet psn: 0xbc7021
+[RX IBH FSM 0]: retrans update, psn 0xbc7021
+[RX IBH FSM 0]: epsn: 0xbc7022, packet psn: 0xbc7022
+[RX IBH FSM 0]: retrans update, psn 0xbc7022
+[RX IBH FSM 0]: clearing transport timer at psn 0xbc7022
+[READ_HANDLER 1]: read handler init packet, psn 0xbc701e
+[READ_HANDLER 1]: read handler middle packet, psn 12349470
+[READ_HANDLER 1]: read handler middle packet, psn 12349471
+[READ_HANDLER 1]: read handler middle packet, psn 12349472
+[READ_HANDLER 1]: read handler last packet, psn 12349473
+[MEM CMD MERGER 0]: reading remote request
+[MEM CMD MERGER 0]: reading remote request
+[MEM CMD MERGER 0]: reading remote request
+[MEM CMD MERGER 0]: reading remote request
+[MEM CMD MERGER 0]: reading remote request
+[Memory]: Read data length: 4096
+[Memory]: Read data length: 4096
+[Memory]: Read data length: 4096
+[Memory]: Read data length: 4096
+[Memory]: Read data length: 2048
+[Memory]: Write command, address: 0x300, length: 4088
+[Memory]: Write command, address: 0x12f8, length: 4088
+[Memory]: Write command, address: 0x22f0, length: 4088
+[Memory]: Write command, address: 0x32e8, length: 4088
+[Memory]: Write command, address: 0x42e0, length: 2040
+[RX EXH FSM 0]: read resp first: 0x300, last: 0
+[RX EXH FSM 0]: read resp middle: 0x12f8
+[RX EXH FSM 0]: read resp middle: 0x22f0
+[RX EXH FSM 0]: read resp middle: 0x32e8
+[RX EXH FSM 0]: read resp last: 0x42e0, last: 0x1
+[Ack 0]: qpn: 0x1	isNak:0

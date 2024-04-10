@@ -1534,6 +1534,8 @@ void insert_checksum(	hls::stream<ap_uint<16> >&			checksumIn,
 						hls::stream<net_axis<WIDTH> >&		dataIn,
 						hls::stream<net_axis<WIDTH> >&		dataOut)
 {
+#pragma HLS PIPELINE II=1
+
 	static ap_uint<2> state = (WIDTH > 128 ? 1 : 0);
 	static ap_uint<3> wordCount = 0;
 

@@ -33,23 +33,29 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "../packet.hpp"
 #include "../ipv6/ipv6.hpp"
 #include "../udp/udp.hpp"
+#include "rocev2_config.hpp"
 
 using namespace hls;
+
+#define DBG_IBV
 
 const uint32_t BTH_SIZE = 96;
 const uint32_t RETH_SIZE = 128;
 const uint32_t AETH_SIZE = 32;
 const uint32_t IMMDT_SIZE = 32;
 
-const ap_uint<16> RDMA_DEFAULT_PORT = 0x12B7; //4791 --> 0x12B7
+const uint32_t RETRANS_RETRY_CNT = 12;
+const uint32_t RETRANS_S1 = 3;
+const uint32_t RETRANS_S2 = 3;
+const uint32_t RETRANS_S3 = 3;
 
-#define RETRANS_EN 0
+const ap_uint<16> RDMA_DEFAULT_PORT = 0x12B7; //4791 --> 0x12B7
 
 // QP/EE states, page 473
 typedef enum {RESET, INIT, READY_RECV, READY_SEND, SQ_ERROR, ERROR} qpState;
 
 typedef enum {AETH, RETH, RAW, IMMED} pkgType;
-typedef enum {SHIFT_AETH, SHIFT_RETH, SHIFT_NONE, SHIFT_SEND} pkgShiftType;
+typedef enum {SHIFT_AETH, SHIFT_RETH, SHIFT_NONE} pkgShiftType;
 typedef enum {PKG_SEND, PKG_WRITE} pkgOper;
 
 typedef enum {
@@ -58,13 +64,33 @@ typedef enum {
 } pkgCtlType;
 
 typedef enum {
+	PKG_R = 0,
+    PKG_NR = 1
+} pkgRetransType;
+
+typedef enum {
 	PKG_INT = 0,
 	PKG_HOST = 1
 } pkgHostType;
 
+typedef enum {
+    WR_ACK = 0,
+    RD_ACK = 1
+} ackType;
+
+typedef enum {
+    NO_SYNC = 0,
+    SYNC = 1
+} syncType;
+
 //See page 246
 typedef enum {
+    RC_SEND_FIRST = 0x00,
+    RC_SEND_MIDDLE = 0x01,
+    RC_SEND_LAST = 0x02,
+    RC_SEND_LAST_WITH_IMD = 0x03,
 	RC_SEND_ONLY = 0x04,
+    RC_SEND_ONLY_WITH_IMD = 0x05,
 	RC_RDMA_WRITE_FIRST = 0x06,
 	RC_RDMA_WRITE_MIDDLE = 0x07,
 	RC_RDMA_WRITE_LAST = 0x08,
@@ -91,8 +117,11 @@ struct qpContext
 	ap_uint<24> qp_num;
 	ap_uint<24> remote_psn;
 	ap_uint<24> local_psn;
-	ap_uint<16> r_key;
+	ap_uint<32> r_key;
 	ap_uint<48> virtual_address;
+	qpContext() {}
+	qpContext(qpState newState, ap_uint<24> qp_num, ap_uint<24> remote_psn, ap_uint<24> local_psn, ap_uint<32> r_key, ap_uint<48> virtual_address)
+				:newState(newState), qp_num(qp_num), remote_psn(remote_psn), local_psn(local_psn), r_key(r_key), virtual_address(virtual_address) {}
 };
 
 /* QP connection */
@@ -102,18 +131,21 @@ struct ifConnReq
 	ap_uint<24> remote_qpn;
 	ap_uint<128> remote_ip_address; //TODO make variable
 	ap_uint<16> remote_udp_port; //TODO what is this used for
+	ifConnReq() {}
+	ifConnReq(ap_uint<16> qpn, ap_uint<24> remote_qpn, ap_uint<128> remote_ip_address, ap_uint<16> remote_udp_port)
+				:qpn(qpn), remote_qpn(remote_qpn), remote_ip_address(remote_ip_address), remote_udp_port(remote_udp_port) {}
 };
 
 struct readRequest
 {
 	ap_uint<24> qpn;
-	ap_uint<48> vaddr;
+	ap_uint<64> vaddr;
 	ap_uint<32> dma_length;
 	ap_uint<24> psn;
 	ap_uint<1>  host;
 	
 	readRequest() {}
-	readRequest(ap_uint<24> qpn, ap_uint<48> vaddr, ap_uint<32> len, ap_uint<24> psn)
+	readRequest(ap_uint<24> qpn, ap_uint<64> vaddr, ap_uint<32> len, ap_uint<24> psn)
 //		:qpn(qpn), vaddr(vaddr), dma_length(len), psn(psn) {}
 		:qpn(qpn), vaddr(vaddr), dma_length(len), psn(psn), host(1) {}
 };
@@ -128,7 +160,7 @@ struct fwdPolicy
 		:isDrop(drop), ackOnly(ack) {}
 };
 
-//TODO move to UDP/IP
+// TODO move to UDP/IP
 struct dstTuple
 {
 	ap_uint<128> their_address;
@@ -138,31 +170,44 @@ struct dstTuple
 		:their_address(addr), their_port(port) {}
 };
 
+/* Internal read */
+struct memCmdInternal
+{
+	ibOpCode op_code;
+	ap_uint<16> qpn; //TODO required
+	ap_uint<64> addr;
+	ap_uint<32> len;
+	ap_uint<1>  host;
+    ap_uint<1>  sync;
+    ap_uint<6>  offs;
+	memCmdInternal() {}
+	memCmdInternal(ibOpCode op, ap_uint<16> qpn, ap_uint<64> addr, ap_uint<32> len, ap_uint<1> host)
+		: op_code(op), qpn(qpn), addr(addr), len(len), host(host), sync(1), offs(0) {}
+    memCmdInternal(ibOpCode op, ap_uint<16> qpn, ap_uint<64> addr, ap_uint<32> len, ap_uint<1> host, ap_uint<1> sync, ap_uint<6> offs)
+		: op_code(op), qpn(qpn), addr(addr), len(len), host(host), sync(sync), offs(offs) {}
+    // TODO: need to set some default value?
+    memCmdInternal(ap_uint<16> qpn, ap_uint<64> addr, ap_uint<32> len)
+        : qpn(qpn), addr(addr), len(len), host(1), sync(1) {}
+};
+
 /* Mem command */
 struct memCmd
 {
+	ibOpCode	op_code;
+	ap_uint<16> qpn;
+	ap_uint<1>  lst;
 	ap_uint<48> addr;
+	ap_uint<4>  dst;
+	ap_uint<2>  strm;
 	ap_uint<28> len;
-	ap_uint<1> strm;
-	ap_uint<1> sync;
-	ap_uint<1> ctl;
-	ap_uint<1> host;
-	ap_uint<4> tdst;
-	ap_uint<6> pid;
-	ap_uint<4> vfid; 
+	ap_uint<1>  actv;
+	ap_uint<1>  host;
+	ap_uint<6>  offs;
+
 	memCmd() {}
-	memCmd(ap_uint<48> addr, ap_uint<28> len, ap_uint<1> ctl, ap_uint<1> host, ap_uint<6> pid, ap_uint<4> vfid)
-		:addr(addr), len(len), strm(1), sync(0), ctl(ctl), host(host), tdst(0), pid(pid), vfid(vfid) {}
+	memCmd(ibOpCode op_code, ap_uint<16> qpn, ap_uint<1> lst, ap_uint<64> addr, ap_uint<28> len, ap_uint<1> actv, ap_uint<1> host, ap_uint<6> offs)
+		:op_code(op_code), qpn(qpn), lst(lst), addr(addr), dst(addr(51,48)), strm(addr(53,52)), len(len), actv(actv), host(host), offs(offs) {}
 };
-
-struct routedMemCmd
-{
-	memCmd      data;
-	routedMemCmd() {}
-	routedMemCmd(ap_uint<64> addr, ap_uint<32> len, ap_uint<1> ctl, ap_uint<1> host, ap_uint<24> qpn)
-		:data(addr(47,0), len(27,0), ctl, host, qpn(5,0), qpn(9,6)) {}
-};
-
 
 /* TX */
 struct txPacketInfo
@@ -174,46 +219,35 @@ struct txPacketInfo
 
 struct txMeta
 {
-	ibOpCode 	 op_code;
-	ap_uint<10>  qpn; // vfid, pid
+	ibOpCode 	 op_code; // 32
+	ap_uint<16>  qpn; // vfid, pid
 	ap_uint<1>   host;
-	ap_uint<16>  rsrvd;
-	ap_uint<512> params;
+	ap_uint<1>   lst;
+	ap_uint<6>   offs;
+    ap_uint<64>  raddr;
+    ap_uint<64>  laddr;
+    ap_uint<32>  len;
+    ap_uint<32>  imm;
 	txMeta()
 		:op_code(RC_RDMA_WRITE_ONLY) {}
-	txMeta(ibOpCode op, ap_uint<10> qp, ap_uint<1> host, ap_uint<16> rsrvd, ap_uint<512> params)
-				:op_code(op), qpn(qp), host(host), rsrvd(rsrvd), params(params) {}
-};
-
-/* Internal read */
-struct memCmdInternal
-{
-	ibOpCode op_code;
-	ap_uint<16> qpn; //TODO required
-	ap_uint<64> addr;
-	ap_uint<32> len;
-	ap_uint<1>  host;
-	memCmdInternal() {}
-	memCmdInternal(ibOpCode op, ap_uint<16> qpn, ap_uint<64> addr, ap_uint<32> len, ap_uint<1> host)
-		: op_code(op), qpn(qpn), addr(addr), len(len), host(host) {}
+	txMeta(ibOpCode op, ap_uint<16> qp, ap_uint<1> host, ap_uint<1> lst, ap_uint<6> offs, 
+        ap_uint<64> laddr, ap_uint<64> raddr, ap_uint<32> len, ap_uint<32> imm)
+				:op_code(op), qpn(qp), host(host), lst(lst), offs(offs), raddr(raddr), laddr(laddr), len(len), imm(imm) {}
 };
 
 /* ACK meta */
 struct ackMeta 
 {
-	bool isNak;
-	ap_uint<6> pid;
-	ap_uint<8> syndrome;
-	ap_uint<24> msn;
-	ackMeta(bool isNak, ap_uint<6> pid, ap_uint<8> syndrome, ap_uint<24> msn)
-		: isNak(isNak), pid(pid), syndrome(syndrome), msn(msn) {}
-};
+    ibOpCode   op_code; // 32
+	ap_uint<16> qpn;
+    ap_uint<1> host;
+    ap_uint<4> dst;
+    ap_uint<2> strm;
+    ap_uint<1> lst;
 
-struct routedAckMeta
-{
-	ackMeta data;
-	routedAckMeta(bool isNak, ap_uint<24> qpn, ap_uint<8> syndrome, ap_uint<24> msn) 
-		: data(isNak, qpn(5,0), syndrome, msn) {}
+	ackMeta() {}
+	ackMeta(ibOpCode op_code, ap_uint<16> qpn, ap_uint<1> host, ap_uint<4> dst, ap_uint<2> strm, ap_uint<1> lst)
+		: op_code(op_code), qpn(qpn), host(host), dst(dst), strm(strm),  lst(lst) {}
 };
 
 /* Event */
@@ -238,7 +272,7 @@ struct event
 {
 	ibOpCode 	op_code;
 	ap_uint<24> qpn;
-	ap_uint<48> addr;
+	ap_uint<64> addr;
 	ap_uint<32> length;
 	ap_uint<24>	psn;
 	bool		validPsn;
@@ -253,11 +287,11 @@ struct event
 		:op_code(op), qpn(qp), psn(psn), validPsn(true), isNak(nak) {}*/
 	event(ibOpCode op, ap_uint<24> qp, ap_uint<32> len)
 		:op_code(op), qpn(qp), addr(0), length(len), psn(0), validPsn(false), isNak(false) {}
-	event(ibOpCode op, ap_uint<24> qp, ap_uint<48> addr, ap_uint<32> len)
+	event(ibOpCode op, ap_uint<24> qp, ap_uint<64> addr, ap_uint<32> len)
 		:op_code(op), qpn(qp), addr(addr), length(len), psn(0), validPsn(false), isNak(false) {}
 	event(ibOpCode op, ap_uint<24> qp, ap_uint<32> len, ap_uint<24> psn)
 		:op_code(op), qpn(qp), addr(0), length(len), psn(psn), validPsn(true), isNak(false) {}
-	event(ibOpCode op, ap_uint<24> qp, ap_uint<48> addr, ap_uint<32> len, ap_uint<24> psn)
+	event(ibOpCode op, ap_uint<24> qp, ap_uint<64> addr, ap_uint<32> len, ap_uint<24> psn)
 		:op_code(op), qpn(qp), addr(addr), length(len), psn(psn), validPsn(true), isNak(false) {}
 };
 
@@ -292,25 +326,27 @@ struct retransEvent
 {
 	ibOpCode 	op_code;
 	ap_uint<24> qpn;
-	ap_uint<48> localAddr;
-	ap_uint<48> remoteAddr;
+	ap_uint<64> localAddr;
+	ap_uint<64> remoteAddr;
 	ap_uint<32> length;
 	ap_uint<24>	psn;
+    ap_uint<1>  lst;
+    ap_uint<4>  offs;
 	bool		validPsn;  //TODO remove?
 	bool		isNak; //TODO remove?
 	retransEvent()
 		:op_code(RC_ACK), validPsn(false), isNak(false) {}
-	retransEvent(ibOpCode op, ap_uint<24> qp, ap_uint<48> laddr, ap_uint<48> raddr, ap_uint<32> len, ap_uint<24> psn)
-		:op_code(op), qpn(qp), localAddr(laddr), remoteAddr(raddr),length(len), psn(psn), validPsn(true), isNak(false) {}
+	retransEvent(ibOpCode op, ap_uint<24> qp, ap_uint<64> laddr, ap_uint<64> raddr, ap_uint<32> len, ap_uint<24> psn, ap_uint<1> lst, ap_uint<4> offs)
+		:op_code(op), qpn(qp), localAddr(laddr), remoteAddr(raddr),length(len), psn(psn), lst(lst), offs(offs), validPsn(true), isNak(false) {}
 };
 
 struct memMeta
 {
 	bool write;
-	ap_uint<48> address;
+	ap_uint<64> address;
 	ap_uint<32> length;
 	memMeta() {}
-	memMeta(bool w, ap_uint<48> addr, ap_uint<32> len)
+	memMeta(bool w, ap_uint<64> addr, ap_uint<32> len)
 		:write(w), address(addr), length(len) {}
 };
 
@@ -473,7 +509,7 @@ public:
 	}
 	ap_uint<24> getMsn()
 	{
-		return reverse((ap_uint<32>) header(31, 8));
+		return reverse((ap_uint<24>) header(31, 8));
 	}
 	bool isNAK()
 	{
@@ -522,7 +558,28 @@ struct InvalidateExHeader //IETH
 	ap_uint<32> r_key;
 };
 
-template <int WIDTH>
+struct psnPkg
+{
+    ibOpCode opcode;
+	ap_uint<32> val1;
+    ap_uint<32> val2;
+	ap_uint<8> ctl;
+
+	psnPkg(ibOpCode opcode, ap_uint<32> val1, ap_uint<32> val2, ap_uint<8> ctl) 
+		: opcode(opcode), val1(val1), val2(val2), ctl(ctl) {}
+};
+
+struct rtrPkg
+{
+	ap_uint<24> r1;
+	ap_uint<24> r2;
+	ap_uint<4> ctl;
+
+	rtrPkg(ap_uint<24> r1, ap_uint<24> r2, ap_uint<4> ctl) 
+		: r1(r1), r2(r2), ctl(ctl) {}
+};
+
+template <int WIDTH, int INSTID>
 void ib_transport_protocol(	
 	// RX - net module
 	hls::stream<ipUdpMeta>&	s_axis_rx_meta,
@@ -536,11 +593,11 @@ void ib_transport_protocol(
 	hls::stream<txMeta>& s_axis_sq_meta,
 
 	// ACKs
-	hls::stream<routedAckMeta>& m_axis_rx_ack_meta,
+	hls::stream<ackMeta>& m_axis_rx_ack_meta,
 
 	// RDMA
-	hls::stream<routedMemCmd>& m_axis_mem_write_cmd,
-	hls::stream<routedMemCmd>& m_axis_mem_read_cmd,
+	hls::stream<memCmd>& m_axis_mem_write_cmd,
+	hls::stream<memCmd>& m_axis_mem_read_cmd,
 	hls::stream<net_axis<WIDTH> >& m_axis_mem_write_data,
 	hls::stream<net_axis<WIDTH> >& s_axis_mem_read_data,
 
@@ -549,5 +606,13 @@ void ib_transport_protocol(
 	hls::stream<ifConnReq>&	s_axis_qp_conn_interface,
 
 	// Debug
-	ap_uint<32>& regInvalidPsnDropCount
+#ifdef DBG_IBV
+	hls::stream<psnPkg>& m_axis_dbg_0, 
+    hls::stream<psnPkg>& m_axis_dbg_1, 
+    hls::stream<psnPkg>& m_axis_dbg_2, 
+#endif
+	ap_uint<32>& regInvalidPsnDropCount,
+    ap_uint<32>& regRetransCount,
+	ap_uint<32>& regIbvCountRx,
+    ap_uint<32>& regIbvCountTx
 );

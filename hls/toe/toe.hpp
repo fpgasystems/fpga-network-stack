@@ -104,15 +104,18 @@ struct appNotification
 	ap_uint<32>			ipAddress;
 	ap_uint<16>			dstPort;
 	bool				closed;
+    bool                opened;
 	appNotification() {}
 	appNotification(ap_uint<16> id, ap_uint<16> len, ap_uint<32> addr, ap_uint<16> port)
-				:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(false) {}
+				:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(false), opened(false) {}
 	appNotification(ap_uint<16> id, bool closed)
-				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed) {}
+				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(false) {}
+    appNotification(ap_uint<16> id, bool closed, bool opened)
+				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(opened) {}
 	appNotification(ap_uint<16> id, ap_uint<32> addr, ap_uint<16> port, bool closed)
-				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed) {}
+				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed), opened(false) {}
 	appNotification(ap_uint<16> id, ap_uint<16> len, ap_uint<32> addr, ap_uint<16> port, bool closed)
-			:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(closed) {}
+			:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(closed), opened(false) {}
 };
 
 
@@ -189,7 +192,8 @@ void toe(	// Data & Memory Interface
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
 			//statistic
-			ap_uint<16>&							regSessionCount);
+			ap_uint<16>&							regSessionCount
+);
 
 
 #endif

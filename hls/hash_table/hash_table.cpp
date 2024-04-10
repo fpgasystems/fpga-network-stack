@@ -254,7 +254,7 @@ void hash_table_top( hls::stream<htLookupReq<KEY_SIZE> >&               s_axis_l
 #pragma HLS aggregate compact=bit variable=s_axis_upd_req
 #pragma HLS aggregate compact=bit variable=m_axis_lup_rsp
 #pragma HLS aggregate compact=bit variable=m_axis_upd_rsp
-#pragma HLS INTERFACE ap_none port=regInsertFailureCount
+#pragma HLS INTERFACE ap_vld port=regInsertFailureCount
 #else
 #pragma HLS DATA_PACK variable=s_axis_lup_req
 #pragma HLS DATA_PACK variable=s_axis_upd_req

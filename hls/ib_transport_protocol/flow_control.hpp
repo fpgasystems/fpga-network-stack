@@ -28,50 +28,59 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ************************************************/
 #pragma once
 
-#include "../axi_utils.hpp"
-#include "../ib_transport_protocol/ib_transport_protocol.hpp"
-#include <rocev2_config.hpp> //defines MAX_QPS
+#include "../../axi_utils.hpp"
+#include "../ib_transport_protocol.hpp"
+#include "hls_math.h"
+using namespace hls;
 
-struct connTableEntry
+const uint32_t FLOW_ORDER = 5;
+const uint32_t FLOW_OUTSTANDING = 32;//exp2(FLOW_OUTSTANDING_ORDER);
+
+struct flowTableEntry
 {
-	//ap_uint<24> local_qpn;
-	ap_uint<24> remote_qpn;
-	ap_uint<128> remote_ip_address; //TODO make variable
-	ap_uint<16> remote_udp_port; //TODO what is this used for
+	ap_uint<FLOW_ORDER> head;
+    ap_uint<FLOW_ORDER> tail; 
+    ap_uint<1> issued;
+    ap_uint<FLOW_OUTSTANDING> rd_active;
+    ap_uint<24> curr_ssn;
+    ap_uint<24> curr_msn;
 };
 
-template <int INSTID>
-void conn_table(	hls::stream<ap_uint<16> >&	tx_ibhconnTable_req,
-						hls::stream<ifConnReq>&		qpi2connTable_req,
-						hls::stream<connTableEntry>&	tx_connTable2ibh_rsp);
-
-
-template <int INSTID>
-void conn_table(	hls::stream<ap_uint<16> >&	tx_ibhconnTable_req,
-						hls::stream<ifConnReq>&		qpi2connTable_req,
-						hls::stream<connTableEntry>&	tx_connTable2ibh_rsp)
-{
+template <int INSTID = 0>
+void flow_control(	
+    stream<flowUpdReq>&	req2flow_upd,
+    stream<flowUpdAck>&	ack2flow_upd,
+    stream<flowTableEntry>& flow2req_rsp,
+    stream<flowTableEntry>&	flow2ack_rsp
+) {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
-	static connTableEntry conn_table[MAX_QPS];
-	//#pragma HLS RESOURCE variable=conn_table core=RAM_2P_BRAM
+	static flowTableEntry flow_table[MAX_QPS];
+#if defined( __VITIS_HLS__)
+	#pragma HLS bind_storage variable=flow_table type=RAM_2P impl=BRAM
+#else
+	#pragma HLS RESOURCE variable=flow_table core=RAM_2P_BRAM
+#endif
 
-	ap_uint<16> txRequest;
-	ifConnReq ifRequest;
+    flowUpdAck ackUpd;
 
-	if (!tx_ibhconnTable_req.empty())
-	{
-		tx_ibhconnTable_req.read(txRequest);
-		//std::cout << "Requested conn data for: " << txRequest << std::endl;
-		tx_connTable2ibh_rsp.write(conn_table[txRequest]);
-	}
-	else if (!qpi2connTable_req.empty())
-	{
-		qpi2connTable_req.read(ifRequest);
-		//std::cout << "Storing conn data for: " << ifRequest.qpn << std::endl;
-		conn_table[ifRequest.qpn].remote_qpn = ifRequest.remote_qpn;
-		conn_table[ifRequest.qpn].remote_ip_address = ifRequest.remote_ip_address;
-		conn_table[ifRequest.qpn].remote_udp_port = ifRequest.remote_udp_port;
-	}
+    if (!ack2flow_upd.empty()) {
+        ack2flow_upd.read(ackUpd);
+        if(ackUpd.write) {
+            flow_table[ackUpd.qpn].tail = ackUpd.tail;
+            flow_table[ackUpd.qpn].curr_msn = ackUpd.curr_msn;
+            if(ackUpd.tail == flow_table[ackUpd.qpn].head)
+                flow_table[ackUpd.qpn].issued = 0;
+        } else {
+            flow2ack_rsp.write(flow_table[ackUpd.qpn]);
+        }
+    } else if (!req2flow_upd.empty()) {
+        req2flow_upd.read(reqUpd);
+        if(reqUpd.write) {
+
+        } else {
+
+        }
+    }
 }

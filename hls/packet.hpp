@@ -155,7 +155,8 @@ public:
 
 	void clear()
 	{
-#pragma HLS pipeline II=1
+//#pragma HLS pipeline II=1
+#pragma HLS INLINE
 		//header = 0;
 		ready = false;
 		idx = 0;

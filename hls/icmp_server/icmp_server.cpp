@@ -483,10 +483,12 @@ void insertChecksum(stream<axiWord> inputStreams[2], stream<ap_uint<16> > checks
  *  @param[out]		dataOut
  */
 #if defined( __VITIS_HLS__)
-void icmp_server(stream<net_axis<64> >&	dataIn,
-				 stream<net_axis<64> >&	udpIn,
-				 stream<net_axis<64> >&	ttlIn,
-				 stream<net_axis<64> >&	dataOut) {
+void icmp_server(
+	stream<net_axis<64> >&	dataIn,
+	stream<net_axis<64> >&	udpIn,
+	stream<net_axis<64> >&	ttlIn,
+	stream<net_axis<64> >&	dataOut
+) {
 	#pragma HLS INLINE
 
 	static hls::stream<net_axis<64> >			packageBuffer1("packageBuffer1");
@@ -516,10 +518,12 @@ void icmp_server(stream<net_axis<64> >&	dataIn,
 }
 
 
-void icmp_server_top(stream<ap_axiu<64, 0, 0, 0> >&	dataIn,
-				 stream<ap_axiu<64, 0, 0, 0> >&	udpIn,
-				 stream<ap_axiu<64, 0, 0, 0> >&	ttlIn,
-				 stream<ap_axiu<64, 0, 0, 0> >&	dataOut) {
+void icmp_server_top (
+	stream<ap_axiu<64, 0, 0, 0> >&	dataIn,
+	stream<ap_axiu<64, 0, 0, 0> >&	udpIn,
+	stream<ap_axiu<64, 0, 0, 0> >&	ttlIn,
+	stream<ap_axiu<64, 0, 0, 0> >&	dataOut
+) {
 
 	#pragma HLS DATAFLOW disable_start_propagation
 	#pragma HLS INTERFACE ap_ctrl_none port=return
@@ -555,10 +559,13 @@ void icmp_server_top(stream<ap_axiu<64, 0, 0, 0> >&	dataIn,
 				ttlIn_internal,
 				dataOut_internal);
 #else 
-void icmp_server(stream<axiWord>&	dataIn,
-				 stream<axiWord>&	udpIn,
-				 stream<axiWord>&	ttlIn,
-				 stream<axiWord>&	dataOut) {
+void icmp_server_top (
+	stream<axiWord>&	dataIn,
+	stream<axiWord>&	udpIn,
+	stream<axiWord>&	ttlIn,
+	stream<axiWord>&	dataOut
+) {
+
 	#pragma HLS DATAFLOW disable_start_propagation
 	#pragma HLS INTERFACE ap_ctrl_none port=return
 
