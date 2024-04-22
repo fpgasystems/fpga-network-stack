@@ -52,26 +52,37 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 
 	switch (ei_state)
 	{
+	
+	// Read in incoming word from stream
 	case FIRST:
 		if (!input.empty())
 		{
+			// Read incoming word from input-stream, switch to PKG
 			input.read(currWord);
             //std::cout << "[ NODE: " << INSTID << ", EXTRACT_CRC(), FIRST_STATE ]:  Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
 			ei_prevWord = currWord;
 			ei_state = PKG;
+			
+			// If word is marked as last, switch to corresponding state
 			if (currWord.last)
 			{
 				ei_state = LAST;
 			}
 		}
 		break;
+
+	// Check for the next word in the input stream
 	case PKG:
+		// Read incoming word from input-stream
 		if (!input.empty())
 		{
 			input.read(currWord);
             //std::cout << "[ NODE: " << INSTID << ", EXTRACT_CRC(), PKG STATE ]:  Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
+			
+			// Check if the read word is last word 
 			if (currWord.last)
 			{
+				// If bit is set to 0, extract bits (31, 0) from data and forward through the rx_crcFifo, go back to beginning state
 				if (currWord.keep[4] == 0)
 				{
 					ei_prevWord.last = 0x1;
@@ -81,11 +92,15 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 #endif
 					ei_state = FIRST;
 				}
+
+				// If bit not set to 0, switch to state LAST for further processing. 
 				else
 				{
 					ei_state = LAST;
 				}
 			}
+
+			// Write out the first word that was read and take the last read as previous word
 			output.write(ei_prevWord);
 			ei_prevWord = currWord;
 		}
@@ -93,6 +108,8 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 	case LAST:
         //std::cout << "[ NODE: " << INSTID << ", EXTRACT_CRC(), LAST STATE ]:  Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
 		ap_uint<64> keep = ei_prevWord.keep; //this is required to make the case statement work for all widths
+
+		// Depending on keep, select data for crc-calculation and set some keep-bits to 0 accordingly. 
 		switch(keep)
 		{
 		case 0xF:
@@ -160,6 +177,8 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 			ei_prevWord.keep(63,60) = 0x0;
 			break;
 		} //switch
+
+		// Send the read word to output, forward CRC-value to FIFO
 		output.write(ei_prevWord);
 #ifndef DISABLE_CRC_CHECK
 		rx_crcFifo.write(crc);
@@ -184,6 +203,7 @@ void mask_header_fields(stream<net_axis<WIDTH> >& input,
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 
+	// Define a mask to mask out components of the incoming packet that don't need to be included into icrc-calculation
 	//mask containig all of these fields
 	const static ap_uint<424> one_mask = 0;
 	// traffic class
@@ -198,34 +218,51 @@ void mask_header_fields(stream<net_axis<WIDTH> >& input,
 	one_mask(383, 368) = 0xFFFF;
 	// BTH Resv8a
 	one_mask(423,416) = 0xFF;
+
+	// Variables for the length of the header and a counter of the word 
 	const static ap_uint<3> header_length = (424/WIDTH);
 	static ap_uint<8> ai_wordCount = 0;
 
 	net_axis<WIDTH> crcWord;
 	net_axis<WIDTH> currWord;
 
-
+	// Read word from input s_axis_tx_data
 	if (!input.empty())
 	{
 		input.read(currWord);
 		crcWord = currWord;
 
+		// Treat incoming words that are part of the packet 
 		if (ai_wordCount < header_length)
 		{
             std::cout << "[ NODE: " << INSTID << ", MASK_HEADER() ]: Less than header" << std::endl;
 			//std::cout << "applied mask: " << ai_wordCount << ", range: (" << std::dec << (int) ((ai_wordCount+1)*WIDTH)-1 << "," << (int) (ai_wordCount*WIDTH) << ")" << std::endl;
+			
+			// Apply correct part of the one-mask to the header currently under review
 			crcWord.data = crcWord.data | one_mask(((ai_wordCount+1)*WIDTH)-1, ai_wordCount*WIDTH);
 		}
+
+		// Last part of the header 
 		else if (ai_wordCount == header_length)
 		{
             std::cout << "[ NODE: " << INSTID << ", MASK_HEADER() ]: Equal header" << std::endl;
 			//std::cout << "aaapplied mask: " << ai_wordCount << ", range: (" << std::dec << (int) 423 << "," << (int) (ai_wordCount*WIDTH) << ")" << std::endl;
+			
+			// Apply correct part of the one-mask to the header currently under review
 			crcWord.data((424%WIDTH)-1 , 0) = crcWord.data((424%WIDTH)-1 , 0) | one_mask(423, ai_wordCount*WIDTH);
 		}
+
+		// Write out masked data for further calculation of ICRC
 		maskedDataOut.write(crcWord);
+
+		// Write out the unchanged received word for later re-combination with the ICRC 
 		dataOut.write(currWord);
+
+		// Increase word count to orient within the received packet 
 		ai_wordCount++;
         std::cout << "[ NODE: " << INSTID << ", MASK_HEADER() ]: Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
+		
+		// If received word is last part of a packet, reset the ai_wordCounter. 
 		if (currWord.last)
 		{
             std::cout << "[ NODE: " << INSTID << ", MASK_HEADER() ]: Written last" << std::endl;
@@ -298,6 +335,8 @@ void drop_invalid_crc(	stream<net_axis<WIDTH> >& input,
 	} //switch
 }
 
+
+// Module to actually calculate CRC32, used on the output path. 
 template <int WIDTH, int INSTID = 0>
 void compute_crc32(	stream<net_axis<WIDTH> >& input,
 					stream<ap_uint<32> >& output)
@@ -305,8 +344,11 @@ void compute_crc32(	stream<net_axis<WIDTH> >& input,
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 
+	// Two-state CRC-calculation
 	enum crcFsmStateType {FIRST, SECOND};
 	static crcFsmStateType crcState = FIRST;
+
+	// Reversed ethernet polynomial 
 	const unsigned int polynomial = 0xEDB88320; //Ethernet polynomial: 0x04C11DB7 reversed
 	static unsigned int crc = 0xdebb20e3; // 8 bytes of 0xFF with init crc 0xFFFFFFFF
 	//static unsigned int crc = 0xFFFFFFFF;
@@ -317,6 +359,8 @@ void compute_crc32(	stream<net_axis<WIDTH> >& input,
 	switch (crcState)
 	{
 	case FIRST:
+
+		// If input becomes available, read it for further processing 
 		if (!input.empty())
 		{
 			input.read(currWord);
@@ -326,15 +370,19 @@ void compute_crc32(	stream<net_axis<WIDTH> >& input,
 			std::cout << std::endl;*/
 
 			//std::cout << "byte: " << std::hex << (uint16_t) byte;// << std::endl;
+
+			// Iterate over 4 Bit-Blocks in the read word, but only first half. 
 			for (int i = 0; i < (WIDTH/8/2); i++)
 			{
 				#pragma HLS UNROLL
 				if (currWord.keep[i])
 				{
+					// Bitwise XOR of crc-value and part of the read data word. 
 					crc ^= currWord.data(i*8+7, i*8);
 					//std::cout << std::hex << std::setw(2) << (uint16_t) currWord.data(i*8+7, i*8);// << " ";
 					//std::cout << std::dec <<  ((int) currWord.data(i*8+7, i*8)) << " ";
-
+					
+					// Repeat 8 times: re-calculation of mask and then crc. 
 					for (int j = 0; j < 8; j++)
 					{
 						#pragma HLS UNROLL
@@ -348,6 +396,7 @@ void compute_crc32(	stream<net_axis<WIDTH> >& input,
 		}
 		break;
 	case SECOND:
+		// Iterate over the second half and apply calculations. 
 		for (int i = (WIDTH/8/2); i < (WIDTH/8); i++)
 		{
             //std::cout << "[ NODE: " << INSTID << ", CRC() ]: State SECOND, Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
@@ -383,8 +432,8 @@ void compute_crc32(	stream<net_axis<WIDTH> >& input,
 //packets are multiple of 4 bytes, crc is 4 bytes
 template <int WIDTH, int INSTID = 0>
 void insert_icrc(
-#ifndef DISABLE_CRC_CHECK
-					stream<ap_uint<32> >& crcIn,
+#ifndef DISABLE_CRC_CALCULATION
+					stream<ap_uint<32> >& crc,
 #endif
 					stream<net_axis<WIDTH> >& input,
 					stream<net_axis<WIDTH> >& output)
@@ -392,7 +441,7 @@ void insert_icrc(
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 
-#ifndef DISABLE_CRC_CHECK
+#ifndef DISABLE_CRC_CALCULATION
 	enum fsmState {CRC, FWD, POST};
 	static fsmState ii_state = CRC;
 #else
@@ -406,11 +455,11 @@ void insert_icrc(
 
 	switch(ii_state)
 	{
-#ifndef DISABLE_CRC_CHECK
+#ifndef DISABLE_CRC_CALCULATION
 	case CRC:
-		if (!crcIn.empty())
+		if (!crc.empty())
 		{
-			crcIn.read(crc);
+			crc.read(crc);
             std::cout << "[ NODE: " << INSTID << ", INSERT_CRC() ]:  CRC " << std::hex << crc  << std::dec << std::endl;
 			crc = ~crc;
 			ii_state = FWD;
@@ -422,88 +471,88 @@ void insert_icrc(
 		{
 			input.read(currWord);
             std::cout << "[ NODE: " << INSTID << ", INSERT_CRC() ]:  Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
-			if (currWord.last)
-			{
-				//Check if word is full
-				if (currWord.keep[(WIDTH/8)-1] == 1)
-				{
-					currWord.last = 0;
-					ii_state = POST;
-				}
-				else
-				{
-#ifndef DISABLE_CRC_CHECK
-					ii_state = CRC;
-#endif
-					ap_uint<64> keep = currWord.keep; //this is required to make the case statement work for all widths
-					switch(keep)
-					{
-					case 0xF:
-						currWord.data(63, 32) = crc;
-						currWord.keep(7,4) = 0xF;
-						break;
-					case 0xFF:
-						currWord.data(95, 64) = crc;
-						currWord.keep(11,8) = 0xF;
-						break;
-					case 0xFFF:
-						currWord.data(127, 96) = crc;
-						currWord.keep(15,12) = 0xF;
-						break;
-					case 0xFFFF:
-						currWord.data(159, 128) = crc;
-						currWord.keep(19,16) = 0xF;
-						break;
-					case 0xFFFFF:
-						currWord.data(191, 160) = crc;
-						currWord.keep(23,20) = 0xF;
-						break;
-					case 0xFFFFFF:
-						currWord.data(223, 192) = crc;
-						currWord.keep(27,24) = 0xF;
-						break;
-					case 0xFFFFFFF:
-						currWord.data(255, 224) = crc;
-						currWord.keep(31,28) = 0xF;
-						break;
-					case 0xFFFFFFFF:
-						currWord.data(287, 256) = crc;
-						currWord.keep(35,32) = 0xF;
-						break;
-					case 0xFFFFFFFFF:
-						currWord.data(319, 288) = crc;
-						currWord.keep(39,36) = 0xF;
-						break;
-					case 0xFFFFFFFFFF:
-						currWord.data(351, 320) = crc;
-						currWord.keep(43,40) = 0xF;
-						break;
-					case 0xFFFFFFFFFFF:
-						currWord.data(383, 352) = crc;
-						currWord.keep(47,44) = 0xF;
-						break;
-					case 0xFFFFFFFFFFFF:
-						currWord.data(415, 384) = crc;
-						currWord.keep(51,48) = 0xF;
-						break;
-					case 0xFFFFFFFFFFFFF:
-						currWord.data(447, 416) = crc;
-						currWord.keep(55,52) = 0xF;
-						break;
-					case 0xFFFFFFFFFFFFFF:
-						currWord.data(479, 448) = crc;
-						currWord.keep(59,56) = 0xF;
-						break;
-					case 0xFFFFFFFFFFFFFFF:
-						currWord.data(511, 480) = crc;
-						currWord.keep(63,60) = 0xF;
-						break;
-					//case 0xFFFFFFFF:
-						//TODO should not be reached
-						//break;
-					} //switch
-				} //keep
-			} //last
+// 			if (currWord.last)
+// 			{
+// 				//Check if word is full
+// 				if (currWord.keep[(WIDTH/8)-1] == 1)
+// 				{
+// 					currWord.last = 0;
+// 					ii_state = POST;
+// 				}
+// 				else
+// 				{
+// #ifndef DISABLE_CRC_CALCULATION
+// 					ii_state = CRC;
+// #endif
+// 					ap_uint<64> keep = currWord.keep; //this is required to make the case statement work for all widths
+// 					switch(keep)
+// 					{
+// 					case 0xF:
+// 						currWord.data(63, 32) = crc;
+// 						currWord.keep(7,4) = 0xF;
+// 						break;
+// 					case 0xFF:
+// 						currWord.data(95, 64) = crc;
+// 						currWord.keep(11,8) = 0xF;
+// 						break;
+// 					case 0xFFF:
+// 						currWord.data(127, 96) = crc;
+// 						currWord.keep(15,12) = 0xF;
+// 						break;
+// 					case 0xFFFF:
+// 						currWord.data(159, 128) = crc;
+// 						currWord.keep(19,16) = 0xF;
+// 						break;
+// 					case 0xFFFFF:
+// 						currWord.data(191, 160) = crc;
+// 						currWord.keep(23,20) = 0xF;
+// 						break;
+// 					case 0xFFFFFF:
+// 						currWord.data(223, 192) = crc;
+// 						currWord.keep(27,24) = 0xF;
+// 						break;
+// 					case 0xFFFFFFF:
+// 						currWord.data(255, 224) = crc;
+// 						currWord.keep(31,28) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFF:
+// 						currWord.data(287, 256) = crc;
+// 						currWord.keep(35,32) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFFF:
+// 						currWord.data(319, 288) = crc;
+// 						currWord.keep(39,36) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFFFF:
+// 						currWord.data(351, 320) = crc;
+// 						currWord.keep(43,40) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFFFFF:
+// 						currWord.data(383, 352) = crc;
+// 						currWord.keep(47,44) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFFFFFF:
+// 						currWord.data(415, 384) = crc;
+// 						currWord.keep(51,48) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFFFFFFF:
+// 						currWord.data(447, 416) = crc;
+// 						currWord.keep(55,52) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFFFFFFFF:
+// 						currWord.data(479, 448) = crc;
+// 						currWord.keep(59,56) = 0xF;
+// 						break;
+// 					case 0xFFFFFFFFFFFFFFF:
+// 						currWord.data(511, 480) = crc;
+// 						currWord.keep(63,60) = 0xF;
+// 						break;
+// 					//case 0xFFFFFFFF:
+// 						//TODO should not be reached
+// 						//break;
+// 					} //switch
+// 				} //keep
+// 			} //last
 			output.write(currWord);
 		}
 		break;
@@ -514,7 +563,7 @@ void insert_icrc(
 		sendWord.keep((WIDTH/8)-1, 4) = 0;
 		sendWord.last = 1;
 		output.write(sendWord);
-#ifndef DISABLE_CRC_CHECK
+#ifndef DISABLE_CRC_CALCULATION
 		ii_state = CRC;
 #else
 		ii_state = FWD;
@@ -523,6 +572,7 @@ void insert_icrc(
 	} //switch
 }
 
+// To keep up with line rate, ICRC32-calculation is split up in two parallel paths. This module does the arbitration. 
 template <int WIDTH, int INSTID = 0>
 void round_robin_arbiter(stream<net_axis<WIDTH> >& in,
 						stream<net_axis<WIDTH> >& out1,
@@ -531,12 +581,16 @@ void round_robin_arbiter(stream<net_axis<WIDTH> >& in,
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 
+	// Bool used for arbitration among the two parallel CRC-calculators. 
 	static bool one = true;
 	net_axis<WIDTH> currWord;
 
+	// If input becomes available, read it in for further processing 
 	if (!in.empty())
 	{
 		in.read(currWord);
+
+		// If one, send to first CRC-calculator. If not, send to second CRC-calculator. 
 		if (one)
 		{
 			out1.write(currWord);
@@ -547,6 +601,8 @@ void round_robin_arbiter(stream<net_axis<WIDTH> >& in,
 			out2.write(currWord);
             //std::cout << "[ NODE: " << INSTID << ", ROUND_ROBIN_ARBITER() ]: Send to 2, Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
 		}
+
+		// Starting next incoming packet: Switch to the other CRC-calculator. 
 		if (currWord.last)
 		{
 			one = !one;
@@ -555,6 +611,7 @@ void round_robin_arbiter(stream<net_axis<WIDTH> >& in,
 	}
 }
 
+// Merges input from the two CRC-calculator modules. 
 template <int INSTID = 0>
 void round_robin_merger(stream<ap_uint<32> >& in1,
 						stream<ap_uint<32> >& in2,
@@ -563,8 +620,10 @@ void round_robin_merger(stream<ap_uint<32> >& in1,
 #pragma HLS inline off
 #pragma HLS pipeline II=1
 
+	// Variable used to always switch between the two crc-calculators for fetching the results 
 	static bool one_m = true;
 
+	// If input becomes available, read from I/O and write out. 
 	if (one_m)
 	{
 		if (!in1.empty())
@@ -640,7 +699,7 @@ void crc(
 	/*
 	 * TX
 	 */
-#ifndef DISABLE_CRC_CHECK
+#ifndef DISABLE_CRC_CALCULATION
 	static stream<net_axis<WIDTH> > tx_maskedDataFifo("tx_maskedDataFifo");
 	static stream<net_axis<WIDTH> > tx_maskedDataFifo1("tx_maskedDataFifo1");
 	static stream<net_axis<WIDTH> > tx_maskedDataFifo2("tx_maskedDataFifo2");
@@ -657,7 +716,7 @@ void crc(
 	#pragma HLS STREAM depth=2 variable=crcFifo2
 #endif
 
-#ifdef DISABLE_CRC_CHECK
+#ifdef DISABLE_CRC_CALCULATION
 	insert_icrc<WIDTH, INSTID>(s_axis_tx_data, m_axis_tx_data);
 #else
 	mask_header_fields<WIDTH, INSTID>(s_axis_tx_data, tx_crcDataFifo, tx_maskedDataFifo);

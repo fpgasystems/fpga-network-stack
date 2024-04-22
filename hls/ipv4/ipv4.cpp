@@ -100,6 +100,11 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setDstAddr(meta.their_address);
 			header.setSrcAddr(local_ipv4_address);
 			header.setProtocol(protocol);
+
+			// Set ECN and flags accordingly 
+			header.setECN(2);
+			header.setFlags(2);
+
 			if (IPV4_HEADER_SIZE >= WIDTH)
 			{
 				gi_state = HEADER;
@@ -185,6 +190,11 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setDstAddr(meta.their_address);
 			header.setSrcAddr(local_ipv4_address);
 			header.setProtocol(protocol);
+
+			// Set ECN and flags accordingly 
+			header.setECN(1);
+			header.setFlags(1);
+
 			if (IPV4_HEADER_SIZE >= WIDTH)
 			{
 				gi_state = HEADER;

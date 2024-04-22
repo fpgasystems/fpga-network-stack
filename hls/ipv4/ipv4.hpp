@@ -610,7 +610,7 @@ public:
 	ipv4Header()
 	{
 		header(7, 0) = 0x45; // version & IHL
-		header(71, 64) = 0x40; // TTL
+		header(71, 64) = 0x64; // TTL
 	}
 
 	void setSrcAddr(const ap_uint<32>& addr)
@@ -637,6 +637,19 @@ public:
 	{
 		return reverse((ap_uint<16>)header(31,16));
 	}
+
+	// New function to set the flag bits 
+	void setFlags(const ap_uint<1> flag)
+	{
+		header[54] = flag; 
+	}
+
+	// New function to set ECN
+	void setECN(const ap_uint<1> ECN)
+	{
+		header[9] = ECN;
+	}
+
 	void setProtocol(const ap_uint<8>& protocol)
 	{
 		header(79, 72) = protocol;
