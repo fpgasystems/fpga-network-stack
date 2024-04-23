@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.0)
 
-project(ipv4
+project(ipv4_top
         VERSION 0.1)
 
 # Target options
@@ -23,6 +23,7 @@ add_vitis_ip(${PROJECT_NAME}
                     "ipv4_utils.cpp"
                  HLS_FLAGS
                     "-DFNS_DATA_WIDTH=${FNS_DATA_WIDTH}"
+                    "-DFNS_ROCE_STACK_MAX_QPS=${FNS_ROCE_STACK_MAX_QPS}"
                  PLATFORM_PART ${FNS_PLATFORM_PART}
                  VENDOR "ethz.systems.fpga"
                  DISPLAY_NAME "IPv4"

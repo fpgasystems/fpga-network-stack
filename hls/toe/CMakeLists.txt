@@ -51,6 +51,7 @@ add_vitis_ip(${PROJECT_NAME}
                     "-DRX_DDR_BYPASS=${FNS_TCP_STACK_RX_DDR_BYPASS_EN}"
                     "-DFAST_RETRANSMIT=${FNS_TCP_STACK_FAST_RETRANSMIT_EN}"
                     "-DWINDOW_SCALE=${FNS_TCP_STACK_WINDOW_SCALING_EN}"
+                    "-DFNS_ROCE_STACK_MAX_QPS=${FNS_ROCE_STACK_MAX_QPS}"
                  PLATFORM_PART ${FNS_PLATFORM_PART}
                  VENDOR "ethz.systems.fpga"
                  DISPLAY_NAME "10G TCP Offload Engine"

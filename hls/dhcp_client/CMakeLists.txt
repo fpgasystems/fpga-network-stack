@@ -22,6 +22,7 @@ add_vitis_ip(${PROJECT_NAME}
                     "test_dhcp_client.cpp"
                  HLS_FLAGS
                     "-DFNS_DATA_WIDTH=${FNS_DATA_WIDTH}"
+                    "-DFNS_ROCE_STACK_MAX_QPS=${FNS_ROCE_STACK_MAX_QPS}"
                  PLATFORM_PART ${FNS_PLATFORM_PART}
                  VENDOR "xilinx.labs"
                  DISPLAY_NAME "DHCP Client"

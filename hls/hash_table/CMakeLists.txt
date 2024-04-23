@@ -20,6 +20,7 @@ add_vitis_ip(${PROJECT_NAME}
                     "test_hash_table.cpp"
                  HLS_FLAGS
                     "-DTCP_STACK_MAX_SESSIONS=${FNS_TCP_STACK_MAX_SESSIONS}"
+                    "-DFNS_ROCE_STACK_MAX_QPS=${FNS_ROCE_STACK_MAX_QPS}"
                  PLATFORM_PART ${FNS_PLATFORM_PART}
                  VENDOR "ethz.systems.fpga"
                  DISPLAY_NAME "Hash Table (cuckoo)"

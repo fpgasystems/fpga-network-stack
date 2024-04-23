@@ -28,6 +28,7 @@
 
 #include "../axi_utils.hpp"
 #include "../packet.hpp"
+#include "../fns_config.hpp"
 
 const uint32_t IPV4_HEADER_SIZE = 160;
 
