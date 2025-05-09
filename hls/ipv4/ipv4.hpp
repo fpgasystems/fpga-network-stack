@@ -31,17 +31,23 @@
 
 const uint32_t IPV4_HEADER_SIZE = 160;
 
+
+//MT changed this struct to also include 2 bit for the ecn marking
 struct ipv4Meta
 {
 	ap_uint<32> their_address;
 	ap_uint<16> length;
+	ap_uint<2> ecn; 
+	
 	//TODO what aobut my address??
 	ipv4Meta() {}
 	ipv4Meta(ap_uint<32> addr, ap_uint<16> len)
-		:their_address(addr), length(len) {}
+		:their_address(addr), length(len), ecn(0) {}
+	ipv4Meta(ap_uint<32> addr, ap_uint<16> len, ap_uint<2> e)
+		:their_address(addr), length(len), ecn(e) {}
 	//for IPv6 TODO fix this in the future
 	ipv4Meta(ap_uint<128> addr, ap_uint<16> len)
-			:their_address(addr(127,96)), length(len) {}
+			:their_address(addr(127,96)), length(len), ecn(0) {}
 };
 
 template <int N>
@@ -649,6 +655,13 @@ public:
 	{
 		header[9] = ECN;
 	}
+
+	//MT added function to return the 2-bit ecn field
+	ap_uint<2> getECN()
+	{
+		return reverse((ap_uint<2>)header(9,8));
+	}
+
 
 	void setProtocol(const ap_uint<8>& protocol)
 	{

@@ -174,6 +174,7 @@ void split_tx_meta(	stream<ipUdpMeta>&	metaIn,
 	}
 }
 
+//MT added ECN marking from ipMeta to also be merged and written to MetaOut
 void merge_rx_meta(	stream<ipMeta>&		ipMetaIn,
 					stream<udpMeta>&	udpMetaIn,
 					stream<ipUdpMeta>&	metaOut)
@@ -190,7 +191,7 @@ void merge_rx_meta(	stream<ipMeta>&		ipMetaIn,
 		udpMetaIn.read(meta1);
 		if (meta1.valid)
 		{
-			metaOut.write(ipUdpMeta(meta0.their_address, meta1.their_port, meta1.my_port, meta1.length));
+			metaOut.write(ipUdpMeta(meta0.their_address, meta1.their_port, meta1.my_port, meta1.length, meta0.ecn));
 		}
 	}
 }

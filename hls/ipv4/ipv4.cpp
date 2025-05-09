@@ -27,6 +27,7 @@
 #include "ipv4_config.hpp"
 #include "ipv4.hpp"
 
+//MT added ECN marking to the ipv4Meta struct written to MetaOut
 template <int WIDTH>
 void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 					stream<ap_uint<4> >&	process2dropLengthFifo,
@@ -54,7 +55,7 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 			{
 				std::cout << "IP HEADER: src address: " << header.getSrcAddr() << ", length: " << header.getLength() << std::endl;
 				process2dropLengthFifo.write(header.getHeaderLength() - headerWordsDropped);
-				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength()));
+				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength(), header.getECN()));
 				metaWritten = true;
 			}
 		}
