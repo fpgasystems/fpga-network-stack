@@ -236,6 +236,7 @@ struct txMeta
 };
 
 /* ACK meta */
+//MT changed this struct to also include 2 bit for the ecn marking
 struct ackMeta 
 {
     ibOpCode   op_code; // 32
@@ -244,10 +245,13 @@ struct ackMeta
     ap_uint<4> dst;
     ap_uint<2> strm;
     ap_uint<1> lst;
+	ap_uint<2> ecn;
 
 	ackMeta() {}
 	ackMeta(ibOpCode op_code, ap_uint<16> qpn, ap_uint<1> host, ap_uint<4> dst, ap_uint<2> strm, ap_uint<1> lst)
-		: op_code(op_code), qpn(qpn), host(host), dst(dst), strm(strm),  lst(lst) {}
+		: op_code(op_code), qpn(qpn), host(host), dst(dst), strm(strm),  lst(lst), ecn(0) {}
+	ackMeta(ibOpCode op_code, ap_uint<16> qpn, ap_uint<1> host, ap_uint<4> dst, ap_uint<2> strm, ap_uint<1> lst, ap_uint<2> e)
+		: op_code(op_code), qpn(qpn), host(host), dst(dst), strm(strm),  lst(lst), ecn(e) {}
 };
 
 /* Event */

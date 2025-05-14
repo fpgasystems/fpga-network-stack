@@ -480,6 +480,7 @@ void rx_ibh_fsm(
  * RDMA READ RESPONSE LAST: AETH, PayLd
  * ACK: AETH
  */
+//MT added ipEcnFifo input
 template <int WIDTH, int INSTID = 0>
 void rx_exh_fsm(
 #ifdef DBG_IBV
@@ -487,6 +488,7 @@ void rx_exh_fsm(
 #endif
 	stream<ibhMeta>& metaIn,
 	stream<ap_uint<16> >& udpLengthFifo,
+	stream<ap_uint<2> >& ipEcnFifo
 	stream<dmaState>& msnTable2rxExh_rsp,
 #ifdef RETRANS_EN
     //stream<rxReadReqUpdate>& readReqTable_upd_req,
@@ -515,6 +517,9 @@ void rx_exh_fsm(
 	static ExHeader<WIDTH> exHeader;
 	static dmaState dmaMeta;
 	static ap_uint<16> udpLength;
+	//MT added 
+	static ap_uint<2> ecn;
+
 	ap_uint<32> payLoadLength;
 	static bool consumeReadInit;
 	//static rxReadReqRsp readReqMeta;
@@ -546,12 +551,14 @@ void rx_exh_fsm(
 			pe_fsmState = DMA_META;
 		}
 		break;
+	//MT added ecn
 	case DMA_META:
-		if (!msnTable2rxExh_rsp.empty() && !udpLengthFifo.empty() && (!consumeReadInit || !retrans2rx_init.empty()))
+		if (!msnTable2rxExh_rsp.empty() && !udpLengthFifo.empty() && !ipEcnFifo.empty() && (!consumeReadInit || !retrans2rx_init.empty()))
 		{
 
 			msnTable2rxExh_rsp.read(dmaMeta);
 			udpLengthFifo.read(udpLength);
+			ipEcnFifo.read(ecn);
 #ifdef RETRANS_EN
 			/*if (meta.op_code == RC_ACK)
 			{
@@ -691,9 +698,10 @@ void rx_exh_fsm(
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 			if(meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_LAST)
 			{
+				//MT added ecn
 				m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
-                    readReqInit.lst));
+                    readReqInit.lst, ecn));
 			}
 
 			if (ackHeader.isNAK())
@@ -750,10 +758,10 @@ void rx_exh_fsm(
 		{
 			// [BTH][AETH]
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
-
+			//MT added ecn
             m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(19,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
-                    readReqInit.lst));
+                    readReqInit.lst, ecn));
 
 			std::cout << "[RX EXH FSM " << INSTID << "]: syndrome: " << std::hex << ackHeader.getSyndrome() << std::endl;
 #ifdef RETRANS_EN
@@ -2016,6 +2024,7 @@ void prepend_ibh_header(
  */
 //TODO maybe all ACKS should be triggered by ibhFSM?? what is the guarantee we should/have to give
 //TODO this should become a BRAM, storage type of thing
+//MT added ecn output fifo
 template <int WIDTH, int INSTID = 0>
 void ipUdpMetaHandler(	
 	stream<ipUdpMeta>&		input,
@@ -2024,7 +2033,9 @@ void ipUdpMetaHandler(
 	//stream<dstTuple>&		output,
 	//stream<ap_uint<16> >&	remcrc_lengthFifo,
 	stream<ap_uint<16> >&	exh_lengthFifo,
-	stream<ExHeader<WIDTH> >& exHeaderOutput
+	stream<ExHeader<WIDTH> >& exHeaderOutput,
+
+	stream<ap_uint<2>>& ecn_Fifo
 ) {
 #pragma HLS inline off
 #pragma HLS pipeline II=1
@@ -2046,6 +2057,8 @@ void ipUdpMetaHandler(
 				//remcrc_lengthFifo.write(meta.length - (8 + 12 + 4)); //UDP + BTH + CRC
 				exh_lengthFifo.write(meta.length);
 				exHeaderOutput.write(header);
+
+				ecn_FiFo.write(meta.ecn);
 
 			}
 			//output.write(dstTuple(meta.their_address, meta.their_port));
@@ -2388,10 +2401,16 @@ void ib_transport_protocol(
 #endif
 
 	static stream<ap_uint<16> > exh_lengthFifo("exh_lengthFifo");
+	//MT added ecn
+	static stream<ap_uint<2>> ecn_Fifo("ecn_Fifo");
+
 	static stream<readRequest>	rx_readRequestFifo("rx_readRequestFifo");
 	static stream<event>		rx_readEvenFifo("rx_readEvenFifo");
 	static stream<ackEvent>		rx_ackEventFifo("rx_ackEventFifo");
 	#pragma HLS STREAM depth=4 variable=exh_lengthFifo
+	//MT added ecn
+	#pragma HLS STREAM depth=4 variable=ecn_Fifo
+
 	#pragma HLS STREAM depth=8 variable=rx_readRequestFifo
 	#pragma HLS STREAM depth=512 variable=rx_readEvenFifo
 	#pragma HLS STREAM depth=32 variable=rx_ackEventFifo
@@ -2545,15 +2564,19 @@ void ib_transport_protocol(
         rx_exh2dropFifo, rx_ibhDropFifo, rx_ibhDrop2exhFifo);
 
 	//some hack TODO, make this nicer.. not sure what this is still for
-	ipUdpMetaHandler<WIDTH, INSTID>(s_axis_rx_meta, rx_exh2drop_MetaFifo, rx_ibhDropMetaFifo, exh_lengthFifo, rx_drop2exhFsm_MetaFifo);
+	//MT added ecn output signal
+	ipUdpMetaHandler<WIDTH, INSTID>(s_axis_rx_meta, rx_exh2drop_MetaFifo, rx_ibhDropMetaFifo, exh_lengthFifo, rx_drop2exhFsm_MetaFifo, ecn_Fifo);
 
+	//MT added ecn input
 	rx_exh_fsm<WIDTH, INSTID>(	
     #ifdef DBG_IBV
 		m_axis_dbg_2,
 #endif 
 		rx_fsm2exh_MetaFifo,
 		exh_lengthFifo,
+		ecn_Fifo,
 		msnTable2rxExh_rsp,
+
 #ifdef RETRANS_EN
 		//rx_readReqTable_upd_req,
         //rx_readReqTable_upd_rsp,
