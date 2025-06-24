@@ -84,6 +84,9 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 	static fsmStateType gi_state=META;
 	static ipv4Header<WIDTH> header;
 
+	//MT added
+	static bool ecn_alternator = true;
+
 	ipv4Meta meta;
 	net_axis<WIDTH> currWord;
 	ap_uint<16>  length;
@@ -103,7 +106,15 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setProtocol(protocol);
 
 			// Set ECN and flags accordingly 
-			header.setECN(2);
+			//MT added (if statement around set ECN)
+			if(ecn_alternator)
+			{
+				header.setECN(2);
+			}
+			else
+			{
+				header.setECN(3);
+			}
 			header.setFlags(2);
 
 			if (IPV4_HEADER_SIZE >= WIDTH)
@@ -193,7 +204,13 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setProtocol(protocol);
 
 			// Set ECN and flags accordingly 
-			header.setECN(1);
+			//MT_pomsarc changed outgoing ecn if its ack
+			if(meta.is_marked_ack){
+				//header.setECN(meta.ecn)
+				header.setECN(2);
+			}else{
+				header.setECN(1);
+			}
 			header.setFlags(1);
 
 			if (IPV4_HEADER_SIZE >= WIDTH)

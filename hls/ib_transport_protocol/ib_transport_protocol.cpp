@@ -2024,7 +2024,7 @@ void prepend_ibh_header(
  */
 //TODO maybe all ACKS should be triggered by ibhFSM?? what is the guarantee we should/have to give
 //TODO this should become a BRAM, storage type of thing
-//MT added ecn output fifo
+//MT_pomsarc added ecn output fifo
 template <int WIDTH, int INSTID = 0>
 void ipUdpMetaHandler(	
 	stream<ipUdpMeta>&		input,

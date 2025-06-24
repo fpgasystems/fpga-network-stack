@@ -32,22 +32,25 @@
 const uint32_t IPV4_HEADER_SIZE = 160;
 
 
-//MT changed this struct to also include 2 bit for the ecn marking
+//MT changed this struct to also include 2 bit for the ecn marking + is_outgoing...
 struct ipv4Meta
 {
 	ap_uint<32> their_address;
 	ap_uint<16> length;
-	ap_uint<2> ecn; 
+	ap_uint<2> ecn;
+	ap_uint<1> is_marked_ack;
 	
 	//TODO what aobut my address??
 	ipv4Meta() {}
 	ipv4Meta(ap_uint<32> addr, ap_uint<16> len)
-		:their_address(addr), length(len), ecn(0) {}
+		:their_address(addr), length(len), ecn(3), is_marked_ack(0) {}
 	ipv4Meta(ap_uint<32> addr, ap_uint<16> len, ap_uint<2> e)
-		:their_address(addr), length(len), ecn(e) {}
+		:their_address(addr), length(len), ecn(e), is_marked_ack(0) {}
+	ipv4Meta(ap_uint<32> addr, ap_uint<16> len, ap_uint<2> e, ap_uint<1> is_ack)
+		:their_address(addr), length(len), ecn(e), is_marked_ack(is_ack) {}
 	//for IPv6 TODO fix this in the future
 	ipv4Meta(ap_uint<128> addr, ap_uint<16> len)
-			:their_address(addr(127,96)), length(len), ecn(0) {}
+			:their_address(addr(127,96)), length(len), ecn(3), is_marked_ack(0) {}
 };
 
 template <int N>
@@ -651,15 +654,15 @@ public:
 	}
 
 	// New function to set ECN
-	void setECN(const ap_uint<1> ECN)
+	void setECN(const ap_uint<2> ECN)
 	{
-		header[9] = ECN;
+		header(15,14) = reverse(ECN);
 	}
 
 	//MT added function to return the 2-bit ecn field
 	ap_uint<2> getECN()
 	{
-		return reverse((ap_uint<2>)header(9,8));
+		return reverse((ap_uint<2>)header(15,14));
 	}
 
 

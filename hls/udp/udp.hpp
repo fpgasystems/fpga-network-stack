@@ -43,7 +43,7 @@ typedef ipv4Meta ipMeta;
 const uint32_t UDP_HEADER_SIZE = 64;
 const uint16_t UDP_PROTOCOL = 0x11;
 
-//MT changed this struct to also include 2 bit for the ecn marking
+//MT_pomsarc changed this struct to also include 2 bit for the ecn marking
 struct ipUdpMeta
 {
 	ap_uint<128> their_address;
@@ -51,11 +51,14 @@ struct ipUdpMeta
 	ap_uint<16> my_port;
 	ap_uint<16>	length;
 	ap_uint<2> ecn;
+	ap_uint<1> is_outgoing_ack;
 	ipUdpMeta() {}
 	ipUdpMeta(ap_uint<128> addr, ap_uint<16> tport, ap_uint<16> mport, ap_uint<16> len)
-		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(0) {}
+		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(3), is_outgoing_ack(0) {}
 	ipUdpMeta(ap_uint<128> addr, ap_uint<16> tport, ap_uint<16> mport, ap_uint<16> len, ap_uint<2> e)
-		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(e) {}
+		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(e), is_outgoing_ack(0) {}
+	ipUdpMeta(ap_uint<128> addr, ap_uint<16> tport, ap_uint<16> mport, ap_uint<16> len, ap_uint<2> e, ap_uint<1> is_ack)
+		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(e), is_outgoing_ack(is_ack) {}
 	
 	
 };
