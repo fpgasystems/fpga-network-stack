@@ -69,6 +69,7 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 		}
 	}
 }
+deliberate mistake
 
 template <int WIDTH>
 void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
@@ -396,7 +397,7 @@ void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address, protocol);
 }
 
-void ipv4_top(		hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+void ipv4_top(	hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipv4Meta>&		m_axis_rx_meta,
 				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
 				hls::stream<ipv4Meta>&		s_axis_tx_meta,
