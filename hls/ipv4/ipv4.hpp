@@ -656,13 +656,13 @@ public:
 	// New function to set ECN
 	void setECN(const ap_uint<2> ECN)
 	{
-		header(15,14) = reverse(ECN);
+		header(9,8) = reverse(ECN);
 	}
 
 	//MT added function to return the 2-bit ecn field
 	ap_uint<2> getECN()
 	{
-		return reverse((ap_uint<2>)header(15,14));
+		return reverse((ap_uint<2>)header(9,8));
 	}
 
 
