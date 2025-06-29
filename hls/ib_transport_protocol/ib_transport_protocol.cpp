@@ -698,10 +698,14 @@ void rx_exh_fsm(
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 			if(meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_LAST)
 			{
-				//MT added ecn
+				//MT added ecn [TO_CHANGE_BACK]
 				m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
-                    readReqInit.lst, ecn));
+                    readReqInit.lst, 3));
+
+				/*m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
+                    readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
+                    readReqInit.lst, ecn));*/
 			}
 
 			if (ackHeader.isNAK())
@@ -2204,9 +2208,7 @@ void ib_transport_protocol(
 
 	// RDMA
 	stream<memCmd>& m_axis_mem_write_cmd,
-	stream<memCmd>& m_axis_mem_read_cmd,
-	stream<net_axis<WIDTH> >& m_axis_mem_write_data,
-	stream<net_axis<WIDTH> >& s_axis_mem_read_data,
+	stream<memCmd>& m_axis_mem_read_cmd,ecn_FiFo
 
 	// QP
 	stream<qpContext>& s_axis_qp_interface,
@@ -2277,7 +2279,7 @@ void ib_transport_protocol(
 	#pragma HLS DATA_PACK variable=rx_exhEventMetaFifo
 	#pragma HLS DATA_PACK variable=rx_remoteMemCmd
 #endif
-
+ecn_FiFo
 	static stream<ibhMeta>	tx_ibhMetaFifo("tx_ibhMetaFifo");
 	static stream<event>	tx_appMetaFifo("tx_appMetaFifo");
 	//static stream<event>	tx_localMetaFifo("tx_localMetaFifo");
