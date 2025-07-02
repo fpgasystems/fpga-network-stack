@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
       return -1;
    }
 
-   uint32_t maxKeyValue = pow(keyLength, 2) - 1;
+   uint32_t maxKeyValue = pow(2, keyLength) - 1;
    std::default_random_engine generator;
    std::uniform_int_distribution<int> distribution(0, maxKeyValue);
 
