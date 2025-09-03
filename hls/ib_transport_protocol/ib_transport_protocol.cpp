@@ -2276,7 +2276,8 @@ void ib_transport_protocol(
 	#pragma HLS DATA_PACK variable=rx_exhEventMetaFifo
 	#pragma HLS DATA_PACK variable=rx_remoteMemCmd
 #endif
-ecn_FiFo
+	//remove
+    //ecn_FiFo
 	static stream<ibhMeta>	tx_ibhMetaFifo("tx_ibhMetaFifo");
 	static stream<event>	tx_appMetaFifo("tx_appMetaFifo");
 	//static stream<event>	tx_localMetaFifo("tx_localMetaFifo");
