@@ -2058,7 +2058,7 @@ void ipUdpMetaHandler(
 				exh_lengthFifo.write(meta.length);
 				exHeaderOutput.write(header);
 
-				ecn_FiFo.write(meta.ecn);
+				ecn_Fifo.write(meta.ecn);
 
 			}
 			//output.write(dstTuple(meta.their_address, meta.their_port));
@@ -2204,7 +2204,8 @@ void ib_transport_protocol(
 
 	// RDMA
 	stream<memCmd>& m_axis_mem_write_cmd,
-	stream<memCmd>& m_axis_mem_read_cmd,ecn_FiFo
+	stream<memCmd>& m_axis_mem_read_cmd,
+	//ecn_Fifo
 
 	// QP
 	stream<qpContext>& s_axis_qp_interface,
