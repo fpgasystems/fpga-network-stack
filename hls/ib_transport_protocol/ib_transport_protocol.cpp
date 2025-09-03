@@ -488,7 +488,7 @@ void rx_exh_fsm(
 #endif
 	stream<ibhMeta>& metaIn,
 	stream<ap_uint<16> >& udpLengthFifo,
-	stream<ap_uint<2> >& ipEcnFifo
+	stream<ap_uint<2> >& ipEcnFifo,
 	stream<dmaState>& msnTable2rxExh_rsp,
 #ifdef RETRANS_EN
     //stream<rxReadReqUpdate>& readReqTable_upd_req,
@@ -698,14 +698,10 @@ void rx_exh_fsm(
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 			if(meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_LAST)
 			{
-				//MT added ecn [TO_CHANGE_BACK]
+				//MT added ecn 
 				m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
-                    readReqInit.lst, 3));
-
-				/*m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
-                    readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
-                    readReqInit.lst, ecn));*/
+                    readReqInit.lst, ecn));
 			}
 
 			if (ackHeader.isNAK())
