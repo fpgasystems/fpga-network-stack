@@ -2205,7 +2205,9 @@ void ib_transport_protocol(
 	// RDMA
 	stream<memCmd>& m_axis_mem_write_cmd,
 	stream<memCmd>& m_axis_mem_read_cmd,
-	//ecn_Fifo
+	stream<net_axis<WIDTH> >& m_axis_mem_write_data,
+	stream<net_axis<WIDTH> >& s_axis_mem_read_data,
+
 
 	// QP
 	stream<qpContext>& s_axis_qp_interface,
