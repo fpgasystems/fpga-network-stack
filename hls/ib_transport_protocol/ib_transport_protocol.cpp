@@ -555,7 +555,6 @@ void rx_exh_fsm(
 	case DMA_META:
 		if (!msnTable2rxExh_rsp.empty() && !udpLengthFifo.empty() && !ipEcnFifo.empty() && (!consumeReadInit || !retrans2rx_init.empty()))
 		{
-
 			msnTable2rxExh_rsp.read(dmaMeta);
 			udpLengthFifo.read(udpLength);
 			ipEcnFifo.read(ecn);
@@ -698,7 +697,7 @@ void rx_exh_fsm(
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 			if(meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_LAST)
 			{
-				//MT added ecn 
+				//MT_pomsarc added ecn 
 				m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
                     readReqInit.lst, ecn));
@@ -758,7 +757,7 @@ void rx_exh_fsm(
 		{
 			// [BTH][AETH]
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
-			//MT added ecn
+			//MT_pomsarc added ecn
             m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(19,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
                     readReqInit.lst, ecn));
@@ -2403,14 +2402,14 @@ void ib_transport_protocol(
 #endif
 
 	static stream<ap_uint<16> > exh_lengthFifo("exh_lengthFifo");
-	//MT added ecn
+	//MT_pomsarc added ecn
 	static stream<ap_uint<2>> ecn_Fifo("ecn_Fifo");
 
 	static stream<readRequest>	rx_readRequestFifo("rx_readRequestFifo");
 	static stream<event>		rx_readEvenFifo("rx_readEvenFifo");
 	static stream<ackEvent>		rx_ackEventFifo("rx_ackEventFifo");
 	#pragma HLS STREAM depth=4 variable=exh_lengthFifo
-	//MT added ecn
+	//MT_pomsarc added ecn
 	#pragma HLS STREAM depth=4 variable=ecn_Fifo
 
 	#pragma HLS STREAM depth=8 variable=rx_readRequestFifo
