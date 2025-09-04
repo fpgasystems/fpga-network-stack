@@ -108,7 +108,7 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			// Set ECN and flags accordingly 
 			
 			//MT_pomsarc changed outgoing ecn if its ack
-			if(meta.is_marked_ack){
+			if(meta.is_marked_ack == 1){
 				//header.setECN(meta.ecn)
 				header.setECN(3);
 			}else{
@@ -207,7 +207,7 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 
 			// Set ECN and flags accordingly 
 			//MT_pomsarc changed outgoing ecn if its ack
-			if(meta.is_marked_ack){
+			if(meta.is_marked_ack == 1){
 				//header.setECN(meta.ecn)
 				header.setECN(3);
 			}else{
