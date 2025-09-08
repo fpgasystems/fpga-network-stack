@@ -191,6 +191,7 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 	ipv4Meta meta;
 	net_axis<WIDTH> currWord;
 	ap_uint<16>  length;
+	ap_uint<2> ecn;
 
 	switch (gi_state)
 	{
@@ -208,13 +209,14 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 
 			// Set ECN and flags accordingly 
 			//MT_pomsarc changed outgoing ecn if its ack
-			header.setECN(3);
-			/*if(meta.is_marked_ack == 1){
+			if(meta.is_marked_ack == 1){
 				//header.setECN(meta.ecn)
-				header.setECN(3);
+				ecn = 3;
 			}else{
-				header.setECN(1);
-			}*/
+				ecn = 1;
+			}
+
+			header.setECN(ecn);
 			header.setFlags(1);
 
 			if (IPV4_HEADER_SIZE >= WIDTH)
