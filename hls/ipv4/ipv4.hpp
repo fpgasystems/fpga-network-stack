@@ -619,7 +619,7 @@ public:
 	ipv4Header()
 	{
 		header(7, 0) = 0x45; // version & IHL
-		header(71, 64) = 0x64; // TTL
+		header(71, 64) = 0x32; // TTL
 	}
 
 	void setSrcAddr(const ap_uint<32>& addr)

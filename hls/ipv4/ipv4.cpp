@@ -108,12 +108,13 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			// Set ECN and flags accordingly 
 			
 			//MT_pomsarc changed outgoing ecn if its ack
-			if(meta.is_marked_ack == 1){
+			header.setECN(3);
+			/*if(meta.is_marked_ack == 1){
 				//header.setECN(meta.ecn)
 				header.setECN(3);
 			}else{
 				header.setECN(2);
-			}
+			}*/
 
 
 
@@ -207,12 +208,13 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 
 			// Set ECN and flags accordingly 
 			//MT_pomsarc changed outgoing ecn if its ack
-			if(meta.is_marked_ack == 1){
+			header.setECN(3);
+			/*if(meta.is_marked_ack == 1){
 				//header.setECN(meta.ecn)
 				header.setECN(3);
 			}else{
 				header.setECN(1);
-			}
+			}*/
 			header.setFlags(1);
 
 			if (IPV4_HEADER_SIZE >= WIDTH)
