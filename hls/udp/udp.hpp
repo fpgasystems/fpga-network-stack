@@ -54,7 +54,7 @@ struct ipUdpMeta
 	ap_uint<1> is_outgoing_ack;
 	ipUdpMeta() {}
 	ipUdpMeta(ap_uint<128> addr, ap_uint<16> tport, ap_uint<16> mport, ap_uint<16> len)
-		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(3), is_outgoing_ack(0) {}
+		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(0), is_outgoing_ack(0) {}
 	ipUdpMeta(ap_uint<128> addr, ap_uint<16> tport, ap_uint<16> mport, ap_uint<16> len, ap_uint<2> e)
 		:their_address(addr), their_port(tport), my_port(mport), length(len), ecn(e), is_outgoing_ack(0) {}
 	ipUdpMeta(ap_uint<128> addr, ap_uint<16> tport, ap_uint<16> mport, ap_uint<16> len, ap_uint<2> e, ap_uint<1> is_ack)

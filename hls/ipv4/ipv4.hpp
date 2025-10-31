@@ -50,7 +50,7 @@ struct ipv4Meta
 		:their_address(addr), length(len), ecn(e), is_marked_ack(is_ack) {}
 	//for IPv6 TODO fix this in the future
 	ipv4Meta(ap_uint<128> addr, ap_uint<16> len)
-			:their_address(addr(127,96)), length(len), ecn(3), is_marked_ack(0) {}
+			:their_address(addr(127,96)), length(len), ecn(0), is_marked_ack(0) {}
 };
 
 template <int N>

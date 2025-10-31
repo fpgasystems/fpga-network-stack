@@ -55,9 +55,9 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 			{
 				std::cout << "IP HEADER: src address: " << header.getSrcAddr() << ", length: " << header.getLength() << std::endl;
 				process2dropLengthFifo.write(header.getHeaderLength() - headerWordsDropped);
-				//cHANGE THIS BACK
-				//MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength(), header.getECN()));
-				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength(), 3));
+				
+				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength(), header.getECN()));
+				//MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength(), 3));
 				metaWritten = true;
 			}
 		}
@@ -108,17 +108,7 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 
 			// Set ECN and flags accordingly 
 			
-			//MT_pomsarc changed outgoing ecn if its ack
-			//header.setECN(3);
-			/*if(meta.is_marked_ack == 1){
-				//header.setECN(meta.ecn)
-				header.setECN(3);
-			}else{
-				header.setECN(2);
-			}*/
-
 			if(meta.is_marked_ack == 1){
-				//header.setECN(meta.ecn)
 				ecn = 3;
 			}else{
 				ecn = 2;
