@@ -169,11 +169,13 @@ void split_tx_meta(	stream<ipUdpMeta>&	metaIn,
 		metaIn.read(meta);
 		//Add 8 bytes for UDP header
 		ap_uint<16> tempLen = meta.length+8;
-		metaOut0.write(ipMeta(meta.their_address, tempLen));
+		//MT_pomsarc added ecn and ack mark to be handed down the stack too
+		metaOut0.write(ipMeta(meta.their_address, tempLen, meta.ecn, meta.is_outgoing_ack));
 		metaOut1.write(udpMeta(meta.their_port, meta.my_port, tempLen));
 	}
 }
 
+//MT added ECN marking from ipMeta to also be merged and written to MetaOut
 void merge_rx_meta(	stream<ipMeta>&		ipMetaIn,
 					stream<udpMeta>&	udpMetaIn,
 					stream<ipUdpMeta>&	metaOut)
@@ -190,7 +192,7 @@ void merge_rx_meta(	stream<ipMeta>&		ipMetaIn,
 		udpMetaIn.read(meta1);
 		if (meta1.valid)
 		{
-			metaOut.write(ipUdpMeta(meta0.their_address, meta1.their_port, meta1.my_port, meta1.length));
+			metaOut.write(ipUdpMeta(meta0.their_address, meta1.their_port, meta1.my_port, meta1.length, meta0.ecn));
 		}
 	}
 }

@@ -236,6 +236,7 @@ struct txMeta
 };
 
 /* ACK meta */
+//MT changed this struct to also include 2 bit for the ecn marking
 struct ackMeta 
 {
     ibOpCode   op_code; // 32
@@ -244,30 +245,39 @@ struct ackMeta
     ap_uint<4> dst;
     ap_uint<2> strm;
     ap_uint<1> lst;
+	ap_uint<2> ecn;
 
 	ackMeta() {}
 	ackMeta(ibOpCode op_code, ap_uint<16> qpn, ap_uint<1> host, ap_uint<4> dst, ap_uint<2> strm, ap_uint<1> lst)
-		: op_code(op_code), qpn(qpn), host(host), dst(dst), strm(strm),  lst(lst) {}
+		: op_code(op_code), qpn(qpn), host(host), dst(dst), strm(strm),  lst(lst), ecn(0) {}
+	ackMeta(ibOpCode op_code, ap_uint<16> qpn, ap_uint<1> host, ap_uint<4> dst, ap_uint<2> strm, ap_uint<1> lst, ap_uint<2> e)
+		: op_code(op_code), qpn(qpn), host(host), dst(dst), strm(strm),  lst(lst), ecn(e) {}
 };
 
 /* Event */
+//MT_pomsarc added ecn
 struct ackEvent
 {
 	ap_uint<24> qpn;
 	ap_uint<24>	psn;
 	bool		validPsn;
 	bool		isNak;
+	bool		is_marked_ecn;
+
 	ackEvent() {}
 	ackEvent(ap_uint<24> qpn)
-		:qpn(qpn), psn(0), validPsn(false), isNak(false) {}
+		:qpn(qpn), psn(0), validPsn(false), isNak(false), is_marked_ecn(false) {}
 	ackEvent(ap_uint<24> qpn, bool nak)
-			:qpn(qpn), psn(0), validPsn(false), isNak(nak) {}
+			:qpn(qpn), psn(0), validPsn(false), isNak(nak), is_marked_ecn(false) {}
 	ackEvent(ap_uint<24> qp, ap_uint<24> psn, bool nak)
-			:qpn(qp), psn(psn), validPsn(true), isNak(nak) {}
+			:qpn(qp), psn(psn), validPsn(true), isNak(nak), is_marked_ecn(false) {}
+	ackEvent(ap_uint<24> qp, ap_uint<24> psn, bool nak, bool ecn_mark)
+			:qpn(qp), psn(psn), validPsn(true), isNak(nak), is_marked_ecn(ecn_mark) {}
 };
 
 //TODO create readEvent
 //TODO event for writes addr + len, no psn
+
 struct event
 {
 	ibOpCode 	op_code;
@@ -277,22 +287,24 @@ struct event
 	ap_uint<24>	psn;
 	bool		validPsn;
 	bool		isNak;
+	bool        is_marked_ack_ecn;
+
 	event()
-		:op_code(RC_ACK), validPsn(false), isNak(false) {}
+		:op_code(RC_ACK), validPsn(false), isNak(false), is_marked_ack_ecn(false) {}
 	event(ibOpCode op, ap_uint<24> qp)
-		:op_code(op), qpn(qp), validPsn(false), isNak(false) {}
+		:op_code(op), qpn(qp), validPsn(false), isNak(false), is_marked_ack_ecn(false) {}
 	event(ackEvent& aev)
-		:op_code(RC_ACK), qpn(aev.qpn), psn(aev.psn), validPsn(aev.validPsn), isNak(aev.isNak) {}
+		:op_code(RC_ACK), qpn(aev.qpn), psn(aev.psn), validPsn(aev.validPsn), isNak(aev.isNak), is_marked_ack_ecn(aev.is_marked_ecn) {}
 	/*event(ibOpCode op, ap_uint<24> qp, ap_uint<24> psn, bool nak)
 		:op_code(op), qpn(qp), psn(psn), validPsn(true), isNak(nak) {}*/
 	event(ibOpCode op, ap_uint<24> qp, ap_uint<32> len)
-		:op_code(op), qpn(qp), addr(0), length(len), psn(0), validPsn(false), isNak(false) {}
+		:op_code(op), qpn(qp), addr(0), length(len), psn(0), validPsn(false), isNak(false), is_marked_ack_ecn(false) {}
 	event(ibOpCode op, ap_uint<24> qp, ap_uint<64> addr, ap_uint<32> len)
-		:op_code(op), qpn(qp), addr(addr), length(len), psn(0), validPsn(false), isNak(false) {}
+		:op_code(op), qpn(qp), addr(addr), length(len), psn(0), validPsn(false), isNak(false), is_marked_ack_ecn(false) {}
 	event(ibOpCode op, ap_uint<24> qp, ap_uint<32> len, ap_uint<24> psn)
-		:op_code(op), qpn(qp), addr(0), length(len), psn(psn), validPsn(true), isNak(false) {}
+		:op_code(op), qpn(qp), addr(0), length(len), psn(psn), validPsn(true), isNak(false), is_marked_ack_ecn(false) {}
 	event(ibOpCode op, ap_uint<24> qp, ap_uint<64> addr, ap_uint<32> len, ap_uint<24> psn)
-		:op_code(op), qpn(qp), addr(addr), length(len), psn(psn), validPsn(true), isNak(false) {}
+		:op_code(op), qpn(qp), addr(addr), length(len), psn(psn), validPsn(true), isNak(false), is_marked_ack_ecn(false) {}
 };
 
 /* Pakage info */

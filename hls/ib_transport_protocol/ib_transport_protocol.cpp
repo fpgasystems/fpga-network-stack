@@ -480,6 +480,7 @@ void rx_ibh_fsm(
  * RDMA READ RESPONSE LAST: AETH, PayLd
  * ACK: AETH
  */
+//MT added ipEcnFifo input
 template <int WIDTH, int INSTID = 0>
 void rx_exh_fsm(
 #ifdef DBG_IBV
@@ -487,6 +488,7 @@ void rx_exh_fsm(
 #endif
 	stream<ibhMeta>& metaIn,
 	stream<ap_uint<16> >& udpLengthFifo,
+	stream<ap_uint<2> >& ipEcnFifo,
 	stream<dmaState>& msnTable2rxExh_rsp,
 #ifdef RETRANS_EN
     //stream<rxReadReqUpdate>& readReqTable_upd_req,
@@ -515,6 +517,9 @@ void rx_exh_fsm(
 	static ExHeader<WIDTH> exHeader;
 	static dmaState dmaMeta;
 	static ap_uint<16> udpLength;
+	//MT added 
+	static ap_uint<2> ecn;
+
 	ap_uint<32> payLoadLength;
 	static bool consumeReadInit;
 	//static rxReadReqRsp readReqMeta;
@@ -546,12 +551,13 @@ void rx_exh_fsm(
 			pe_fsmState = DMA_META;
 		}
 		break;
+	//MT added ecn
 	case DMA_META:
-		if (!msnTable2rxExh_rsp.empty() && !udpLengthFifo.empty() && (!consumeReadInit || !retrans2rx_init.empty()))
+		if (!msnTable2rxExh_rsp.empty() && !udpLengthFifo.empty() && !ipEcnFifo.empty() && (!consumeReadInit || !retrans2rx_init.empty()))
 		{
-
 			msnTable2rxExh_rsp.read(dmaMeta);
 			udpLengthFifo.read(udpLength);
+			ipEcnFifo.read(ecn);
 #ifdef RETRANS_EN
 			/*if (meta.op_code == RC_ACK)
 			{
@@ -583,7 +589,12 @@ void rx_exh_fsm(
 			// Update state
 			rxExh2msnTable_upd_req.write(rxMsnReq(meta.dest_qp, dmaMeta.msn+1));
 			// Trigger ACK
-			rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+			//MT_pomsarc
+			if(ecn ==3){
+				rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false, true));
+			} else{
+				rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+			}
 			rx_pkgSplitTypeFifo.write(pkgSplit(meta.op_code));
 			rx_pkgShiftTypeFifo.write(pkgShift(SHIFT_NONE, meta.dest_qp));
 
@@ -601,7 +612,12 @@ void rx_exh_fsm(
 			// Update state
 			rxExh2msnTable_upd_req.write(rxMsnReq(meta.dest_qp, dmaMeta.msn+1));
 			// Trigger ACK
-			rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+			//MT_pomsarc
+			if(ecn ==3){
+				rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false, true));
+			} else{
+				rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+			}
 			rx_pkgSplitTypeFifo.write(pkgSplit(meta.op_code));
 			rx_pkgShiftTypeFifo.write(pkgShift(SHIFT_NONE, meta.dest_qp));
 
@@ -636,7 +652,12 @@ void rx_exh_fsm(
 				//TODO msn, only for ONLY??
 				rxExh2msnTable_upd_req.write(rxMsnReq(meta.dest_qp, dmaMeta.msn+1, rdmaHeader.getVirtualAddress()+payLoadLength, remainingLength, 1));
 				// Trigger ACK
-				rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+				//MT_pomsarc
+				if(ecn ==3){
+					rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false, true));
+				} else{
+					rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+				}
 				rx_pkgSplitTypeFifo.write(pkgSplit(meta.op_code));
 				rx_pkgShiftTypeFifo.write(pkgShift(SHIFT_RETH, meta.dest_qp));
 				pe_fsmState = META;
@@ -664,7 +685,12 @@ void rx_exh_fsm(
 			//TODO msn only on LAST??
 			rxExh2msnTable_upd_req.write(rxMsnReq(meta.dest_qp, dmaMeta.msn+1, dmaMeta.vaddr+payLoadLength, remainingLength, 1));
 			// Trigger ACK
-			rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+			//MT_pomsarc
+			if(ecn ==3){
+				rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false, true));
+			} else{
+				rx_exhEventMetaFifo.write(ackEvent(meta.dest_qp, meta.psn, false));
+			}
 			rx_pkgSplitTypeFifo.write(pkgSplit(meta.op_code));
 			rx_pkgShiftTypeFifo.write(pkgShift(SHIFT_NONE, meta.dest_qp));
 			pe_fsmState = META;
@@ -691,9 +717,10 @@ void rx_exh_fsm(
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 			if(meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_LAST)
 			{
+				//MT_pomsarc added ecn 
 				m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
-                    readReqInit.lst));
+                    readReqInit.lst, ecn));
 			}
 
 			if (ackHeader.isNAK())
@@ -750,10 +777,10 @@ void rx_exh_fsm(
 		{
 			// [BTH][AETH]
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
-
+			//MT_pomsarc added ecn
             m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(19,0), readReqInit.host, 
                     readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
-                    readReqInit.lst));
+                    readReqInit.lst, ecn));
 
 			std::cout << "[RX EXH FSM " << INSTID << "]: syndrome: " << std::hex << ackHeader.getSyndrome() << std::endl;
 #ifdef RETRANS_EN
@@ -1345,6 +1372,7 @@ void meta_merger(
 		rx_ackEventFifo.read(aev);
 
 		tx_connTable_req.write(aev.qpn(15, 0));
+
 		// PSN used for read response
 		tx_ibhMetaFifo.write(ibhMeta(RC_ACK, key, aev.qpn, aev.psn, aev.validPsn));
 		tx_exhMetaFifo.write(event(aev));
@@ -1502,6 +1530,8 @@ void generate_exh(
 	stream<ap_uint<16> >& txExh2msnTable_req,
 	//stream<txReadReqUpdate>& tx_readReqTable_upd,
 	stream<ap_uint<16> >& lengthFifo,
+	//MT_pomsarc
+	stream<ap_uint<1>  >& isMarkedAckFifo,
 	stream<txPacketInfo>& packetInfoFifo,
 #ifdef RETRANS_EN
 	stream<ap_uint<24> >&	txSetTimer_req,
@@ -1603,6 +1633,8 @@ void generate_exh(
 					}
 					udpLen = 12+16+payloadLen+4; //TODO dma_len can be much larger, for multiple packets we need to split this into multiple packets
 					lengthFifo.write(udpLen);
+					//MT_pomsarc
+					isMarkedAckFifo.write(0);
 					//Store meta for retransmit
 					metaWritten = true;
 				}
@@ -1622,6 +1654,8 @@ void generate_exh(
 				//BTH: 12, PayLd: x, ICRC: 4
 				udpLen = 12+meta.length+4;
 				lengthFifo.write(udpLen);
+				//MT_pomsarc
+				isMarkedAckFifo.write(0);
 				//Store meta for retransmit
 				ge_state = META;
 				break;
@@ -1650,6 +1684,9 @@ void generate_exh(
 					//BTH: 12, RETH: 16, PayLd: x, ICRC: 4
 					udpLen = 12+16+0+4; //TODO dma_len can be much larger, for multiple packets we need to split this into multiple packets
 					lengthFifo.write(udpLen);
+					//MT_pomsarc
+					isMarkedAckFifo.write(0);
+
 					//Update Read Req max FWD header, TODO it is not exacly clear if meta.psn or meta.psn+numPkgs should be used
 					//TODO i think psn is only used here!!
 					//tx_readReqTable_upd.write(txReadReqUpdate(meta.qpn, meta.psn));
@@ -1688,6 +1725,8 @@ void generate_exh(
 					//BTH: 12, AETH: 4, PayLd: x, ICRC: 4
 					udpLen = 12+4+meta.length+4;
 					lengthFifo.write(udpLen);
+					//MT_pomsarc
+					isMarkedAckFifo.write(0);
 				}
 				break;
 			}
@@ -1700,6 +1739,8 @@ void generate_exh(
 				//BTH: 12, PayLd: x, ICRC: 4
 				udpLen = 12+meta.length+4;
 				lengthFifo.write(udpLen);
+				//MT_pomsarc
+				isMarkedAckFifo.write(0);
 				ge_state = META;
 				break;
 			case RC_ACK:
@@ -1735,6 +1776,12 @@ void generate_exh(
 					output.write(sendWord);
 					//BTH: 12, AETH: 4, ICRC: 4
 					lengthFifo.write(12+4+4);
+					//MT_pomsarc
+					if(meta.is_marked_ack_ecn){
+						isMarkedAckFifo.write(1);
+					} else{
+						isMarkedAckFifo.write(0);
+					}
 				}
 				break;
 			}
@@ -2016,6 +2063,7 @@ void prepend_ibh_header(
  */
 //TODO maybe all ACKS should be triggered by ibhFSM?? what is the guarantee we should/have to give
 //TODO this should become a BRAM, storage type of thing
+//MT_pomsarc added ecn output fifo
 template <int WIDTH, int INSTID = 0>
 void ipUdpMetaHandler(	
 	stream<ipUdpMeta>&		input,
@@ -2024,7 +2072,9 @@ void ipUdpMetaHandler(
 	//stream<dstTuple>&		output,
 	//stream<ap_uint<16> >&	remcrc_lengthFifo,
 	stream<ap_uint<16> >&	exh_lengthFifo,
-	stream<ExHeader<WIDTH> >& exHeaderOutput
+	stream<ExHeader<WIDTH> >& exHeaderOutput,
+
+	stream<ap_uint<2>>& ecn_Fifo
 ) {
 #pragma HLS inline off
 #pragma HLS pipeline II=1
@@ -2047,6 +2097,8 @@ void ipUdpMetaHandler(
 				exh_lengthFifo.write(meta.length);
 				exHeaderOutput.write(header);
 
+				ecn_Fifo.write(meta.ecn);
+
 			}
 			//output.write(dstTuple(meta.their_address, meta.their_port));
 		}
@@ -2060,6 +2112,8 @@ template <int INSTID = 0>
 void tx_ipUdpMetaMerger(	
 	stream<connTableEntry>& tx_connTable2ibh_rsp,
 	stream<ap_uint<16> >&	tx_lengthFifo,
+	//MT_pomsarc
+	stream<ap_uint<1>  >&   tx_isMarkedAckFifo,
 	stream<ipUdpMeta>&		m_axis_tx_meta,
 	stream<ap_uint<24> >&	tx_dstQpFifo
 ) {
@@ -2068,13 +2122,15 @@ void tx_ipUdpMetaMerger(
 
 	connTableEntry connMeta;
 	ap_uint<16> len;
+	ap_uint<1> is_ecn_marked;
 
-	if (!tx_connTable2ibh_rsp.empty() && !tx_lengthFifo.empty())
+	if (!tx_connTable2ibh_rsp.empty() && !tx_lengthFifo.empty() && !tx_isMarkedAckFifo.empty())
 	{
 		tx_connTable2ibh_rsp.read(connMeta);
 		tx_lengthFifo.read(len);
+		tx_isMarkedAckFifo.read(is_ecn_marked);
 		std::cout << "[TX IP UDP META MERGER " << INSTID << "]: port " << connMeta.remote_udp_port << std::endl;
-		m_axis_tx_meta.write(ipUdpMeta(connMeta.remote_ip_address, RDMA_DEFAULT_PORT, connMeta.remote_udp_port, len));
+		m_axis_tx_meta.write(ipUdpMeta(connMeta.remote_ip_address, RDMA_DEFAULT_PORT, connMeta.remote_udp_port, len, 0, is_ecn_marked));
 		tx_dstQpFifo.write(connMeta.remote_qpn);
 	}
 }
@@ -2195,6 +2251,7 @@ void ib_transport_protocol(
 	stream<net_axis<WIDTH> >& m_axis_mem_write_data,
 	stream<net_axis<WIDTH> >& s_axis_mem_read_data,
 
+
 	// QP
 	stream<qpContext>& s_axis_qp_interface,
 	stream<ifConnReq>& s_axis_qp_conn_interface,
@@ -2264,7 +2321,8 @@ void ib_transport_protocol(
 	#pragma HLS DATA_PACK variable=rx_exhEventMetaFifo
 	#pragma HLS DATA_PACK variable=rx_remoteMemCmd
 #endif
-
+	//remove
+    //ecn_FiFo
 	static stream<ibhMeta>	tx_ibhMetaFifo("tx_ibhMetaFifo");
 	static stream<event>	tx_appMetaFifo("tx_appMetaFifo");
 	//static stream<event>	tx_localMetaFifo("tx_localMetaFifo");
@@ -2304,8 +2362,17 @@ void ib_transport_protocol(
 
 	static stream<txPacketInfo>	tx_packetInfoFifo("tx_packetInfoFifo");
 	static stream<ap_uint<16> > tx_lengthFifo("tx_lengthFifo");
+
+	//MT_pomsarc 
+	static stream<ap_uint<1> > tx_isMarkedAckFifo("tx_isMarkedAckFifo");
+
+
 	#pragma HLS STREAM depth=2 variable=tx_packetInfoFifo
 	#pragma HLS STREAM depth=4 variable=tx_lengthFifo
+
+	//MT_pomsarc
+	#pragma HLS STREAM depth=4 variable=tx_isMarkedAckFifo
+
 #if defined( __VITIS_HLS__)
 	#pragma HLS aggregate  variable=tx_packetInfoFifo compact=bit
 #else
@@ -2388,10 +2455,16 @@ void ib_transport_protocol(
 #endif
 
 	static stream<ap_uint<16> > exh_lengthFifo("exh_lengthFifo");
+	//MT_pomsarc added ecn
+	static stream<ap_uint<2>> ecn_Fifo("ecn_Fifo");
+
 	static stream<readRequest>	rx_readRequestFifo("rx_readRequestFifo");
 	static stream<event>		rx_readEvenFifo("rx_readEvenFifo");
 	static stream<ackEvent>		rx_ackEventFifo("rx_ackEventFifo");
 	#pragma HLS STREAM depth=4 variable=exh_lengthFifo
+	//MT_pomsarc added ecn
+	#pragma HLS STREAM depth=4 variable=ecn_Fifo
+
 	#pragma HLS STREAM depth=8 variable=rx_readRequestFifo
 	#pragma HLS STREAM depth=512 variable=rx_readEvenFifo
 	#pragma HLS STREAM depth=32 variable=rx_ackEventFifo
@@ -2545,15 +2618,19 @@ void ib_transport_protocol(
         rx_exh2dropFifo, rx_ibhDropFifo, rx_ibhDrop2exhFifo);
 
 	//some hack TODO, make this nicer.. not sure what this is still for
-	ipUdpMetaHandler<WIDTH, INSTID>(s_axis_rx_meta, rx_exh2drop_MetaFifo, rx_ibhDropMetaFifo, exh_lengthFifo, rx_drop2exhFsm_MetaFifo);
+	//MT added ecn output signal
+	ipUdpMetaHandler<WIDTH, INSTID>(s_axis_rx_meta, rx_exh2drop_MetaFifo, rx_ibhDropMetaFifo, exh_lengthFifo, rx_drop2exhFsm_MetaFifo, ecn_Fifo);
 
+	//MT added ecn input
 	rx_exh_fsm<WIDTH, INSTID>(	
     #ifdef DBG_IBV
 		m_axis_dbg_2,
 #endif 
 		rx_fsm2exh_MetaFifo,
 		exh_lengthFifo,
+		ecn_Fifo,
 		msnTable2rxExh_rsp,
+
 #ifdef RETRANS_EN
 		//rx_readReqTable_upd_req,
         //rx_readReqTable_upd_rsp,
@@ -2661,6 +2738,8 @@ void ib_transport_protocol(
 		txExh2msnTable_req,
 		//tx_readReqTable_upd,
 		tx_lengthFifo,
+		//Mt_pomsarc
+		tx_isMarkedAckFifo,
 		tx_packetInfoFifo,
 #ifdef RETRANS_EN
 		txSetTimer_req,
@@ -2688,7 +2767,8 @@ void ib_transport_protocol(
 	prepend_ibh_header<WIDTH, INSTID>(tx_ibhHeaderFifo, tx_shift2ibhFifo, m_axis_tx_data, regIbvCountTx);
 
 	//Get Meta data for UDP & IP layer
-	tx_ipUdpMetaMerger(tx_connTable2ibh_rsp, tx_lengthFifo, m_axis_tx_meta, tx_dstQpFifo);
+	//MT_pomsarc added tx_isMarkedAckFifo
+	tx_ipUdpMetaMerger(tx_connTable2ibh_rsp, tx_lengthFifo, tx_isMarkedAckFifo, m_axis_tx_meta, tx_dstQpFifo);
 
 	//merge read requests
 	mem_cmd_merger<WIDTH>(rx_remoteMemCmd, tx_localMemCmdFifo, m_axis_mem_read_cmd, tx_pkgInfoFifo);

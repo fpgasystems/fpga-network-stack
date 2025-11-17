@@ -27,6 +27,7 @@
 #include "ipv4_config.hpp"
 #include "ipv4.hpp"
 
+//MT added ECN marking to the ipv4Meta struct written to MetaOut
 template <int WIDTH>
 void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 					stream<ap_uint<4> >&	process2dropLengthFifo,
@@ -54,7 +55,9 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 			{
 				std::cout << "IP HEADER: src address: " << header.getSrcAddr() << ", length: " << header.getLength() << std::endl;
 				process2dropLengthFifo.write(header.getHeaderLength() - headerWordsDropped);
-				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength()));
+				
+				MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength(), header.getECN()));
+				//MetaOut.write(ipv4Meta(header.getSrcAddr(), header.getLength(), 3));
 				metaWritten = true;
 			}
 		}
@@ -68,6 +71,7 @@ void process_ipv4(	stream<net_axis<WIDTH> >&		dataIn,
 		}
 	}
 }
+
 
 template <int WIDTH>
 void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
@@ -86,6 +90,7 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 	ipv4Meta meta;
 	net_axis<WIDTH> currWord;
 	ap_uint<16>  length;
+	ap_uint<2> ecn;
 
 	switch (gi_state)
 	{
@@ -102,7 +107,17 @@ void generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setProtocol(protocol);
 
 			// Set ECN and flags accordingly 
-			header.setECN(2);
+			
+			if(meta.is_marked_ack == 1){
+				ecn = 3;
+			}else{
+				ecn = 2;
+			}
+
+			header.setECN(ecn);
+
+
+
 			header.setFlags(2);
 
 			if (IPV4_HEADER_SIZE >= WIDTH)
@@ -176,6 +191,7 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 	ipv4Meta meta;
 	net_axis<WIDTH> currWord;
 	ap_uint<16>  length;
+	ap_uint<2> ecn;
 
 	switch (gi_state)
 	{
@@ -192,7 +208,15 @@ void ipv4_generate_ipv4( stream<ipv4Meta>&		txEng_ipMetaDataFifoIn,
 			header.setProtocol(protocol);
 
 			// Set ECN and flags accordingly 
-			header.setECN(1);
+			//MT_pomsarc changed outgoing ecn if its ack
+			if(meta.is_marked_ack == 1){
+				//header.setECN(meta.ecn)
+				ecn = 3;
+			}else{
+				ecn = 1;
+			}
+
+			header.setECN(ecn);
 			header.setFlags(1);
 
 			if (IPV4_HEADER_SIZE >= WIDTH)
@@ -378,7 +402,7 @@ void ipv4(		hls::stream<net_axis<WIDTH> >&	s_axis_rx_data,
 	generate_ipv4(s_axis_tx_meta, tx_shift2ipv4Fifo, m_axis_tx_data, local_ipv4_address, protocol);
 }
 
-void ipv4_top(		hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
+void ipv4_top(	hls::stream<net_axis<DATA_WIDTH> >&	s_axis_rx_data,
 				hls::stream<ipv4Meta>&		m_axis_rx_meta,
 				hls::stream<net_axis<DATA_WIDTH> >&	m_axis_rx_data,
 				hls::stream<ipv4Meta>&		s_axis_tx_meta,

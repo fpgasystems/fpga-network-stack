@@ -27,7 +27,7 @@ set(DATA_WIDTH 64 CACHE STRING "Width of data path in bytes")
 set(PMTU_BYTES 4096 CACHE STRING "PMTU size.")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
 # RoCE parameters
-set(ROCE_STACK_MAX_QPS 500 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
+set(ROCE_STACK_MAX_QPS 16 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
 
 find_package(VitisHLS REQUIRED)
    if (NOT VITIS_HLS_FOUND)
