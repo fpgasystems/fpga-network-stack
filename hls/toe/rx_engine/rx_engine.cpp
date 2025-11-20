@@ -638,21 +638,25 @@ void drop_optional_header_fields(	hls::stream<optionalFieldsMeta>&		metaIn,
  * kind | length | description
  *   0  |     1B | End of options list
  *   1  |     1B | NOP/Padding
- *   2  |     4B | MSS (Maximum segment size)
+ *   2  |     4B | MSS (Maximum segment size) - If omitted, 536B for IPv4
  *   3  |     3B | Window scale
  *   4  |     2B | SACK permitted (Selective Acknowledgment)
  */
 void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 												hls::stream<ap_uint<320> >&	optionalHeaderFieldsIn,
-												hls::stream<ap_uint<4> >&		windowScaleOut)
+												hls::stream<ap_uint<4> >&    windowScaleOut,
+												hls::stream<ap_uint<16> >&   mssOut)
 {
 	#pragma HLS PIPELINE II=1
 	#pragma HLS INLINE off
 
 	enum fsmStateType {IDLE, PARSE};
 	static fsmStateType state = IDLE;
-	static ap_uint<4> dataOffset;
+	static ap_uint<4> dataOffsetDword;
+	static ap_uint<6> dataOffsetByte;
 	static ap_uint<320> fields;
+	static bool          got_ws = false;
+	static bool          got_mss = false;
 
 	switch (state)
 	{
@@ -660,8 +664,11 @@ void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 		if (!dataOffsetIn.empty() && !optionalHeaderFieldsIn.empty())
 		{
 			// std::cout << "PARSE IDLE" << std::endl;
-			dataOffsetIn.read(dataOffset);
+			dataOffsetIn.read(dataOffsetDword);
+			dataOffsetByte = 4 * (ap_int<6>)dataOffsetDword;
 			optionalHeaderFieldsIn.read(fields);
+			got_ws  = false;
+			got_mss = false;
 			state = PARSE;
 		}
 		break;
@@ -671,35 +678,64 @@ void parse_optional_header_fields(	hls::stream<ap_uint<4> >&		dataOffsetIn,
 
 		switch (optionKind)
 		{
-		case 0: //End of option list
-			windowScaleOut.write(0);
+		case 0:{//End of option list
+			if(!got_mss) mssOut.write(536);
+			if(!got_ws)	windowScaleOut.write(0);
 			// std::cout << "PARSE EOL" << std::endl;
 			state = IDLE;
 			break;
-		case 1:
-			optionLength = 1;
+		}
+		case 1:{ // NOP
+			if(dataOffsetByte == 1){
+				if(!got_mss) mssOut.write(536);
+				if(!got_ws)	windowScaleOut.write(0);
+				state = IDLE;
+			}
+			else optionLength = 1;
 			break;
-		case 3:
+		}
+		case 2:{
+			ap_uint<16> mss;
+			mss(15,8) = fields(23,16);
+			mss( 7,0) = fields(31,24);
+			mssOut.write(mss);
+			if (dataOffsetByte == 4 || got_ws){
+				if(!got_ws) windowScaleOut.write(0);
+				state = IDLE;
+			}
+			got_mss = true;
+			optionLength  = 4;
+			break;
+		}
+		case 3:{
 			// std::cout << "PARSE WS: " << (uint16_t)fields(19, 16) << std::endl;
 			windowScaleOut.write(fields(19, 16));
-			state = IDLE;
+			if (dataOffsetByte == 3 || got_mss){
+				if(!got_mss) mssOut.write((ap_uint<16>)536);
+				state = IDLE;
+			}
+			optionLength  = 3;
+			got_ws = true;
 			break;
-		default:
-			if (dataOffset == optionLength)
-			{
-				windowScaleOut.write(0);
+		}
+		default:{
+			if(dataOffsetByte == optionLength){
+				if(!got_mss) mssOut.write((ap_uint<16>)536);
+				if(!got_ws)	windowScaleOut.write(0);
 				// std::cout << "PARSE DONE" << std::endl;
 				state = IDLE;
 			}
 			break;
+		}
 		}//switch
-		dataOffset -= optionLength;
+		dataOffsetByte -= optionLength;
 		fields = (fields >> (optionLength*8));
 		break;
 	}//switch
 }
 
 void merge_header_meta(hls::stream<ap_uint<4> >&			rxEng_winScaleFifo,
+								hls::stream<ap_uint<16> >&		rxEng_mssFifo,
 								hls::stream<rxEngineMetaData>&	rxEng_headerMetaFifo,
 								hls::stream<rxEngineMetaData>& 	rxEng_metaDataFifo)
 {
@@ -723,15 +759,17 @@ void merge_header_meta(hls::stream<ap_uint<4> >&			rxEng_winScaleFifo,
 			else
 			{
 				meta.winScale = 0;
+				meta.mss = 536;
 				rxEng_metaDataFifo.write(meta);
 			}
 		}
 		break;
 	case 1:
-		if (!rxEng_winScaleFifo.empty())
+		if (!rxEng_winScaleFifo.empty() && !rxEng_mssFifo.empty())
 		{
 			// std::cout << "META MERGE 1" << std::endl;
 			meta.winScale = rxEng_winScaleFifo.read();
+			meta.mss = rxEng_mssFifo.read();
 			rxEng_metaDataFifo.write(meta);
 			state = 0;
 		}
@@ -1368,7 +1406,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					// Initialize rxSar, SEQ + phantom byte for recvd and head pointer, offset to 0, gap set to false
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, rx_win_shift));
 					// Initialize receive window
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, false, tx_win_shift))); //TODO maybe include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, false, tx_win_shift, fsm_meta.meta.mss))); //TODO maybe include count check
 #else
 					// Initialize rxSar, SEQ + phantom byte, last '1' for makes sure appd is initialized
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, 1));
@@ -1432,7 +1470,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					ap_uint<4> rx_win_shift = (fsm_meta.meta.winScale == 0) ? 0 : WINDOW_SCALE_BITS;
 					ap_uint<4> tx_win_shift = fsm_meta.meta.winScale;
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, rx_win_shift));
-					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0, false, tx_win_shift))); //TODO maybe include count check
+					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, 0, false, tx_win_shift, fsm_meta.meta.mss))); //TODO maybe include count check
 #else
 					//initialize rx_sar, SEQ + phantom byte, last '1' for appd init
 					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, 1));
@@ -2103,10 +2141,12 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	static hls::stream<ap_uint<4> >		rxEng_dataOffsetFifo("rxEng_dataOffsetFifo");
 	static hls::stream<ap_uint<320> >		rxEng_optionalFieldsFifo("rxEng_optionalFieldsFifo");
 	static hls::stream<ap_uint<4> >		rxEng_winScaleFifo("rxEng_winScaleFifo");
+	static hls::stream<ap_uint<16> >		rxEng_mssFifo("rxEng_mssFifo");
 	#pragma HLS stream variable=rxEng_headerMetaFifo depth=16
 	#pragma HLS stream variable=rxEng_dataOffsetFifo depth=2
 	#pragma HLS stream variable=rxEng_optionalFieldsFifo depth=2
 	#pragma HLS stream variable=rxEng_winScaleFifo depth=2
+	#pragma HLS stream variable=rxEng_mssFifo depth=2
 	//TODO data pack
 #endif
 
@@ -2136,8 +2176,8 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 	//rxTcpInvalidDropper<WIDTH>(rxEng_dataBuffer3b, rxEng_tcpValidFifo, rxEng_dataBuffer3);
 
 #if (WINDOW_SCALE)
-	parse_optional_header_fields(rxEng_dataOffsetFifo, rxEng_optionalFieldsFifo, rxEng_winScaleFifo);
-	merge_header_meta(rxEng_winScaleFifo, rxEng_headerMetaFifo, rxEng_metaDataFifo);
+	parse_optional_header_fields(rxEng_dataOffsetFifo, rxEng_optionalFieldsFifo, rxEng_winScaleFifo, rxEng_mssFifo);
+	merge_header_meta(rxEng_winScaleFifo, rxEng_mssFifo, rxEng_headerMetaFifo, rxEng_metaDataFifo);
 #endif
 
 	rxMetadataHandler(	rxEng_metaDataFifo,

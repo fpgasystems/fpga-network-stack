@@ -72,7 +72,11 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 				{
 					tx_table[tst_txEngUpdate.sessionID].app = tst_txEngUpdate.not_ackd;
 					tx_table[tst_txEngUpdate.sessionID].ackd = tst_txEngUpdate.not_ackd-1;
+#if !(TCP_NODELAY)
 					tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS)
+#else
+					tx_table[tst_txEngUpdate.sessionID].cong_window = 0x8000; // 8 x 4096(MSS)
+#endif
 					tx_table[tst_txEngUpdate.sessionID].slowstart_threshold = 0xFFFF;
 					tx_table[tst_txEngUpdate.sessionID].finReady = tst_txEngUpdate.finReady;
 					tx_table[tst_txEngUpdate.sessionID].finSent = tst_txEngUpdate.finSent;
@@ -80,7 +84,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 #if !(TCP_NODELAY)
 					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 1));
 #else
-					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 0x3908 /* 10 x 1460(MSS) */, 1));
+					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 0x8000 /* 8 x 4096(MSS) */, 1));
 #endif
 				}
 				if (tst_txEngUpdate.finReady)
@@ -96,8 +100,12 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			{
 				txTxSarRtQuery txEngRtUpdate = tst_txEngUpdate;
 				tx_table[tst_txEngUpdate.sessionID].slowstart_threshold = txEngRtUpdate.getThreshold();
-				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS) TODO is this correct or less, eg. 1/2 * MSS
-			}
+#if !(TCP_NODELAY)
+				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS)
+#else
+				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x8000; // 10 x 1460(MSS)
+#endif
+		}
 		}
 		else // Read
 		{
@@ -138,13 +146,15 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			{
 				usableWindow = minWindow - usedLength;
 			}
+
 			txSar2txEng_upd_rsp.write(txTxSarReply(	entry.ackd,
 													entry.not_ackd,
 													usableWindow, //minWindow,
 													entry.app,
 													usedLength,
 													entry.finReady,
-													entry.finSent));
+													entry.finSent,
+													entry.peer_mss));
 		}
 	}
 	// TX App Stream If
@@ -170,6 +180,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			{
 				win_shift = tst_rxEngUpdate.win_shift;
 				tx_table[tst_rxEngUpdate.sessionID].win_shift = tst_rxEngUpdate.win_shift;
+				tx_table[tst_rxEngUpdate.sessionID].peer_mss = tst_rxEngUpdate.peer_mss;
 			}
 			else
 			{
