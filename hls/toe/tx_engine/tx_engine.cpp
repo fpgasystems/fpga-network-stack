@@ -162,7 +162,7 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 			if(tx_remaining != 0){
 				if ((!rxSar2txEng_rsp.empty())){
 					rxSar2txEng_rsp.read(rxSar);
-					if(tx_remaining > txSar_TX.peer_mss){
+					if(tx_remaining > mss_rounddown){
 						meta.length = mss_rounddown;
 						tx_remaining -= mss_rounddown;
 						txEng2rxSar_req.write(ml_curEvent.sessionID);
