@@ -51,12 +51,15 @@ struct ifStateReq
 	qpState		newState;
 	ap_uint<24> remote_psn;
 	ap_uint<24> local_psn;
+	bool 		selective_update_remote_psn;
 	bool		write;
 	ifStateReq() {}
 	ifStateReq(ap_uint<24> qpn)
 		:qpn(qpn), write(false) {}
 	ifStateReq(ap_uint<16> qpn, qpState s, ap_uint<24> rpsn, ap_uint<24> lpsn)
-		:qpn(qpn), newState(s), remote_psn(rpsn), local_psn(lpsn), write(true) {}
+		:qpn(qpn), newState(s), remote_psn(rpsn), local_psn(lpsn), selective_update_remote_psn(false), write(true) {}
+	ifStateReq(ap_uint<16> qpn, ap_uint<24> rpsn, bool selective_update_rpsn)
+		:qpn(qpn), remote_psn(rpsn), selective_update_remote_psn(selective_update_rpsn), write(true) {}
 };
 
 struct rxStateReq
@@ -187,12 +190,18 @@ void state_table(
 			std::cout << std::hex << "[STATE TABLE " << INSTID << "]: setup new connection, psn " << ifRequest.remote_psn << std::endl;
 			//state_table[ifRequest.qpn].state = ifRequest.newState;
 			//state_table[ifRequest.qpn].prevOpCode = RC_RDMA_WRITE_LAST;
-			state_table[ifRequest.qpn].resp_epsn = ifRequest.local_psn;
-			state_table[ifRequest.qpn].resp_old_outstanding = ifRequest.local_psn;
-			state_table[ifRequest.qpn].req_next_psn = ifRequest.remote_psn;
-			state_table[ifRequest.qpn].req_old_unack = ifRequest.remote_psn;
-			state_table[ifRequest.qpn].req_old_valid = ifRequest.remote_psn;
-			state_table[ifRequest.qpn].retryCounter = 0xF;
+			if(!ifRequest.selective_update_remote_psn) {
+				state_table[ifRequest.qpn].resp_epsn = ifRequest.local_psn;
+				state_table[ifRequest.qpn].resp_old_outstanding = ifRequest.local_psn;
+				state_table[ifRequest.qpn].req_next_psn = ifRequest.remote_psn;
+				state_table[ifRequest.qpn].req_old_unack = ifRequest.remote_psn;
+				state_table[ifRequest.qpn].req_old_valid = ifRequest.remote_psn;
+				state_table[ifRequest.qpn].retryCounter = 0xF;
+			} else {
+				state_table[ifRequest.qpn].req_next_psn = ifRequest.remote_psn;
+				state_table[ifRequest.qpn].req_old_unack = ifRequest.remote_psn;
+				state_table[ifRequest.qpn].req_old_valid = ifRequest.remote_psn;
+			}
 			//state_table[ifRequest.qpn].sendNAK = false;
 
 			//state_table[ifRequest.qpn].r_key = ifRequest.r_key;
