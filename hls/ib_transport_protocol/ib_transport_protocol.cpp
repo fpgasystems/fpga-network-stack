@@ -2118,10 +2118,10 @@ void qp_interface(
 			//TODO check if valid transition
 
 			// Diversify this interface: Based on the vaddr, call either one of the following: 
-			if(context.vaddr == 0xDEADBEEF) {
+			if(context.virtual_address == 0xDEADBEEF) {
 				// Update of the rkey: Just call the if2msnTable_init
 				if2msnTable_init.write(ifMsnReq(context.qp_num, context.r_key));
-			} else if (context.vaddr == 0xFEEDBEEF) {
+			} else if (context.virtual_address == 0xFEEDBEEF) {
 				// Update of the remote PSN only: Special call to the qpi2stateTable_upd_req
 				qpi2stateTable_upd_req.write(ifStateReq(context.qp_num, context.remote_psn, true));
 			} else {
