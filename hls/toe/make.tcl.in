@@ -1,8 +1,7 @@
-
 open_project ${PROJECT_NAME}_prj
-
 open_solution "solution1"
 set_part ${FPGA_PART}
+
 create_clock -period ${CLOCK_PERIOD} -name default
 set_clock_uncertainty ${CLOCK_UNCERTAINTY} default
 
@@ -28,29 +27,12 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_sar_table/tx_sar_table.cpp -cflags "-st
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_interface/tx_app_interface.cpp -cflags "-std=c++11 -I${CMAKE_CURRENT_BINARY_DIR}"
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/toe.cpp -cflags "-std=c++11 -I${CMAKE_CURRENT_BINARY_DIR}"
 
+# config_rtl -disable_start_propagation
 
-add_files -tb ${CMAKE_CURRENT_SOURCE_DIR}/toe_tb.cpp
-
-#config_rtl -disable_start_propagation
-
-
-#Check which command
-set command [lindex $argv 2]
-
-if {$command == "synthesis"} {
-   csynth_design
-} elseif {$command == "csim"} {
-   csim_design -clean -argv {0 ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/io_fin_5.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/rxOutput.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/txOutput.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/rx_io_fin_5.gold}
-#   csim_design -clean -argv {0 ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/mysyn2.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/rxOutput.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/txOutput.dat ${CMAKE_CURRENT_SOURCE_DIR}/testVectors/rx_io_fin_5.gold}
-} elseif {$command == "ip"} {
-   export_design -format ip_catalog -ipname "toe" -display_name "10G TCP Offload Engine" -description "TCP Offload Engine supporting 10Gbps line rate, up to 10K concurrent sessions." -vendor "ethz.systems" -version "1.6"
-} elseif {$command == "services"} {
-   file mkdir ${IPREPO_DIR}
-   file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
-   file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/
-} else {
-   puts "No valid command specified. Use vitis_hls -f make.tcl <synthesis|csim|ip> ."
-}
-
+csynth_design
+export_design -format ip_catalog -ipname "toe" -display_name "10G TCP Offload Engine" -description "TCP Offload Engine supporting 10Gbps line rate, up to 10K concurrent sessions." -vendor "ethz.systems" -version "1.6"
+file mkdir ${IPREPO_DIR}
+file delete -force ${IPREPO_DIR}/${PROJECT_NAME}
+file copy -force ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_prj/solution1/impl/ip ${IPREPO_DIR}/${PROJECT_NAME}/
 
 exit
