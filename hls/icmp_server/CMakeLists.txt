@@ -8,7 +8,7 @@ project(${PROJECT_NAME})
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake)
 
 # Project properties
-set(FPGA_PART xcu55c-fsvh2892-2L-e CACHE STRING "FPGA part")
+# set(FPGA_PART xcu55c-fsvh2892-2L-e CACHE STRING "FPGA part")
 # set(DATA_WIDTH 64 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 4 CACHE STRING "Target clock period in nanoseconds")
 
