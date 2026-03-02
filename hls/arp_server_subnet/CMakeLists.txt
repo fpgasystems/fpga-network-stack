@@ -20,7 +20,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cma
 #      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 #endif()
 
-set(FPGA_PART xc7vx690tffg1761-2 CACHE STRING "FPGA part")
+set(FPGA_PART xcv80-lsva4737-2MHP-e-S CACHE STRING "FPGA part")
 set(DATA_WIDTH 8 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 6.4 CACHE STRING "Target clock period in nanoseconds")
 

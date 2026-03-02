@@ -21,7 +21,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../cma
 #endif()
 
 
-set(FPGA_PART xcvu9p-flgb2104-3-e CACHE STRING "FPGA part")
+set(FPGA_PART xcv80-lsva4737-2MHP-e-S CACHE STRING "FPGA part")
 set(RETRANS_EN 1 CACHE STRING "Re-transmission logic enable")
 set(DATA_WIDTH 64 CACHE STRING "Width of data path in bytes")
 set(PMTU_BYTES 4096 CACHE STRING "PMTU size.")
