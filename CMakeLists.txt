@@ -5,9 +5,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 get_directory_property(hasParent PARENT_DIRECTORY)
 
 # Synthesis parameters
-# NOTE: HLS synthesis expects the FPGA part which is inherited from Coyote
-set(CLOCK_PERIOD 4 CACHE STRING "Clock period for HLS synthesis [ns].")
-set(CLOCK_UNCERTAINTY 25% CACHE STRING "Clock uncertainty for HLS synthesis [%].")
+# NOTE: HLS synthesis expects the FPGA part, clock period and uncertainty which are inherited from Coyote
 set(NETWORK_BANDWIDTH 100 CACHE STRING "Network bandwidth.")
 set(NETWORK_INTERFACE 100 CACHE STRING "Network interface.")
 set(DATA_WIDTH 64 CACHE STRING "Data width")
