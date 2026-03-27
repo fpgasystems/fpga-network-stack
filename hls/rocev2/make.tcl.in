@@ -18,6 +18,7 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/../ib_transport_protocol/ib_transport_prot
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/rocev2.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
 # config_rtl -disable_start_propagation
+config_rtl -reset all -reset_level low
 
 csynth_design
 export_design -format ip_catalog -ipname "rocev2" -display_name "RoCEv2 Endpoint" -description "" -vendor "ethz.systems.fpga" -version "0.82"

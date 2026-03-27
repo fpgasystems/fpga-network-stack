@@ -9,6 +9,8 @@ set_top ${PROJECT_NAME}_top
 
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/ipv4.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
+config_rtl -reset all -reset_level low
+
 csynth_design
 export_design -format ip_catalog -ipname "ipv4" -display_name "IPv4" -description "" -vendor "ethz.systems.fpga" -version "0.1"
 file mkdir ${IPREPO_DIR}

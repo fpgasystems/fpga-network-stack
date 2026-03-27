@@ -10,6 +10,8 @@ set_top ${PROJECT_NAME}_top
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/../axi_utils.cpp
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/arp_server_subnet.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
+config_rtl -reset all -reset_level low
+
 csynth_design
 export_design -format ip_catalog -ipname "arp_server_subnet" -display_name "ARP Subnet Server" -description "Replies to ARP queries and resolves IP addresses." -vendor "ethz.systems.fpga" -version "1.1"
 file mkdir ${IPREPO_DIR}

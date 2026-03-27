@@ -10,6 +10,8 @@ set_top ${PROJECT_NAME}_top
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/../ipv4/ipv4_utils.cpp
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/mac_ip_encode.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
+config_rtl -reset all -reset_level low
+
 csynth_design
 export_design -format ip_catalog -ipname "mac_ip_encode" -display_name "MAC IP Encoder" -vendor "ethz.systems.fpga" -version "2.0"
 file mkdir ${IPREPO_DIR}

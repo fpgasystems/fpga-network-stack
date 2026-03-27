@@ -10,6 +10,7 @@ set_top ${PROJECT_NAME}_top
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/ipv6.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
 config_rtl -disable_start_propagation
+config_rtl -reset all -reset_level low
 
 csynth_design
 export_design -format ip_catalog -ipname "ipv6" -display_name "IPv6" -description "" -vendor "ethz.systems.fpga" -version "0.1"

@@ -9,6 +9,8 @@ set_top ${PROJECT_NAME}
 
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/ethernet_frame_padding_512.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
 
+config_rtl -reset all -reset_level low
+
 csynth_design
 export_design -format ip_catalog -display_name "Ethernet Frame Padding 512" -vendor "ethz.systems.fpga" -version "0.1"
 file mkdir ${IPREPO_DIR}

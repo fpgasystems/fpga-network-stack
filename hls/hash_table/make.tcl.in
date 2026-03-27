@@ -9,6 +9,8 @@ set_top ${PROJECT_NAME}_top
 
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/hash_table.cpp -cflags "-std=c++11 -I${CMAKE_CURRENT_BINARY_DIR}"
 
+config_rtl -reset all -reset_level low
+
 csynth_design
 export_design -format ip_catalog -ipname "hash_table" -display_name "Hash Table (cuckoo)" -description "" -vendor "ethz.systems.fpga" -version "1.0"
 file mkdir ${IPREPO_DIR}

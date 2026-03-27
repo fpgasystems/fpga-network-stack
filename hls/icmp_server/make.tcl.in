@@ -8,6 +8,7 @@ set_clock_uncertainty ${CLOCK_UNCERTAINTY} default
 set_top ${PROJECT_NAME}_top
 
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/icmp_server.cpp -cflags "-I${CMAKE_CURRENT_BINARY_DIR}"
+config_rtl -reset all -reset_level low
 
 csynth_design
 export_design -format ip_catalog -ipname "icmp_server" -display_name "ICMP Server" -vendor "xilinx.labs" -version "1.67"

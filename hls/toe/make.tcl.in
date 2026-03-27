@@ -28,6 +28,7 @@ add_files ${CMAKE_CURRENT_SOURCE_DIR}/tx_app_interface/tx_app_interface.cpp -cfl
 add_files ${CMAKE_CURRENT_SOURCE_DIR}/toe.cpp -cflags "-std=c++11 -I${CMAKE_CURRENT_BINARY_DIR}"
 
 # config_rtl -disable_start_propagation
+config_rtl -reset all -reset_level low
 
 csynth_design
 export_design -format ip_catalog -ipname "toe" -display_name "10G TCP Offload Engine" -description "TCP Offload Engine supporting 10Gbps line rate, up to 10K concurrent sessions." -vendor "ethz.systems" -version "1.6"
