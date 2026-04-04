@@ -34,6 +34,11 @@ elseif(NOT IPREPO_DIR)
 endif()
 
 # Source files, dependencies
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/toe_config.hpp.in toe_config.hpp)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/make.tcl.in make.tcl)
+
 set(HLS_DEPENDS
    ${CMAKE_CURRENT_SOURCE_DIR}/ack_delay/ack_delay.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/close_timer/close_timer.cpp
