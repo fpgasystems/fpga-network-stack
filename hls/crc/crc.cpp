@@ -47,6 +47,7 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 	enum stateType {FIRST, PKG, LAST};
 	static stateType ei_state = FIRST;
 	static net_axis<WIDTH> ei_prevWord;
+	static ap_uint<4> ei_crc_nibble;
 	ap_uint<32> crc;
 	net_axis<WIDTH> currWord;
 
@@ -61,12 +62,21 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 			input.read(currWord);
             //std::cout << "[ NODE: " << INSTID << ", EXTRACT_CRC(), FIRST_STATE ]:  Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
 			ei_prevWord = currWord;
-			ei_state = PKG;
-			
+
 			// If word is marked as last, switch to corresponding state
 			if (currWord.last)
 			{
+				ap_uint<5> count = 0;
+				for (int n = 0; n < WIDTH/32; n++) {
+					#pragma HLS UNROLL
+					count += (ap_uint<1>)currWord.keep[n*4 + 3];
+				}
+				ei_crc_nibble = count - 1;
 				ei_state = LAST;
+			}
+			else
+			{
+				ei_state = PKG;
 			}
 		}
 		break;
@@ -96,6 +106,12 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 				// If bit not set to 0, switch to state LAST for further processing. 
 				else
 				{
+					ap_uint<5> count = 0;
+					for (int n = 0; n < WIDTH/32; n++) {
+						#pragma HLS UNROLL
+						count += (ap_uint<1>)currWord.keep[n*4 + 3];
+					}
+					ei_crc_nibble = count - 1;
 					ei_state = LAST;
 				}
 			}
@@ -106,84 +122,33 @@ void extract_icrc(	stream<net_axis<WIDTH> >&		input,
 		}
 		break;
 	case LAST:
-        //std::cout << "[ NODE: " << INSTID << ", EXTRACT_CRC(), LAST STATE ]:  Data " << std::hex << currWord.data << ", Last " << currWord.last << std::dec << std::endl;
-		ap_uint<64> keep = ei_prevWord.keep; //this is required to make the case statement work for all widths
+			ap_uint<4> nibble = ei_crc_nibble;
 
-		// Depending on keep, select data for crc-calculation and set some keep-bits to 0 accordingly. 
-		switch(keep)
-		{
-		case 0xF:
-			//This should not occur
-			crc = ei_prevWord.data(31, 0);
-			break;
-		case 0xFF:
-			crc = ei_prevWord.data(63, 32);
-			ei_prevWord.keep(7,4) = 0x0;
-			break;
-		case 0xFFF:
-			crc = ei_prevWord.data(95, 64);
-			ei_prevWord.keep(11,8) = 0x0;
-			break;
-		case 0xFFFF:
-			crc = ei_prevWord.data(127, 96);
-			ei_prevWord.keep(15,12) = 0x0;
-			break;
-		case 0xFFFFF:
-			crc = ei_prevWord.data(159, 128);
-			ei_prevWord.keep(19,16) = 0x0;
-			break;
-		case 0xFFFFFF:
-			crc = ei_prevWord.data(191, 160);
-			ei_prevWord.keep(23,20) = 0x0;
-			break;
-		case 0xFFFFFFF:
-			crc = ei_prevWord.data(223, 192);
-			ei_prevWord.keep(27,24) = 0x0;
-			break;
-		case 0xFFFFFFFF:
-			crc = ei_prevWord.data(255, 224);
-			ei_prevWord.keep(31,28) = 0x0;
-			break;
-		case 0xFFFFFFFFF:
-			crc = ei_prevWord.data(287, 256);
-			ei_prevWord.keep(35,32) = 0x0;
-			break;
-		case 0xFFFFFFFFFF:
-			crc = ei_prevWord.data(319, 288);
-			ei_prevWord.keep(39,36) = 0x0;
-			break;
-		case 0xFFFFFFFFFFF:
-			crc = ei_prevWord.data(351, 320);
-			ei_prevWord.keep(43,40) = 0x0;
-			break;
-		case 0xFFFFFFFFFFFF:
-			crc = ei_prevWord.data(383, 352);
-			ei_prevWord.keep(47,44) = 0x0;
-			break;
-		case 0xFFFFFFFFFFFFF:
-			crc = ei_prevWord.data(415, 384);
-			ei_prevWord.keep(51,48) = 0x0;
-			break;
-		case 0xFFFFFFFFFFFFFF:
-			crc = ei_prevWord.data(447, 416);
-			ei_prevWord.keep(55,52) = 0x0;
-			break;
-		case 0xFFFFFFFFFFFFFFF:
-			crc = ei_prevWord.data(479, 448);
-			ei_prevWord.keep(59,56) = 0x0;
-			break;
-		case 0xFFFFFFFFFFFFFFFF:
-			crc = ei_prevWord.data(511, 480);
-			ei_prevWord.keep(63,60) = 0x0;
-			break;
-		} //switch
-
-		// Send the read word to output, forward CRC-value to FIFO
-		output.write(ei_prevWord);
 #ifndef DISABLE_CRC_CHECK
-		rx_crcFifo.write(crc);
+			ap_uint<32> crc_val = 0;
+			for (int n = 0; n < WIDTH/32; n++) {
+				#pragma HLS UNROLL
+				if ((ap_uint<4>) n == nibble) {
+					crc_val = ei_prevWord.data((n+1)*32-1, n*32);
+				}
+			}
+			crc = crc_val;
 #endif
-		ei_state = FIRST;
+			ap_uint<64> new_keep = ei_prevWord.keep;
+			for (int n = 1; n < WIDTH/32; n++) { // n=0 (0xF keep) should not occur
+				#pragma HLS UNROLL
+				if ((ap_uint<4>)n == nibble) {
+					new_keep(n*4+3, n*4) = 0x0;
+				}
+			}
+			ei_prevWord.keep = new_keep;
+
+			// Send the read word to output, forward CRC-value to FIFO
+			output.write(ei_prevWord);
+#ifndef DISABLE_CRC_CHECK
+			rx_crcFifo.write(crc);
+#endif
+			ei_state = FIRST;
 		break;
 	}
 

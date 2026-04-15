@@ -13,7 +13,7 @@ set(DATA_WIDTH 64 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 4 CACHE STRING "Target clock period in nanoseconds")
 set(PMTU_BYTES 4096 CACHE STRING "PMTU size.")
 set(RETRANS_EN 1 CACHE STRING "Re-transmission logic enable")
-set(ROCE_STACK_MAX_QPS 500 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
+set(ROCE_STACK_MAX_QPS 256 CACHE STRING "Maximum number of queue pairs the RoCE stack can support")
 
 # Make sure Vitis HLS is installed
 find_package(VitisHLS REQUIRED)

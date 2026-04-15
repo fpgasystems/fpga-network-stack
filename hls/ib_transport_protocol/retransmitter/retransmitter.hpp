@@ -197,7 +197,7 @@ void retrans_pointer_table(
 
 	static retransPointerEntry ptr_table[MAX_QPS];
 #if defined( __VITIS_HLS__)
-	#pragma HLS bind_storage variable=ptr_table type=RAM_T2P impl=BRAM
+	#pragma HLS bind_storage variable=ptr_table type=RAM_1P impl=LUTRAM
 #else
 	#pragma HLS RESOURCE variable=ptr_table core=RAM_T2P_BRAM
 #endif
