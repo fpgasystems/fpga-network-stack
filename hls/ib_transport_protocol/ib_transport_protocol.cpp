@@ -691,8 +691,8 @@ void rx_exh_fsm(
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 			if(meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_LAST)
 			{
-				m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host, 
-                    readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
+				m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(15,0), readReqInit.host,
+                    readReqInit.laddr(51,48), readReqInit.laddr(53,52),
                     readReqInit.lst));
 			}
 
@@ -751,8 +751,8 @@ void rx_exh_fsm(
 			// [BTH][AETH]
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 
-            m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(19,0), readReqInit.host, 
-                    readReqInit.host ? readReqInit.laddr(51,48) : 0, readReqInit.host ? readReqInit.laddr(53,52) : 0,
+            m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(19,0), readReqInit.host,
+                    readReqInit.laddr(51,48), readReqInit.laddr(53,52),
                     readReqInit.lst));
 
 			std::cout << "[RX EXH FSM " << INSTID << "]: syndrome: " << std::hex << ackHeader.getSyndrome() << std::endl;
