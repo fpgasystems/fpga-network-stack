@@ -66,6 +66,7 @@ struct rxEngineMetaData
 	ap_uint<1>	fin;
 	ap_uint<4>	dataOffset;
 	//ap_uint<16> dstPort;
+	ap_uint<16> mss;        // peer MSS
 };
 
 /** @ingroup rx_engine

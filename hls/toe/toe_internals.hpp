@@ -185,6 +185,7 @@ struct txSarEntry
 	ap_uint<16> recv_window;
 #if (WINDOW_SCALE)
 	ap_uint<4>	win_shift;
+	ap_uint<16> peer_mss;
 #endif
 	ap_uint<WINDOW_BITS> cong_window;
 	ap_uint<WINDOW_BITS> slowstart_threshold;
@@ -205,6 +206,7 @@ struct rxTxSarQuery
 	bool		fastRetransmitted;
 #if (WINDOW_SCALE)
 	ap_uint<4>	win_shift;
+	ap_uint<16> peer_mss;
 #endif
 	ap_uint<1> write;
 	ap_uint<1>	init;
@@ -215,7 +217,9 @@ struct rxTxSarQuery
 				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), write(1), init(0) {}
 #if (WINDOW_SCALE)
 	rxTxSarQuery(ap_uint<16> id, ap_uint<32> ackd, ap_uint<16> recv_win, ap_uint<WINDOW_BITS> cong_win, ap_uint<2> count, bool fastRetransmitted, ap_uint<4> win_shift)
-				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), win_shift(win_shift), write(1), init(1) {}
+				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), win_shift(win_shift), write(1), init(1), peer_mss(0) {}
+	rxTxSarQuery(ap_uint<16> id, ap_uint<32> ackd, ap_uint<16> recv_win, ap_uint<WINDOW_BITS> cong_win, ap_uint<2> count, bool fastRetransmitted, ap_uint<4> win_shift, ap_uint<16> peer_mss)
+				:sessionID(id), ackd(ackd), recv_window(recv_win), cong_window(cong_win), count(count), fastRetransmitted(fastRetransmitted), win_shift(win_shift), write(1), init(1), peer_mss(peer_mss) {}
 #endif
 };
 
@@ -239,6 +243,17 @@ struct txTxSarQuery
 				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(finReady), finSent(finSent), isRtQuery(false) {}
 	txTxSarQuery(ap_uint<16> id, ap_uint<32> not_ackd, ap_uint<1> write, ap_uint<1> init, bool finReady, bool finSent, bool isRt)
 				:sessionID(id), not_ackd(not_ackd), write(write), init(init), finReady(finReady), finSent(finSent), isRtQuery(isRt) {}
+};
+
+struct txDDRbypassPush
+{
+	bool isBypass;
+	ap_uint<16> session_mss;
+	txDDRbypassPush() {}
+	txDDRbypassPush(bool en)
+				:isBypass(en),session_mss(576) {}
+	txDDRbypassPush(bool en, ap_uint<16> mss)
+				:isBypass(en),session_mss(mss) {}
 };
 
 struct txTxSarRtQuery : public txTxSarQuery
@@ -338,12 +353,21 @@ struct txTxSarReply
 	ap_uint<WINDOW_BITS> usedLength;
 	bool		finReady;
 	bool		finSent;
-//#if (WINDOW_SCALE)
 	ap_uint<4>	win_shift;
-//#endif
+#if (WINDOW_SCALE)
+	ap_uint<16> peer_mss;
+#endif
 	txTxSarReply() {}
+#if (WINDOW_SCALE)
+	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<WINDOW_BITS> usableWindow, ap_uint<WINDOW_BITS> app, ap_uint<WINDOW_BITS> usedLength, bool finReady, bool finSent)
+		:ackd(ack), not_ackd(nack), usableWindow(usableWindow), app(app), usedLength(usedLength), finReady(finReady), finSent(finSent), peer_mss(0) {}
+	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<WINDOW_BITS> usableWindow, ap_uint<WINDOW_BITS> app, ap_uint<WINDOW_BITS> usedLength, bool finReady, bool finSent, ap_uint<16> peer_mss)
+		:ackd(ack), not_ackd(nack), usableWindow(usableWindow), app(app), usedLength(usedLength), finReady(finReady), finSent(finSent), peer_mss(peer_mss) {}
+#else
 	txTxSarReply(ap_uint<32> ack, ap_uint<32> nack, ap_uint<WINDOW_BITS> usableWindow, ap_uint<WINDOW_BITS> app, ap_uint<WINDOW_BITS> usedLength, bool finReady, bool finSent)
 		:ackd(ack), not_ackd(nack), usableWindow(usableWindow), app(app), usedLength(usedLength), finReady(finReady), finSent(finSent) {}
+#endif
+
 };
 
 struct rxRetransmitTimerUpdate {

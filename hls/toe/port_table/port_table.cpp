@@ -137,16 +137,18 @@ void free_port_table(	stream<ap_uint<16> >&	sLookup2portTable_releasePort,
 	}
 	else
 	{
-		if (!freePortTable[pt_cursor] && !portTable2txApp_port_rsp.full()) //This is not perfect, but yeah
-		{
-			freePort(14, 0) = pt_cursor;
-			freePort[15] = 1;
+		bool used = freePortTable[pt_cursor]; 
+		if (used) {
+			pt_cursor++;
+		} else if (!portTable2txApp_port_rsp.full()) {
+			ap_uint<16> freePort;
+			freePort(14,0) = pt_cursor;
+			freePort[15]   = 1;
 			freePortTable[pt_cursor] = true;
 			portTable2txApp_port_rsp.write(freePort);
+			pt_cursor++;
 		}
 	}
-	pt_cursor++;
-
 	/*if (!txApp2portTable_port_req.empty()) //Fixme this!!!
 	{
 		txApp2portTable_port_req.read();
