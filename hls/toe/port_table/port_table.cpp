@@ -39,9 +39,12 @@ using namespace hls;
  *  read should get the old value, either way it doesn't matter
  *  @param[in]		rxApp2portTable_listen_req
  *  @param[in]		pt_portCheckListening_req_fifo
+ *  @param[in]		pt_portCheckListening_req_fifo
  *  @param[out]		portTable2rxApp_listen_rsp
  *  @param[out]		pt_portCheckListening_rsp_fifo
  */
+static const int MAX_LISTENING_PORTS = 16;
+
 void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 							stream<ap_uint<15> >&	pt_portCheckListening_req_fifo,
 							stream<bool>&			portTable2rxApp_listen_rsp,
@@ -50,47 +53,59 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
-	static bool listeningPortTable[32768];
-#if defined( __VITIS_HLS__)
-	#pragma HLS bind_storage variable=listeningPortTable type=RAM_T2P impl=BRAM
-#else
-	#pragma HLS RESOURCE variable=listeningPortTable core=RAM_T2P_BRAM
-#endif
-	#pragma HLS DEPENDENCE variable=listeningPortTable inter false
+	static ap_uint<16>	listenedPorts[MAX_LISTENING_PORTS];
+	static bool			portActive[MAX_LISTENING_PORTS];
+	#pragma HLS ARRAY_PARTITION variable=listenedPorts complete dim=1
+	#pragma HLS ARRAY_PARTITION variable=portActive    complete dim=1
 
 	ap_uint<16> currPort;
 
-	if (!rxApp2portTable_listen_req.empty()) //check range, TODO make sure currPort is not equal in 2 consecutive cycles
+	if (!rxApp2portTable_listen_req.empty())
 	{
 		rxApp2portTable_listen_req.read(currPort);
-		//return true when the port is already open
-		if (listeningPortTable[currPort(14, 0)] && currPort < 32768)
-		{
-			portTable2rxApp_listen_rsp.write(true);
-		}
-		else if (!listeningPortTable[currPort(14, 0)] && currPort < 32768)
-		{
-			listeningPortTable[currPort] = true;
-			portTable2rxApp_listen_rsp.write(true);
-		}
-		else
-		{
+
+		if (currPort >= 32768) {
 			portTable2rxApp_listen_rsp.write(false);
+			return;
+		}
+
+		bool already = false;
+		for (int i = 0; i < MAX_LISTENING_PORTS; i++) {
+			#pragma HLS UNROLL
+			if (portActive[i] && listenedPorts[i] == currPort) already = true;
+		}
+
+		// Priority-encode lowest free slot (iterate backwards so index 0 wins)
+		ap_uint<6> freeSlot = MAX_LISTENING_PORTS;
+		for (int i = MAX_LISTENING_PORTS - 1; i >= 0; i--) {
+			#pragma HLS UNROLL
+			if (!portActive[i]) freeSlot = i;
+		}
+
+		if (already) {
+			portTable2rxApp_listen_rsp.write(true);
+		} else if (freeSlot < MAX_LISTENING_PORTS) {
+			listenedPorts[freeSlot] = currPort;
+			portActive[freeSlot]    = true;
+			portTable2rxApp_listen_rsp.write(true);
+		} else {
+			portTable2rxApp_listen_rsp.write(false);  // CAM full
 		}
 	}
 	else if (!pt_portCheckListening_req_fifo.empty())
 	{
-		//pt_portCheckListening_req_fifo.read(checkPort15);
-		//pt_portCheckListening_rsp_fifo.write(listeningPortTable[checkPort15]);
-		pt_portCheckListening_rsp_fifo.write(listeningPortTable[pt_portCheckListening_req_fifo.read()]);
+		ap_uint<15> checkPort = pt_portCheckListening_req_fifo.read();
+		bool found = false;
+		for (int i = 0; i < MAX_LISTENING_PORTS; i++) {
+			#pragma HLS UNROLL
+			if (portActive[i] && listenedPorts[i] == checkPort) found = true;
+		}
+		pt_portCheckListening_rsp_fifo.write(found);
 	}
 }
 /** @ingroup port_table
- *  Assumption: We are never going to run out of free ports, since 10K session <<< 32K ports
- *  rxEng: read
- *  txApp: pt_cursor: read -> write
- *  sLookup: write
- *  If a free port is found it is written into @portTable2txApp_port_rsp and cached until @ref tx_app_stream_if reads it out
+ *  One entry per session: ephemeral ports are 32768..(32768+MAX_SESSIONS-1).
+ *  Cursor wraps at MAX_SESSIONS so the table never needs more entries than sessions.
  *  @param[in]		sLookup2portTable_releasePort
  *  @param[in]		pt_portCheckUsed_req_fifo
  *  @param[out]		pt_portCheckUsed_rsp_fifo
@@ -105,45 +120,42 @@ void free_port_table(	stream<ap_uint<16> >&	sLookup2portTable_releasePort,
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
-	static bool freePortTable[32768];
+	static const unsigned FREE_PORT_BITS = ConstLog2(MAX_SESSIONS);
+
+	static bool freePortTable[MAX_SESSIONS];
 #if defined( __VITIS_HLS__)
-	#pragma HLS bind_storage variable=freePortTable type=RAM_T2P impl=BRAM
+	#pragma HLS bind_storage variable=freePortTable type=RAM_S2P impl=LUTRAM
 #else
-	#pragma HLS RESOURCE variable=freePortTable core=RAM_T2P_BRAM
+	#pragma HLS RESOURCE variable=freePortTable core=RAM_S2P_LUTRAM
 #endif
-	#pragma HLS DEPENDENCE variable=freePortTable inter false
 
+	static ap_uint<FREE_PORT_BITS> pt_cursor = 0;
 
-	// Free Ports Cache
-	//static stream<ap_uint<16> > pt_freePortsFifo("pt_freePortsFifo");
-	//#pragma HLS STREAM variable=pt_freePortsFifo depth=8
+	ap_uint<16> currPort;
+	ap_uint<16> freePort;
 
-	static ap_uint<15>	pt_cursor = 0;
-
-	ap_uint<16>			currPort;
-	ap_uint<16>			freePort;
-
-	if (!sLookup2portTable_releasePort.empty()) //check range, TODO make sure no acces to same location in 2 consecutive cycles
+	if (!sLookup2portTable_releasePort.empty())
 	{
 		sLookup2portTable_releasePort.read(currPort);
 		if (currPort >= 32768)
 		{
-			freePortTable[currPort(14, 0)] = false; //shift
+			freePortTable[currPort(FREE_PORT_BITS-1, 0)] = false;
 		}
 	}
 	else if (!pt_portCheckUsed_req_fifo.empty())
 	{
-		pt_portCheckUsed_rsp_fifo.write(freePortTable[pt_portCheckUsed_req_fifo.read()]);
+		ap_uint<15> checkIdx = pt_portCheckUsed_req_fifo.read();
+		pt_portCheckUsed_rsp_fifo.write(freePortTable[checkIdx(FREE_PORT_BITS-1, 0)]);
 	}
 	else
 	{
-		bool used = freePortTable[pt_cursor]; 
+		bool used = freePortTable[pt_cursor];
 		if (used) {
 			pt_cursor++;
 		} else if (!portTable2txApp_port_rsp.full()) {
-			ap_uint<16> freePort;
-			freePort(14,0) = pt_cursor;
-			freePort[15]   = 1;
+			freePort = 0;
+			freePort(FREE_PORT_BITS-1, 0) = pt_cursor;
+			freePort[15] = 1;
 			freePortTable[pt_cursor] = true;
 			portTable2txApp_port_rsp.write(freePort);
 			pt_cursor++;

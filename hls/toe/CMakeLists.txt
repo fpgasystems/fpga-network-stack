@@ -13,7 +13,7 @@ set(DATA_WIDTH 64 CACHE STRING "Width of data path in bytes")
 set(CLOCK_PERIOD 4 CACHE STRING "Target clock period in nanoseconds")
 
 # TCP parameters
-set(TCP_STACK_MAX_SESSIONS 1000 CACHE STRING "Maximum number of sessions the TCP/IP stack can support")
+set(TCP_STACK_MAX_SESSIONS 512 CACHE STRING "Maximum number of sessions the TCP/IP stack can support")
 set(TCP_STACK_MSS 4096 CACHE STRING "Maximum Segment Size (MSS)")
 set(TCP_STACK_NODELAY_EN 1 CACHE BOOL "Enabling TCP_NODELAY option")
 set(TCP_STACK_RX_DDR_BYPASS_EN 1 CACHE BOOL "Enabling DDR bypass on the RX path")

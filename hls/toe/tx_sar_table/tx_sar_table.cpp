@@ -75,7 +75,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 #if !(TCP_NODELAY)
 					tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS)
 #else
-					tx_table[tst_txEngUpdate.sessionID].cong_window = 0x8000; // 8 x 4096(MSS)
+					tx_table[tst_txEngUpdate.sessionID].cong_window = 0x10000; // 16 x MSS (MSS=4096)
 #endif
 					tx_table[tst_txEngUpdate.sessionID].slowstart_threshold = 0xFFFF;
 					tx_table[tst_txEngUpdate.sessionID].finReady = tst_txEngUpdate.finReady;
@@ -84,7 +84,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 #if !(TCP_NODELAY)
 					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 1));
 #else
-					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 0x8000 /* 8 x 4096(MSS) */, 1));
+					txSar2txApp_ack_push.write(txSarAckPush(tst_txEngUpdate.sessionID, tst_txEngUpdate.not_ackd, 0x10000 /* 16 x MSS (MSS=4096) */, 1));
 #endif
 				}
 				if (tst_txEngUpdate.finReady)
@@ -103,7 +103,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 #if !(TCP_NODELAY)
 				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x3908; // 10 x 1460(MSS)
 #else
-				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x8000; // 10 x 1460(MSS)
+				tx_table[tst_txEngUpdate.sessionID].cong_window = 0x10000; // 16 x MSS (MSS=4096)
 #endif
 		}
 		}

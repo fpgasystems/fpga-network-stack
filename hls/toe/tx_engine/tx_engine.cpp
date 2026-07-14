@@ -426,13 +426,18 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 
 				// Since we are retransmitting from txSar.ackd to txSar.not_ackd, this data is already inside the usableWindow
 				// => no check is required
-				// Only check if length is bigger than MMS
-				if (currLength > txSar.peer_mss)
+				// Only check if length is bigger than MSS
+#if (WINDOW_SCALE)
+				ap_uint<16> retrans_mss = txSar.peer_mss;
+#else
+				ap_uint<16> retrans_mss = MSS;
+#endif
+				if (currLength > retrans_mss)
 				{
 					// We stay in this state and sent immediately another packet
-					meta.length = txSar.peer_mss;
-					txSar.ackd += txSar.peer_mss;
-					txSar.usedLength -= txSar.peer_mss;
+					meta.length = retrans_mss;
+					txSar.ackd += retrans_mss;
+					txSar.usedLength -= retrans_mss;
 					// TODO replace with dynamic count, remove this
 					if (ml_segmentCount == 3)
 					{
