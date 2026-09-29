@@ -91,6 +91,13 @@ struct retransAddrLen
 		:localAddr(laddr), remoteAddr(raddr), length(len), lst(lst), offs(offs), host(host) {}
 };
 
+// Last PSN of a request (one per PMTU, at least one), computed at insertion
+inline ap_uint<24> request_last_psn(ap_uint<24> psn, ap_uint<32> length)
+{
+	ap_uint<32> pkts = (length + (PMTU - 1)) / PMTU;
+	return psn + (pkts == 0 ? (ap_uint<24>) 0 : (ap_uint<24>) (pkts - 1));
+}
+
 struct retransEntry
 {
 	ap_uint<16> qpn;
@@ -102,11 +109,12 @@ struct retransEntry
     ap_uint<1>  lst;
     ap_uint<4>  offs;
     ap_uint<1>  host;
+	ap_uint<24> lastPsn;
 	retransEntry() {}
 	retransEntry(ap_uint<16> qpn, ap_uint<24> psn, ibOpCode op, ap_uint<64> laddr, ap_uint<64> raddr, ap_uint<32> len, ap_uint<1> lst, ap_uint<4> offs, ap_uint<1> host)
-		:qpn(qpn), psn(psn), opCode(op), localAddr(laddr), remoteAddr(raddr), length(len), lst(lst), offs(offs), host(host) {}
+		:qpn(qpn), psn(psn), opCode(op), localAddr(laddr), remoteAddr(raddr), length(len), lst(lst), offs(offs), host(host), lastPsn(request_last_psn(psn, len)) {}
 	retransEntry(retransMeta meta, retransAddrLen addrlen)
-		:qpn(meta.qpn), psn(meta.psn), opCode(meta.opCode), localAddr(addrlen.localAddr), remoteAddr(addrlen.remoteAddr), length(addrlen.length), lst(addrlen.lst), offs(addrlen.offs), host(addrlen.host) {}
+		:qpn(meta.qpn), psn(meta.psn), opCode(meta.opCode), localAddr(addrlen.localAddr), remoteAddr(addrlen.remoteAddr), length(addrlen.length), lst(addrlen.lst), offs(addrlen.offs), host(addrlen.host), lastPsn(request_last_psn(meta.psn, addrlen.length)) {}
 };
 
 struct retransPointerEntry
@@ -149,11 +157,12 @@ struct retransMetaEntry
     ap_uint<1>  lst;
     ap_uint<4>  offs;
     ap_uint<1>  host;
+	ap_uint<24> lastPsn;
 	bool valid;
 	bool isTail;
 	retransMetaEntry() {}
 	retransMetaEntry(retransEntry& e)
-		:psn(e.psn), next(0), opCode(e.opCode), localAddr(e.localAddr), remoteAddr(e.remoteAddr), length(e.length), lst(e.lst), offs(e.offs), host(e.host), valid(true), isTail(true) {}
+		:psn(e.psn), next(0), opCode(e.opCode), localAddr(e.localAddr), remoteAddr(e.remoteAddr), length(e.length), lst(e.lst), offs(e.offs), host(e.host), lastPsn(e.lastPsn), valid(true), isTail(true) {}
 	retransMetaEntry(ap_uint<16> next)
 		:next(next) {}
 };
@@ -284,6 +293,13 @@ void retrans_meta_table(stream<retransMetaReq>&		meta_upd_req,
     }
 }
 
+// a <= b in wrapping 24-bit PSN order
+inline bool psn_before_or_at(ap_uint<24> a, ap_uint<24> b)
+{
+	ap_uint<24> d = b - a;
+	return d[23] == 0;
+}
+
 template <int INSTID = 0>
 void process_retransmissions(
 	stream<retransUpdate>&	        rx2retrans_upd,
@@ -298,7 +314,8 @@ void process_retransmissions(
 	stream<retransMetaEntry>&		metaRspFifo,
 	stream<ap_uint<16> >&			freeListFifo,
 	stream<ap_uint<16> >&			releaseFifo,
-	stream<retransEvent>&			retrans2event
+	stream<retransEvent>&			retrans2event,
+	stream<ackMeta>&				retrans2ack_meta
 ) {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -312,6 +329,9 @@ void process_retransmissions(
 	static retransmission retrans;
 	static retransMetaEntry meta; //TODO register needed??
 	static retransPointerEntry ptrMeta;
+	static bool upd_is_ack;
+	static bool upd_rd_start;
+	static ap_uint<24> acked_psn;
 
 	switch (rt_state)
 	{
@@ -319,6 +339,10 @@ void process_retransmissions(
 		if (!rx2retrans_upd.empty())
 		{
 			rx2retrans_upd.read(update);
+			// A READ response at PSN p acknowledges requests up to p-1, an ACK up to p
+			upd_is_ack = update.op_code == RC_ACK;
+			upd_rd_start = update.op_code == RC_RDMA_READ_RESP_FIRST || update.op_code == RC_RDMA_READ_RESP_ONLY;
+			acked_psn = upd_rd_start ? (ap_uint<24>) (update.latest_acked_req - 1) : update.latest_acked_req;
 			pointerReqFifo.write(pointerReq(update.qpn, true)); // enquire whether we have previous req for this qpn
 			rt_state = UPDATE_0;
 			std::cout << std::hex << "[PROCESS RETRANSMISSION " << INSTID << "]: updating " << update.latest_acked_req << std::endl;
@@ -395,8 +419,12 @@ void process_retransmissions(
 			}
 			else
 			{
-				// this should not happen
+				// Nothing outstanding (a duplicate ACK, say), but a READ response still needs its init
 				std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_0 invalid meta entry" << std::endl;
+				if (upd_rd_start)
+				{
+					retrans2rx_init.write(retransRdInit(0, 0, 0));
+				}
 				// Release lock
 				pointerUpdFifo.write(pointerUpdate(update.qpn, ptrMeta));
 				rt_state = MAIN;
@@ -408,47 +436,80 @@ void process_retransmissions(
 		{
 			metaRspFifo.read(meta);
 
-            if(!meta.valid) {
-                // Invalid state
-                std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 invalid state" << std::endl;
-                break;
-            } else {
-                // Address forwarding
-                if(update.op_code == RC_RDMA_READ_RESP_FIRST || update.op_code == RC_RDMA_READ_RESP_ONLY || update.op_code == RC_ACK) 
-                {
-                    retrans2rx_init.write(retransRdInit(meta.localAddr, meta.lst, meta.host));
+			// A response acknowledges every request up to its PSN (coalesced ACKs, or a READ response):
+			// release each WRITE/SEND entry it covers, with one completion each
+			bool rd_start = upd_rd_start;
+			bool walking = false;
 
-                    std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 forwarding local address, laddr " << meta.localAddr << ", last" << meta.lst << std::endl;
-                }
+			if (!meta.valid)
+			{
+				std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 invalid state" << std::endl;
+				// rx_exh_fsm waits for an init on every READ response start
+				if (rd_start)
+				{
+					retrans2rx_init.write(retransRdInit(0, 0, 0));
+				}
+			}
+			else
+			{
+				// lastPsn and acked_psn are prepared earlier, so that this state meets timing
+				bool covered = meta.opCode != RC_RDMA_READ_REQUEST
+				               && (upd_is_ack || rd_start)
+				               && psn_before_or_at(meta.lastPsn, acked_psn);
 
-                // Packet update
-                if(update.op_code == RC_RDMA_READ_RESP_FIRST || update.op_code == RC_RDMA_READ_RESP_MIDDLE) {
-                    // Packet update
-                    meta.localAddr += PMTU;
-                    meta.remoteAddr += PMTU;
-                    meta.length -= PMTU;
-                    meta.psn += 1;
-                    // Update meta table
-                    metaReqFifo.write(retransMetaReq(ptrMeta.head, retransMetaEntry(meta)));
+				if (covered)
+				{
+					retrans2ack_meta.write(ackMeta(RC_ACK, update.qpn, meta.host,
+						meta.localAddr(51,48), meta.localAddr(53,52), meta.lst));
 
-                    std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 packet update, psn " << meta.psn << ", laddr " << meta.localAddr << ", raddr " << meta.remoteAddr << ", len " << meta.length << std::endl;
-                } else {
-                    // Move index
-                    ptrMeta.head = meta.next;
-                    ptrMeta.valid = !meta.isTail;
+					ptrMeta.head = meta.next;
+					ptrMeta.valid = !meta.isTail;
+					releaseFifo.write(curr);
+					curr = meta.next;
 
-                    // Clear free list
-                    releaseFifo.write(curr);
-                    curr = meta.next;
+					if (ptrMeta.valid)
+					{
+						metaReqFifo.write(retransMetaReq(meta.next));
+						walking = true;
+					}
+					else if (rd_start)
+					{
+						retrans2rx_init.write(retransRdInit(0, 0, 0));
+					}
+					std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 released psn " << meta.psn << std::endl;
+				}
+				else if (!upd_is_ack)
+				{
+					// READ response for the head, which is now the READ request itself
+					if (rd_start)
+					{
+						retrans2rx_init.write(retransRdInit(meta.localAddr, meta.lst, meta.host));
+					}
+					if (update.op_code == RC_RDMA_READ_RESP_FIRST || update.op_code == RC_RDMA_READ_RESP_MIDDLE)
+					{
+						meta.localAddr += PMTU;
+						meta.remoteAddr += PMTU;
+						meta.length -= PMTU;
+						meta.psn += 1;
+						metaReqFifo.write(retransMetaReq(ptrMeta.head, retransMetaEntry(meta)));
+					}
+					else
+					{
+						ptrMeta.head = meta.next;
+						ptrMeta.valid = !meta.isTail;
+						releaseFifo.write(curr);
+						curr = meta.next;
+					}
+				}
+				// else: an ACK that covers nothing more (a duplicate, or mid-message) releases nothing
+			}
 
-                    std::cout << "[PROCESS RETRANSMISSION " << INSTID << "]: state UPDATE_1 ack update, psn " << meta.psn << std::endl;
-                }
-            }
-
-            // update the lock
-            pointerUpdFifo.write(pointerUpdate(update.qpn, ptrMeta));
-            // return to main
-            rt_state = MAIN;
+			if (!walking)
+			{
+				// update the lock
+				pointerUpdFifo.write(pointerUpdate(update.qpn, ptrMeta));
+				rt_state = MAIN;
+			}
 		}
 		break;
 	case RETRANS_0:
@@ -573,7 +634,8 @@ void retransmitter(
 	stream<retransmission>& rx2retrans_req,
 	stream<retransmission>& timer2retrans_req,
 	stream<retransEntry>&	tx2retrans_insertRequest,
-	stream<retransEvent>&	retrans2event
+	stream<retransEvent>&	retrans2event,
+	stream<ackMeta>&		retrans2ack_meta
 ) {
 //#pragma HLS DATAFLOW
 //#pragma HLS INTERFACE ap_ctrl_none register port=return
@@ -616,6 +678,7 @@ void retransmitter(
 		rt_metaRspFifo,
 		rt_freeListFifo,
 		rt_releaseFifo,
-		retrans2event
+		retrans2event,
+		retrans2ack_meta
 	);
 }

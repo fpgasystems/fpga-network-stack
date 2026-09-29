@@ -532,13 +532,12 @@ void rx_exh_fsm(
 			rxExh2msnTable_upd_req.write(rxMsnReq(meta.dest_qp));
 			consumeReadInit = false;
 
-#ifdef RETRANS_EN // ?
-			/*if (meta.op_code == RC_ACK)
-			{
-				readReqTable_upd_req.write(rxReadReqUpdate(meta.dest_qp));
-			}*/
-#endif
+#ifdef RETRANS_EN
+			// ACKs take no init: the retransmitter completes them
+			if (meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_FIRST)
+#else
 			if (meta.op_code == RC_RDMA_READ_RESP_ONLY || meta.op_code == RC_RDMA_READ_RESP_FIRST || meta.op_code == RC_ACK)
+#endif
 			{
 				consumeReadInit = true;
 				//rx_readReqAddr_pop_req.write(mqPopReq(meta.dest_qp));
@@ -751,9 +750,13 @@ void rx_exh_fsm(
 			// [BTH][AETH]
 			AckExHeader<WIDTH> ackHeader = exHeader.getAckHeader();
 
+#ifdef RETRANS_EN
+			// The retransmitter completes each request the ACK covers
+#else
             m_axis_rx_ack_meta.write(ackMeta(meta.op_code, meta.dest_qp(19,0), readReqInit.host,
                     readReqInit.laddr(51,48), readReqInit.laddr(53,52),
                     readReqInit.lst));
+#endif
 
 			std::cout << "[RX EXH FSM " << INSTID << "]: syndrome: " << std::hex << ackHeader.getSyndrome() << std::endl;
 #ifdef RETRANS_EN
@@ -2180,6 +2183,28 @@ void merge_retrans_request(
 	}
 }
 
+/**
+ * Merges the completions of rx_exh_fsm (READ data) and of the retransmitter (acknowledged requests)
+ */
+template <int INSTID = 0>
+void ack_meta_merger(
+	stream<ackMeta>& rx_exh2ack_meta,
+	stream<ackMeta>& retrans2ack_meta,
+	stream<ackMeta>& m_axis_rx_ack_meta
+) {
+#pragma HLS inline off
+#pragma HLS pipeline II=1
+
+	if (!rx_exh2ack_meta.empty())
+	{
+		m_axis_rx_ack_meta.write(rx_exh2ack_meta.read());
+	}
+	else if (!retrans2ack_meta.empty())
+	{
+		m_axis_rx_ack_meta.write(retrans2ack_meta.read());
+	}
+}
+
 
 
 // ------------------------------------------------------------------------------------------------
@@ -2485,6 +2510,10 @@ void ib_transport_protocol(
 	#pragma HLS STREAM depth=8 variable=tx2retrans_insertAddrLen
 	#pragma HLS STREAM depth=2 variable=tx2retrans_insertRequest
 	#pragma HLS STREAM depth=8 variable=retransmitter2exh_eventFifo
+	static stream<ackMeta> rx_exh2ack_meta("rx_exh2ack_meta");
+	static stream<ackMeta> retrans2ack_meta("retrans2ack_meta");
+	#pragma HLS STREAM depth=4 variable=rx_exh2ack_meta
+	#pragma HLS STREAM depth=32 variable=retrans2ack_meta
 #endif
 
 	//TODO this is a hack
@@ -2584,7 +2613,11 @@ void ib_transport_protocol(
 		//rx_ibhDrop2exhFifo,
 		m_axis_mem_write_cmd,
 		rx_readRequestFifo,
+#ifdef RETRANS_EN
+		rx_exh2ack_meta,
+#else
 		m_axis_rx_ack_meta,
+#endif
 		rxExh2msnTable_upd_req,
 		//rx_readReqAddr_pop_req,
 		rx_exhEventMetaFifo,
@@ -2775,8 +2808,11 @@ void ib_transport_protocol(
 		rx2retrans_req,
 		timer2retrans_req,
 		tx2retrans_insertRequest,
-		retransmitter2exh_eventFifo
+		retransmitter2exh_eventFifo,
+		retrans2ack_meta
 	);
+
+	ack_meta_merger<INSTID>(rx_exh2ack_meta, retrans2ack_meta, m_axis_rx_ack_meta);
 #endif
 
 }
