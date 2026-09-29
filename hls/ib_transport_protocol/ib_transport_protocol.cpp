@@ -159,7 +159,9 @@ void rx_process_exh(
 				}
 				if (!metaWritten)
 				{
-					exhMetaFifo.write(exhMeta(ackHeader.isNAK()));
+					exhMeta emeta(ackHeader.isNAK());
+					emeta.isRnr = ackHeader.isRNR();
+					exhMetaFifo.write(emeta);
 					metaOut.write(ExHeader<WIDTH>(ackHeader));
 					metaWritten = true;
 				}
@@ -331,7 +333,8 @@ void rx_ibh_fsm(
 
 				// Update psn
 				//TODO for last param we need vaddr here!
-				if (!emeta.isNak && (meta.op_code != RC_ACK || ((qpState.epsn <= meta.psn && meta.psn <= qpState.max_forward)
+				// An RNR NAK moves nothing: the request it refused is still outstanding
+				if (!emeta.isNak && !emeta.isRnr && (meta.op_code != RC_ACK || ((qpState.epsn <= meta.psn && meta.psn <= qpState.max_forward)
 					|| ((qpState.epsn <= meta.psn || meta.psn <= qpState.max_forward) && qpState.max_forward < qpState.epsn))))
 				{
 					// if the next req is invalid, trigger NAK
@@ -340,7 +343,7 @@ void rx_ibh_fsm(
 #ifdef RETRANS_EN
 
 				// Update oldest-unacked-reqeust
-				if (isResponse && !emeta.isNak)
+				if (isResponse && !emeta.isNak && !emeta.isRnr)
 				{
 					std::cout << std::hex <<"[RX IBH FSM " << INSTID << "]: retrans update, psn " << meta.psn << std::endl;
 
@@ -355,7 +358,10 @@ void rx_ibh_fsm(
 				// Check if no oustanding requests -> stop timer
 				if (isResponse && meta.op_code != RC_RDMA_READ_RESP_MIDDLE)
 				{
-					rxClearTimer_req.write(rxTimerUpdate(meta.dest_qp, meta.psn == qpState.max_forward));
+					// After an RNR NAK the timer keeps running, with no retry counted, and resends from
+					// the refused request when it expires: an RNR retry that never gives up, like a
+					// ConnectX with rnr_retry 7
+					rxClearTimer_req.write(rxTimerUpdate(meta.dest_qp, !emeta.isRnr && meta.psn == qpState.max_forward));
 #ifndef __SYNTHESIS__
 					if (meta.psn  == qpState.max_forward)
 					{

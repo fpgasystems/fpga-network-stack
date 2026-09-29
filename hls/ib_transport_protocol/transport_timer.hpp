@@ -122,7 +122,9 @@ void transport_timer(
 		rxClearTimer_req.read(tt_update);
 		if (!tt_update.stop)
 		{
+			// Requests remain outstanding: the timer runs, whatever it was doing
 			transportTimerTable[tt_update.qpn].time = TIME_1ms;
+			transportTimerTable[tt_update.qpn].active = true;
 		}
 		else
 		{
