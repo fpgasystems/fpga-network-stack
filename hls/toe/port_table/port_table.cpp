@@ -64,8 +64,19 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 	{
 		rxApp2portTable_listen_req.read(currPort);
 
-		if (currPort >= 32768) {
-			portTable2rxApp_listen_rsp.write(false);
+		// Bit 15 set: stop listening on port currPort[14:0] (listen ports are < 32768).
+		// Connections already accepted on the port are not affected.
+		if (currPort[15]) {
+			ap_uint<16> stopPort = currPort(14, 0);
+			bool found = false;
+			for (int i = 0; i < MAX_LISTENING_PORTS; i++) {
+				#pragma HLS UNROLL
+				if (portActive[i] && listenedPorts[i] == stopPort) {
+					portActive[i] = false;
+					found = true;
+				}
+			}
+			portTable2rxApp_listen_rsp.write(found);
 			return;
 		}
 
