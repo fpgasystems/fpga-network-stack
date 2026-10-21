@@ -112,6 +112,8 @@ struct appNotification
 				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(false) {}
     appNotification(ap_uint<16> id, bool closed, bool opened)
 				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(opened) {}
+	appNotification(ap_uint<16> id, ap_uint<32> addr, ap_uint<16> port, bool closed, bool opened)
+				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed), opened(opened) {}
 	appNotification(ap_uint<16> id, ap_uint<32> addr, ap_uint<16> port, bool closed)
 				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed), opened(false) {}
 	appNotification(ap_uint<16> id, ap_uint<16> len, ap_uint<32> addr, ap_uint<16> port, bool closed)
