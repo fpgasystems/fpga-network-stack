@@ -130,7 +130,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			}
 #else
 			ap_uint<4> win_shift = entry.win_shift;
-			ap_uint<30> scaled_recv_window;
+			ap_uint<30> scaled_recv_window = 0;
 			scaled_recv_window(win_shift+15, win_shift) = entry.recv_window;
 			if (entry.cong_window < scaled_recv_window)
 			{
@@ -178,8 +178,9 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 			ap_uint<4> win_shift;
 			if (tst_rxEngUpdate.init)
 			{
-				win_shift = tst_rxEngUpdate.win_shift;
 				tx_table[tst_rxEngUpdate.sessionID].win_shift = tst_rxEngUpdate.win_shift;
+				// The window of a SYN / SYN-ACK is never scaled (RFC 7323), the shift applies from the next segment
+				win_shift = 0;
 				tx_table[tst_rxEngUpdate.sessionID].peer_mss = tst_rxEngUpdate.peer_mss;
 			}
 			else
@@ -193,7 +194,7 @@ void tx_sar_table(	stream<rxTxSarQuery>&			rxEng2txSar_upd_req,
 #else
 
 #if (WINDOW_SCALE)
-			ap_uint<30> scaled_recv_window;
+			ap_uint<30> scaled_recv_window = 0;
 			scaled_recv_window(win_shift+15, win_shift) = tst_rxEngUpdate.recv_window;
 #else
 			ap_uint<30> scaled_recv_window = tst_rxEngUpdate.recv_window;
