@@ -24,24 +24,26 @@ static const ap_uint<32> TIME_30s		= 6;
 static const ap_uint<32> TIME_60s		= 60;
 static const ap_uint<32> TIME_120s		= 120;
 #else
-static const ap_uint<32> TIME_64us		= (       64.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_128us		= (      128.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_1ms		= (     1000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_5ms		= (     5000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_25ms		= (    25000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_50ms		= (    50000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_100ms		= (   100000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_250ms		= (   250000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_500ms		= (   500000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_1s		= (  1000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_5s		= (  5000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_7s		= (  7000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_10s		= ( 10000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_15s		= ( 15000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_20s		= ( 20000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_30s		= ( 30000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_60s		= ( 60000000.0/0.0064/MAX_SESSIONS) + 1;
-static const ap_uint<32> TIME_120s		= (120000000.0/0.0064/MAX_SESSIONS) + 1;
+// Integer arithmetic (0.0064 us = 4/625 us): with a double expression, Vitis HLS 2025.1 sign-extended
+// TIME_60s when folding it into the close timer's {active, time} entry, giving ~2.4 h instead of 60 s
+static const ap_uint<32> TIME_64us		= (ap_uint<32>)((((uint64_t)64) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_128us		= (ap_uint<32>)((((uint64_t)128) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_1ms		= (ap_uint<32>)((((uint64_t)1000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_5ms		= (ap_uint<32>)((((uint64_t)5000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_25ms		= (ap_uint<32>)((((uint64_t)25000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_50ms		= (ap_uint<32>)((((uint64_t)50000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_100ms		= (ap_uint<32>)((((uint64_t)100000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_250ms		= (ap_uint<32>)((((uint64_t)250000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_500ms		= (ap_uint<32>)((((uint64_t)500000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_1s		= (ap_uint<32>)((((uint64_t)1000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_5s		= (ap_uint<32>)((((uint64_t)5000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_7s		= (ap_uint<32>)((((uint64_t)7000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_10s		= (ap_uint<32>)((((uint64_t)10000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_15s		= (ap_uint<32>)((((uint64_t)15000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_20s		= (ap_uint<32>)((((uint64_t)20000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_30s		= (ap_uint<32>)((((uint64_t)30000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_60s		= (ap_uint<32>)((((uint64_t)60000000) * 625 / 4) / MAX_SESSIONS + 1);
+static const ap_uint<32> TIME_120s		= (ap_uint<32>)((((uint64_t)120000000) * 625 / 4) / MAX_SESSIONS + 1);
 #endif
 
 
