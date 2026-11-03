@@ -147,10 +147,14 @@ void free_port_table(	stream<ap_uint<16> >&	sLookup2portTable_releasePort,
 
 	if (!sLookup2portTable_releasePort.empty())
 	{
+		// The port comes from the session tuple, i.e. in network byte order (see check_in_multiplexer)
 		sLookup2portTable_releasePort.read(currPort);
-		if (currPort >= 32768)
+		ap_uint<16> releasePort;
+		releasePort(7, 0) = currPort(15, 8);
+		releasePort(15, 8) = currPort(7, 0);
+		if (releasePort >= 32768)
 		{
-			freePortTable[currPort(FREE_PORT_BITS-1, 0)] = false;
+			freePortTable[releasePort(FREE_PORT_BITS-1, 0)] = false;
 		}
 	}
 	else if (!pt_portCheckUsed_req_fifo.empty())
