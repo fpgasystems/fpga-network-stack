@@ -438,8 +438,12 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 					meta.length = retrans_mss;
 					txSar.ackd += retrans_mss;
 					txSar.usedLength -= retrans_mss;
+					// A fast retransmit (rt_count == 0) resends only the first unacknowledged segment (RFC 5681).
+					// Resending more would also send data that may not be in the TX buffer yet: with TCP_NODELAY,
+					// not_ackd covers accepted requests whose payload the application has not delivered yet.
+					// A timeout retransmit (rt_count > 0) resends up to 4 segments.
 					// TODO replace with dynamic count, remove this
-					if (ml_segmentCount == 3)
+					if (ml_segmentCount == 3 || ml_curEvent.rt_count == 0)
 					{
 						// Should set a probe or sth??
 						//txEng2txSar_upd_req.write(txTxSarQuery(ml_curEvent.sessionID, txSar.not_ackd, 1));
@@ -1562,7 +1566,9 @@ void txEngMemAccessBreakdown(	hls::stream<mmCmd>&	inputMemAccess,
 		}
 		break;
 	case 1:
-			outputMemAccess.write(mmCmd(0, cmd.bbt - lengthFirstAccess));
+			// Second part starts at the beginning of the same session's buffer (keep the session bits)
+			cmd.saddr(WINDOW_BITS-1, 0) = 0;
+			outputMemAccess.write(mmCmd(cmd.saddr, cmd.bbt - lengthFirstAccess));
 			txEngBreakdownState = 0;
 		break;
 	}
