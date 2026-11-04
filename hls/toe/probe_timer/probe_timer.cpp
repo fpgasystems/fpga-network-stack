@@ -113,12 +113,10 @@ void probe_timer(	stream<ap_uint<16> >&		rxEng2timer_clearProbeTimer,
 			{
 				probeTimerTable[checkID].time = 0;
 				probeTimerTable[checkID].active = false;
-				// It's not an RT, we want to resume TX
-#if !(TCP_NODELAY)
+				// It's not an RT, we want to resume TX. Also with TCP_NODELAY: tx_engine arms the timer for requests
+				// > 32 KB although data never waits for window there, so an RT event would retransmit up to 4 segments
+				// that were not lost on every such request. A TX event without length sends nothing.
 				probeTimer2eventEng_setEvent.write(event(TX, checkID));
-#else
-				probeTimer2eventEng_setEvent.write(event(RT, checkID));
-#endif
 				fastResume = false;
 			}
 			else
