@@ -945,8 +945,8 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			}
 			else
 			{
-				// Make session lookup, only allow creation of new entry when SYN or SYN_ACK
-				rxEng2sLookup_req.write(sessionLookupQuery(tuple, (mh_meta.syn && !mh_meta.rst && !mh_meta.fin)));
+				// Make session lookup, only allow creation of new entry for a SYN to a listening port (< 32768)
+				rxEng2sLookup_req.write(sessionLookupQuery(tuple, (mh_meta.syn && !mh_meta.rst && !mh_meta.fin && mh_dstIpPort < 32768)));
 				mh_state = LOOKUP;
 			}
 		}
