@@ -586,9 +586,14 @@ void metaLoader(hls::stream<extendedEvent>&				eventEng2txEng_event,
 				rxSar2txEng_rsp.read(rxSar);
 				txTxSarReply txSar = txSar2txEng_upd_rsp.read();
 
-				// construct SYN_ACK message
+				// construct SYN_ACK message, the (unscaled) window is limited by the owner's credit
 				meta.ackNumb = rxSar.recvd;
-				meta.window_size = 0xFFFF;
+#if (WINDOW_SCALE)
+				ap_uint<WINDOW_BITS> synAckWindow = ((ap_uint<WINDOW_BITS>)rxSar.windowSize) << rxSar.win_shift;
+				meta.window_size = (synAckWindow > 0xFFFF) ? (ap_uint<WINDOW_BITS>)0xFFFF : synAckWindow;
+#else
+				meta.window_size = rxSar.windowSize;
+#endif
 				meta.length = 4; // For MSS Option, 4 bytes
 				meta.ack = 1;
 				meta.rst = 0;

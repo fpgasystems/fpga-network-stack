@@ -79,9 +79,10 @@ struct rxFsmMetaData
 	ap_uint<16>			dstIpPort;
 	rxEngineMetaData	meta; //check if all needed
 	ap_uint<16> 		srcIpPort;
+	ap_uint<OWNER_BITS>	owner; // Owner of the listening port
 	rxFsmMetaData() {}
-	rxFsmMetaData(ap_uint<16> id, ap_uint<32> ipAddr, ap_uint<16> ipPort, rxEngineMetaData meta, ap_uint<16> srcIpPort)
-				:sessionID(id), srcIpAddress(ipAddr), dstIpPort(ipPort), meta(meta), srcIpPort(srcIpPort) {}
+	rxFsmMetaData(ap_uint<16> id, ap_uint<32> ipAddr, ap_uint<16> ipPort, rxEngineMetaData meta, ap_uint<16> srcIpPort, ap_uint<OWNER_BITS> owner)
+				:sessionID(id), srcIpAddress(ipAddr), dstIpPort(ipPort), meta(meta), srcIpPort(srcIpPort), owner(owner) {}
 };
 
 /** @defgroup rx_engine RX Engine
@@ -92,7 +93,7 @@ template <int WIDTH>
 void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 				stream<sessionLookupReply>&			sLookup2rxEng_rsp,
 				stream<sessionState>&				stateTable2rxEng_upd_rsp,
-				stream<bool>&						portTable2rxEng_rsp,
+				stream<portTableRsp>&				portTable2rxEng_rsp,
 				stream<rxSarEntry>&					rxSar2rxEng_upd_rsp,
 				stream<rxTxSarReply>&				txSar2rxEng_upd_rsp,
 #if !(RX_DDR_BYPASS)

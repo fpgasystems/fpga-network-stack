@@ -40,12 +40,12 @@ using namespace hls;
  *  @param[out]		rxAppPorTableListenOut
  */
 // TODO this does not seem to be very necessary
-void rx_app_if(	stream<ap_uint<16> >&				appListenPortReq,
+void rx_app_if(	stream<appListenReq>&				appListenPortReq,
 				// This is disabled for the time being, because it adds complexity/potential issues
 				//stream<ap_uint<16> >&				appStopListeningIn,
 				stream<bool>&						portTable2rxApp_listen_rsp,
 				stream<bool>&						appListenPortRsp,
-				stream<ap_uint<16> >&				rxApp2portTable_listen_req)
+				stream<appListenReq>&				rxApp2portTable_listen_req)
 				//stream<ap_uint<16> >&				rxAppPortTableCloseIn,)
 {
 #pragma HLS PIPELINE II=1

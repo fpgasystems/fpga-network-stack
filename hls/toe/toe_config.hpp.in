@@ -12,6 +12,12 @@ const unsigned DATA_WIDTH = ${DATA_WIDTH} * 8;
 const unsigned DATA_WIDTH_BITS = ConstLog2(DATA_WIDTH);
 const unsigned DATA_KEEP_BITS = ConstLog2(DATA_WIDTH/8);
 
+// Owner (vFPGA) of a listening port or session, and its initial RX credit in 64 B beats (its RX queue size)
+const unsigned OWNER_BITS = 4;
+const unsigned RX_CREDIT = ${TCP_STACK_RX_QUEUE_SIZE} / 64;
+static_assert(${TCP_STACK_RX_QUEUE_SIZE} % 64 == 0 && RX_CREDIT > 0 && RX_CREDIT < 4096,
+	"TCP_STACK_RX_QUEUE_SIZE must be a multiple of 64 B, at most 4095 x 64 B (12-bit credit return)");
+
 // TCP_NODELAY flag, to disable Nagle's Algorithm
 #define TCP_NODELAY ${TCP_STACK_NODELAY_EN}
 

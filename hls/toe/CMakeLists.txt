@@ -19,6 +19,7 @@ set(TCP_STACK_NODELAY_EN 1 CACHE BOOL "Enabling TCP_NODELAY option")
 set(TCP_STACK_RX_DDR_BYPASS_EN 1 CACHE BOOL "Enabling DDR bypass on the RX path")
 set(TCP_STACK_FAST_RETRANSMIT_EN 1 CACHE BOOL "Enabling TCP fast retransmit")
 set(TCP_STACK_WINDOW_SCALING_EN 1 CACHE BOOL "Enabling TCP window scaling option")
+set(TCP_STACK_RX_QUEUE_SIZE 65536 CACHE STRING "Per-owner RX queue size in bytes (initial RX credit)")
 
 # Make sure Vitis HLS is installed
 find_package(VitisHLS REQUIRED)

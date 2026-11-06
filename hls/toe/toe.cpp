@@ -69,6 +69,35 @@ void timerCloseMerger(stream<ap_uint<16> >& in1, stream<ap_uint<16> >& in2, stre
 	}
 }
 
+/** @ingroup tcp_module
+ *  Adds the session's owner from the @ref rx_sar_table to the timer notifications.
+ *  One lookup is in flight, so the rx_sar_table never blocks on the reply.
+ */
+void timerNotificationOwner(stream<appNotification>&		timer2rxApp_notification,
+							stream<ap_uint<OWNER_BITS> >&	rxSar2timer_ownerRsp,
+							stream<ap_uint<16> >&			timer2rxSar_ownerReq,
+							stream<appNotification>&		timerOwner2rxApp_notification)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE off
+
+	static bool tno_wait = false;
+	static appNotification tno_notif;
+
+	if (!tno_wait && !timer2rxApp_notification.empty())
+	{
+		tno_notif = timer2rxApp_notification.read();
+		timer2rxSar_ownerReq.write(tno_notif.sessionID);
+		tno_wait = true;
+	}
+	else if (tno_wait && !rxSar2timer_ownerRsp.empty())
+	{
+		tno_notif.owner = rxSar2timer_ownerRsp.read();
+		timerOwner2rxApp_notification.write(tno_notif);
+		tno_wait = false;
+	}
+}
+
 /** @defgroup timer Timers
  *  @ingroup tcp_module
  *  @param[in]		rxEng2timer_clearRetransmitTimer
@@ -354,7 +383,7 @@ void rxAppMemDataRead(	stream<ap_uint<1> >&	rxBufferReadCmd,
 template <int WIDTH>
 void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 					stream<rxSarAppd>&				rxSar2rxApp_upd_rsp,
-					stream<ap_uint<16> >&			appListenPortReq,
+					stream<appListenReq>&			appListenPortReq,
 					stream<bool>&					portTable2rxApp_listen_rsp,
 					stream<appNotification>&		rxEng2rxApp_notification,
 					stream<appNotification>&		timer2rxApp_notification,
@@ -364,7 +393,7 @@ void rxAppWrapper(	stream<appReadRequest>&			appRxDataReq,
 					stream<mmCmd>&					rxBufferReadCmd,
 #endif
 					stream<bool>&					appListenPortRsp,
-					stream<ap_uint<16> >& 			rxApp2portTable_listen_req,
+					stream<appListenReq>& 			rxApp2portTable_listen_req,
 					stream<appNotification>&		appNotification,
 					stream<net_axis<WIDTH> > 				&rxBufferReadData,
 					stream<net_axis<WIDTH> > 				&rxDataRsp)
@@ -466,7 +495,7 @@ void toe(	// Data & Memory Interface
 			//stream<rtlSessionUpdateRequest>&		sessionDelete_req,
 			//stream<ap_uint<14> >&					writeNewSessionId,
 			// Application Interface
-			stream<ap_uint<16> >&					listenPortReq,
+			stream<appListenReq>&					listenPortReq,
 			// This is disabled for the time being, due to complexity concerns
 			//stream<ap_uint<16> >&					appClosePortIn,
 			stream<appReadRequest>&					rxDataReq,
@@ -481,6 +510,7 @@ void toe(	// Data & Memory Interface
 			stream<net_axis<WIDTH> >&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
 			stream<appTxRsp>&					txDataRsp,
+			stream<rxCredit>&						rxCreditIn,
 #if RX_DDR_BYPASS
 			// Data counts for external FIFO
 			ap_uint<16>						axis_data_count,
@@ -632,10 +662,21 @@ void toe(	// Data & Memory Interface
 	#pragma HLS aggregate variable=timer2rxApp_notification compact=bit
 	#pragma HLS aggregate variable=timer2txApp_notification compact=bit
 
+	static stream<appNotification>			timerOwner2rxApp_notification("timerOwner2rxApp_notification");
+	static stream<ap_uint<16> >				timer2rxSar_ownerReq("timer2rxSar_ownerReq");
+	static stream<ap_uint<OWNER_BITS> >		rxSar2timer_ownerRsp("rxSar2timer_ownerRsp");
+	static stream<rxSarOwner>				txApp2rxSar_owner("txApp2rxSar_owner");
+	#pragma HLS stream variable=timerOwner2rxApp_notification	depth=4
+	#pragma HLS stream variable=timer2rxSar_ownerReq			depth=2
+	#pragma HLS stream variable=rxSar2timer_ownerRsp			depth=2
+	#pragma HLS stream variable=txApp2rxSar_owner				depth=4
+	#pragma HLS aggregate variable=timerOwner2rxApp_notification compact=bit
+	#pragma HLS aggregate variable=txApp2rxSar_owner compact=bit
+
 	// Port Table
 	static stream<ap_uint<16> >				rxEng2portTable_check_req("rxEng2portTable_check_req");
-	static stream<bool>						portTable2rxEng_check_rsp("portTable2rxEng_check_rsp");
-	static stream<ap_uint<16> >				rxApp2portTable_listen_req("rxApp2portTable_listen_req");
+	static stream<portTableRsp>				portTable2rxEng_check_rsp("portTable2rxEng_check_rsp");
+	static stream<appListenReq>				rxApp2portTable_listen_req("rxApp2portTable_listen_req");
 	static stream<bool>						portTable2rxApp_listen_rsp("portTable2rxApp_listen_rsp");
 	//static stream<ap_uint<1> >				txApp2portTable_port_req("txApp2portTable_port_req");
 	static stream<ap_uint<16> >				portTable2txApp_port_rsp("portTable2txApp_port_rsp");
@@ -789,10 +830,21 @@ void toe(	// Data & Memory Interface
 	#pragma HLS DATA_PACK variable=timer2rxApp_notification
 	#pragma HLS DATA_PACK variable=timer2txApp_notification
 
+	static stream<appNotification>			timerOwner2rxApp_notification("timerOwner2rxApp_notification");
+	static stream<ap_uint<16> >				timer2rxSar_ownerReq("timer2rxSar_ownerReq");
+	static stream<ap_uint<OWNER_BITS> >		rxSar2timer_ownerRsp("rxSar2timer_ownerRsp");
+	static stream<rxSarOwner>				txApp2rxSar_owner("txApp2rxSar_owner");
+	#pragma HLS stream variable=timerOwner2rxApp_notification	depth=64
+	#pragma HLS stream variable=timer2rxSar_ownerReq			depth=2
+	#pragma HLS stream variable=rxSar2timer_ownerRsp			depth=2
+	#pragma HLS stream variable=txApp2rxSar_owner				depth=64
+	#pragma HLS DATA_PACK variable=timerOwner2rxApp_notification
+	#pragma HLS DATA_PACK variable=txApp2rxSar_owner
+
 	// Port Table
 	static stream<ap_uint<16> >				rxEng2portTable_check_req("rxEng2portTable_check_req");
-	static stream<bool>						portTable2rxEng_check_rsp("portTable2rxEng_check_rsp");
-	static stream<ap_uint<16> >				rxApp2portTable_listen_req("rxApp2portTable_listen_req");
+	static stream<portTableRsp>				portTable2rxEng_check_rsp("portTable2rxEng_check_rsp");
+	static stream<appListenReq>				rxApp2portTable_listen_req("rxApp2portTable_listen_req");
 	static stream<bool>						portTable2rxApp_listen_rsp("portTable2rxApp_listen_rsp");
 	//static stream<ap_uint<1> >				txApp2portTable_port_req("txApp2portTable_port_req");
 	static stream<ap_uint<16> >				portTable2txApp_port_rsp("portTable2txApp_port_rsp");
@@ -841,9 +893,14 @@ void toe(	// Data & Memory Interface
 	rx_sar_table(	rxEng2rxSar_upd_req,
 					rxApp2rxSar_upd_req,
 					txEng2rxSar_req,
+					txApp2rxSar_owner,
+					timer2rxSar_ownerReq,
+					rxCreditIn,
 					rxSar2rxEng_upd_rsp,
 					rxSar2rxApp_upd_rsp,
-					rxSar2txEng_rsp);
+					rxSar2txEng_rsp,
+					rxSar2timer_ownerRsp);
+	timerNotificationOwner(timer2rxApp_notification, rxSar2timer_ownerRsp, timer2rxSar_ownerReq, timerOwner2rxApp_notification);
 	// TX Sar Table
 	tx_sar_table(	rxEng2txSar_upd_req,
 					//txApp2txSar_upd_req,
@@ -941,7 +998,7 @@ void toe(	// Data & Memory Interface
 			 	 	listenPortReq,
 			 	 	portTable2rxApp_listen_rsp,
 			 	 	rxEng2rxApp_notification,
-			 	 	timer2rxApp_notification,
+			 	 	timerOwner2rxApp_notification,
 			 	 	rxDataRspMeta,
 			 	 	rxApp2rxSar_upd_req,
 #if !(RX_DDR_BYPASS)
@@ -979,6 +1036,7 @@ void toe(	// Data & Memory Interface
 						//txApp2portTable_port_req,
 						txApp2stateTable_upd_req,
 						txApp2eventEng_setEvent,
+						txApp2rxSar_owner,
 						timer2txApp_notification,
 						myIpAddress);
 
@@ -1009,7 +1067,7 @@ void toe_top(	// Data & Memory Interface
 			stream<rtlSessionLookupRequest>&		sessionLookup_req,
 			stream<rtlSessionUpdateRequest>&		sessionUpdate_req,
 			// Application Interface
-			stream<ap_uint<16> >&					listenPortReq,
+			stream<appListenReq>&					listenPortReq,
 			// This is disabled for the time being, due to complexity concerns
 			//stream<ap_uint<16> >&					appClosePortIn,
 			stream<appReadRequest>&					rxDataReq,
@@ -1024,6 +1082,7 @@ void toe_top(	// Data & Memory Interface
 			stream<ap_axiu<DATA_WIDTH, 0, 0, 0> >&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
 			stream<appTxRsp>&					txDataRsp,
+			stream<rxCredit>&						rxCreditIn,
 #if RX_DDR_BYPASS
 			// Data counts for external FIFO
 			ap_uint<16>						axis_data_count,
@@ -1097,7 +1156,10 @@ void toe_top(	// Data & Memory Interface
 	#pragma HLS INTERFACE axis register port=txDataReqMeta name=s_axis_tx_data_req_metadata
 	#pragma HLS INTERFACE axis register port=txDataReq name=s_axis_tx_data_req
 	#pragma HLS INTERFACE axis register port=txDataRsp name=m_axis_tx_data_rsp
+	#pragma HLS INTERFACE axis register port=rxCreditIn name=s_axis_rx_credit
 	#pragma HLS aggregate variable=notification compact=bit
+	#pragma HLS aggregate variable=listenPortReq compact=bit
+	#pragma HLS aggregate variable=rxCreditIn compact=bit
 	#pragma HLS aggregate variable=rxDataReq compact=bit
 	#pragma HLS aggregate variable=openConnReq compact=bit
 	#pragma HLS aggregate variable=openConnRsp compact=bit
@@ -1189,6 +1251,7 @@ void toe_top(	// Data & Memory Interface
 					rxDataRsp_internal,
 					openConnRsp,
 					txDataRsp,
+					rxCreditIn,
 #if (RX_DDR_BYPASS)
 					axis_data_count,
 					axis_max_data_count,
@@ -1220,7 +1283,7 @@ void toe_top(	// Data & Memory Interface
 			stream<rtlSessionLookupRequest>&		sessionLookup_req,
 			stream<rtlSessionUpdateRequest>&		sessionUpdate_req,
 			// Application Interface
-			stream<ap_uint<16> >&					listenPortReq,
+			stream<appListenReq>&					listenPortReq,
 			// This is disabled for the time being, due to complexity concerns
 			//stream<ap_uint<16> >&					appClosePortIn,
 			stream<appReadRequest>&					rxDataReq,
@@ -1235,6 +1298,7 @@ void toe_top(	// Data & Memory Interface
 			stream<net_axis<DATA_WIDTH> >&						rxDataRsp,
 			stream<openStatus>&						openConnRsp,
 			stream<appTxRsp>&					txDataRsp,
+			stream<rxCredit>&						rxCreditIn,
 #if RX_DDR_BYPASS
 			// Data counts for external FIFO
 			ap_uint<16>						axis_data_count,
@@ -1308,7 +1372,10 @@ void toe_top(	// Data & Memory Interface
 	#pragma HLS INTERFACE axis register port=txDataReqMeta name=s_axis_tx_data_req_metadata
 	#pragma HLS INTERFACE axis register port=txDataReq name=s_axis_tx_data_req
 	#pragma HLS INTERFACE axis register port=txDataRsp name=m_axis_tx_data_rsp
+	#pragma HLS INTERFACE axis register port=rxCreditIn name=s_axis_rx_credit
 	#pragma HLS DATA_PACK variable=notification
+	#pragma HLS DATA_PACK variable=listenPortReq
+	#pragma HLS DATA_PACK variable=rxCreditIn
 	#pragma HLS DATA_PACK variable=rxDataReq
 	#pragma HLS DATA_PACK variable=openConnReq
 	#pragma HLS DATA_PACK variable=openConnRsp
@@ -1356,6 +1423,7 @@ void toe_top(	// Data & Memory Interface
 					rxDataRsp,
 					openConnRsp,
 					txDataRsp,
+					rxCreditIn,
 #if (RX_DDR_BYPASS)
 					axis_data_count,
 					axis_max_data_count,

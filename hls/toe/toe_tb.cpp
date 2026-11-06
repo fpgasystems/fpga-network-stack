@@ -181,7 +181,7 @@ void simulateTx(dummyMemory<WIDTH>* memory, stream<mmCmd>& WriteCmdFifo,  stream
 	}
 }
 
-void iperf(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
+void iperf(	stream<appListenReq>& listenPort, stream<bool>& listenPortStatus,
 			// This is disabled for the time being, because it adds complexity/potential issues
 			//stream<ap_uint<16> >& closePort,
 			stream<appNotification>& notifications, stream<appReadRequest>& readRequest,
@@ -201,7 +201,7 @@ void iperf(	stream<ap_uint<16> >& listenPort, stream<bool>& listenPortStatus,
 	if (!listenDone) {
 		switch (listenFsm) {
 		case 0:
-			listenPort.write(0x57);
+			listenPort.write(appListenReq(0x57, 0));
 			listenFsm++;
 			break;
 		case 1:
@@ -590,7 +590,8 @@ int main(int argc, char *argv[]) {
 	stream<rtlSessionLookupRequest>		sessionLookup_req("sessionLookup_req");
 	stream<rtlSessionUpdateRequest>		sessionUpdate_req("sessionUpdate_req");
 //	stream<rtlSessionUpdateRequest>		sessionUpdate_req;
-	stream<ap_uint<16> >				listenPortReq("listenPortReq");
+	stream<appListenReq>				listenPortReq("listenPortReq");
+	stream<rxCredit>					rxCreditIn("rxCreditIn");
 	stream<appReadRequest>				rxDataReq("rxDataReq");
 	stream<ipTuple>						openConnReq("openConnReq");
 	stream<ap_uint<16> >				closeConnReq("closeConnReq");
@@ -823,7 +824,7 @@ int main(int argc, char *argv[]) {
 			sessionLookup_req, sessionUpdate_req, listenPortReq, rxDataReq, openConnReq, closeConnReq, txDataReqMeta, txDataReq,
 			//listenPortRsp, notification, rxDataRspMeta, rxDataRsp, openConnRsp, txDataRsp);
 			//relSessionCount, regSessionCount);
-			listenPortRsp, notification, rxDataRspMeta, rxDataRsp, openConnRsp, txDataRsp, 0x01010101, /*relSessionCount,*/ regSessionCount);
+			listenPortRsp, notification, rxDataRspMeta, rxDataRsp, openConnRsp, txDataRsp, rxCreditIn, 0x01010101, /*relSessionCount,*/ regSessionCount);
 
 		//TODO use actual iperf
 		convertStreamWidth<DATA_WIDTH, 22>(rxDataRsp, rxDataRsp64);

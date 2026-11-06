@@ -25,6 +25,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "../toe.hpp"
 #include "../toe_internals.hpp"
 
 using namespace hls;
@@ -36,6 +37,10 @@ using namespace hls;
 void rx_sar_table(	stream<rxSarRecvd>&			rxEng2rxSar_upd_req,
 					stream<rxSarAppd>&			rxApp2rxSar_upd_req,
 					stream<ap_uint<16> >&		txEng2rxSar_req, //read only
+					stream<rxSarOwner>&			txApp2rxSar_owner,
+					stream<ap_uint<16> >&		timer2rxSar_ownerReq,
+					stream<rxCredit>&			rxCreditIn,
 					stream<rxSarEntry>&			rxSar2rxEng_upd_rsp,
 					stream<rxSarAppd>&			rxSar2rxApp_upd_rsp,
-					stream<rxSarReply>&			rxSar2txEng_rsp);
+					stream<rxSarReply>&			rxSar2txEng_rsp,
+					stream<ap_uint<OWNER_BITS> >&	rxSar2timer_ownerRsp);

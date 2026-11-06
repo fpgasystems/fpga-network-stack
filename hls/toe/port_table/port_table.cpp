@@ -45,24 +45,27 @@ using namespace hls;
  */
 static const int MAX_LISTENING_PORTS = 16;
 
-void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
+void listening_port_table(	stream<appListenReq>&	rxApp2portTable_listen_req,
 							stream<ap_uint<15> >&	pt_portCheckListening_req_fifo,
 							stream<bool>&			portTable2rxApp_listen_rsp,
-							stream<bool>&			pt_portCheckListening_rsp_fifo)
+							stream<portTableRsp>&	pt_portCheckListening_rsp_fifo)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
 
 	static ap_uint<16>	listenedPorts[MAX_LISTENING_PORTS];
 	static bool			portActive[MAX_LISTENING_PORTS];
+	static ap_uint<OWNER_BITS> portOwner[MAX_LISTENING_PORTS];
 	#pragma HLS ARRAY_PARTITION variable=listenedPorts complete dim=1
 	#pragma HLS ARRAY_PARTITION variable=portActive    complete dim=1
+	#pragma HLS ARRAY_PARTITION variable=portOwner     complete dim=1
 
 	ap_uint<16> currPort;
 
 	if (!rxApp2portTable_listen_req.empty())
 	{
-		rxApp2portTable_listen_req.read(currPort);
+		appListenReq req = rxApp2portTable_listen_req.read();
+		currPort = req.port;
 
 		// Bit 15 set: stop listening on port currPort[14:0] (listen ports are < 32768).
 		// Connections already accepted on the port are not affected.
@@ -98,6 +101,7 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 		} else if (freeSlot < MAX_LISTENING_PORTS) {
 			listenedPorts[freeSlot] = currPort;
 			portActive[freeSlot]    = true;
+			portOwner[freeSlot]     = req.owner;
 			portTable2rxApp_listen_rsp.write(true);
 		} else {
 			portTable2rxApp_listen_rsp.write(false);  // CAM full
@@ -106,12 +110,15 @@ void listening_port_table(	stream<ap_uint<16> >&	rxApp2portTable_listen_req,
 	else if (!pt_portCheckListening_req_fifo.empty())
 	{
 		ap_uint<15> checkPort = pt_portCheckListening_req_fifo.read();
-		bool found = false;
+		portTableRsp rsp(false, 0);
 		for (int i = 0; i < MAX_LISTENING_PORTS; i++) {
 			#pragma HLS UNROLL
-			if (portActive[i] && listenedPorts[i] == checkPort) found = true;
+			if (portActive[i] && listenedPorts[i] == checkPort) {
+				rsp.open = true;
+				rsp.owner = portOwner[i];
+			}
 		}
-		pt_portCheckListening_rsp_fifo.write(found);
+		pt_portCheckListening_rsp_fifo.write(rsp);
 	}
 }
 /** @ingroup port_table
@@ -220,9 +227,9 @@ void check_in_multiplexer(	stream<ap_uint<16> >&		rxEng2portTable_check_req,
  *
  */
 void check_out_multiplexer(	stream<bool>&				pt_dstFifoIn,
-							stream<bool>&				pt_portCheckListening_rsp_fifo,
+							stream<portTableRsp>&		pt_portCheckListening_rsp_fifo,
 							stream<bool>&				pt_portCheckUsed_rsp_fifo,
-							stream<bool>&				portTable2rxEng_check_rsp)
+							stream<portTableRsp>&		portTable2rxEng_check_rsp)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE off
@@ -265,7 +272,7 @@ void check_out_multiplexer(	stream<bool>&				pt_dstFifoIn,
 	case 2:
 		if (!pt_portCheckUsed_rsp_fifo.empty())
 		{
-			portTable2rxEng_check_rsp.write(pt_portCheckUsed_rsp_fifo.read());
+			portTable2rxEng_check_rsp.write(portTableRsp(pt_portCheckUsed_rsp_fifo.read(), 0));
 			cm_fsmState = READ_DST;
 		}
 		break;
@@ -287,10 +294,10 @@ void check_out_multiplexer(	stream<bool>&				pt_dstFifoIn,
  *  @param[out]		portTable2txApp_rsp
  */
 void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
-				stream<ap_uint<16> >&		rxApp2portTable_listen_req,
+				stream<appListenReq>&		rxApp2portTable_listen_req,
 				//stream<ap_uint<1> >&		txApp2portTable_port_req,
 				stream<ap_uint<16> >&		sLookup2portTable_releasePort,
-				stream<bool>&				portTable2rxEng_check_rsp,
+				stream<portTableRsp>&		portTable2rxEng_check_rsp,
 				stream<bool>&				portTable2rxApp_listen_rsp,
 				stream<ap_uint<16> >&		portTable2txApp_port_rsp)
 {
@@ -320,7 +327,7 @@ void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
 	#pragma HLS STREAM variable=pt_portCheckListening_req_fifo depth=2
 	#pragma HLS STREAM variable=pt_portCheckUsed_req_fifo depth=2
 
-	static stream<bool> pt_portCheckListening_rsp_fifo("pt_portCheckListening_rsp_fifo");
+	static stream<portTableRsp> pt_portCheckListening_rsp_fifo("pt_portCheckListening_rsp_fifo");
 	static stream<bool> pt_portCheckUsed_rsp_fifo("pt_portCheckUsed_rsp_fifo");
 	#pragma HLS STREAM variable=pt_portCheckListening_rsp_fifo depth=2
 	#pragma HLS STREAM variable=pt_portCheckUsed_rsp_fifo depth=2

@@ -26,6 +26,7 @@ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABI
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, 
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
+#include "../toe.hpp"
 #include "../toe_internals.hpp"
 
 using namespace hls;
@@ -34,7 +35,7 @@ using namespace hls;
  *  @ingroup app_if
  *
  */
-void rx_app_if(	stream<ap_uint<16> >&				appListenPortReq,
+void rx_app_if(	stream<appListenReq>&				appListenPortReq,
 				stream<bool>&						portTable2rxApp_listen_rsp,
 				stream<bool>&						appListenPortRsp,
-				stream<ap_uint<16> >&				rxApp2portTable_listen_req);
+				stream<appListenReq>&				rxApp2portTable_listen_req);

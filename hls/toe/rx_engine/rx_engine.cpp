@@ -875,7 +875,7 @@ void rxTcpInvalidDropper(stream<net_axis<WIDTH> >&				dataIn,
  */
 void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 						stream<sessionLookupReply>&				sLookup2rxEng_rsp,
-						stream<bool>&							portTable2rxEng_rsp,
+						stream<portTableRsp>&					portTable2rxEng_rsp,
 						stream<fourTuple>&						tupleBufferIn,
 						stream<sessionLookupQuery>&				rxEng2sLookup_req,
 						stream<extendedEvent>&					rxEng2eventEng_setEvent,
@@ -892,8 +892,10 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 	static ap_uint<32> mh_srcIpAddress;
 	static ap_uint<16> mh_dstIpPort;
 	static ap_uint<16> mh_srcIpPort;
+	static ap_uint<OWNER_BITS> mh_owner;
 
 	fourTuple tuple;
+	portTableRsp portRsp;
 	bool portIsOpen;
 
 	switch (mh_state)
@@ -902,7 +904,9 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 		if (!metaDataFifoIn.empty() && !portTable2rxEng_rsp.empty() && !tupleBufferIn.empty())
 		{
 			metaDataFifoIn.read(mh_meta);
-			portTable2rxEng_rsp.read(portIsOpen);
+			portTable2rxEng_rsp.read(portRsp);
+			portIsOpen = portRsp.open;
+			mh_owner = portRsp.owner;
 			tupleBufferIn.read(tuple);
 			mh_srcIpAddress(7, 0) = tuple.srcIp(31, 24);
 			mh_srcIpAddress(15, 8) = tuple.srcIp(23, 16);
@@ -954,7 +958,7 @@ void rxMetadataHandler(	stream<rxEngineMetaData>&				metaDataFifoIn,
 			if (mh_lup.hit)
 			{
 				//Write out lup and meta
-				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta, mh_srcIpPort));
+				fsmMetaDataFifo.write(rxFsmMetaData(mh_lup.sessionID, mh_srcIpAddress, mh_dstIpPort, mh_meta, mh_srcIpPort, mh_owner));
 			}
 			if (mh_meta.length != 0)
 			{
@@ -1183,7 +1187,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							//write to memory
 							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
 							// Notify app length bytes available
-							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, rxSar.owner));
 							dropDataFifoOut.write(false);
 						}
 						// ### No gap, packet comes out-of-order
@@ -1204,7 +1208,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							//update head and offset pointer, set gap to true
 							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, rxSar.recvd, newHead, newOffset, true));
 							//notification for matching the mem write status in notificationDelayer
-							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, rxSar.owner));
 							//write to memory
 							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
 							dropDataFifoOut.write(false);
@@ -1228,7 +1232,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							//write to memory
 							rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
 							//notification for matching the mem write status in notificationDelayer
-							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, 0, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, rxSar.owner));
 							dropDataFifoOut.write(false);
 						}
 						// ### Gap alread exists, packet comes in-order after the recvd pointer
@@ -1251,7 +1255,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 								//write to memory
 								rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
 								// Only notify about  new data available
-								rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, (rxSar.head - fsm_meta.meta.seqNumb)(WINDOW_BITS-1, 0), fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+								rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, (rxSar.head - fsm_meta.meta.seqNumb)(WINDOW_BITS-1, 0), fsm_meta.srcIpAddress, fsm_meta.dstIpPort, rxSar.owner));
 								dropDataFifoOut.write(false);
 							}
 							//gap can not be filled
@@ -1262,7 +1266,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 								//write to memory
 								rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
 								// Only notify about  new data available
-								rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+								rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, rxSar.owner));
 								dropDataFifoOut.write(false);
 							}
 						}
@@ -1285,23 +1289,27 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 
 
 #else //if DDR is not used, OOO is disabled
+					// Admit the segment if in order, the RX buffer has space and the owner has credit
+					ap_uint<16> beats = (fsm_meta.meta.length + 63) >> 6;
+					bool admit = (fsm_meta.meta.seqNumb == rxSar.recvd) && ((rxbuffer_max_data_count - rxbuffer_data_count) > 375) && (rxSar.credit >= beats);
 					// Check if packet contains payload
 					if (fsm_meta.meta.length != 0)
 					{
 						ap_uint<32> newRecvd = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
 						ap_uint<32> newHead = fsm_meta.meta.seqNumb+fsm_meta.meta.length;
-						// Second part makes sure that app pointer is not overtaken
-						// Check if segment in order and if enough free space is available
-						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && ((rxbuffer_max_data_count - rxbuffer_data_count) > 375))
+						if (admit)
 						{
-							rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, newRecvd, newHead, rxSar.offset, rxSar.gap));
+							rxSarRecvd upd(fsm_meta.sessionID, newRecvd, newHead, rxSar.offset, rxSar.gap);
+							upd.owner = rxSar.owner;
+							upd.beats = beats;
+							rxEng2rxSar_upd_req.write(upd);
 							// Build memory address
 							ap_uint<32> pkgAddr;
 							pkgAddr(31, 30) = 0x0;
 							pkgAddr(29, WINDOW_BITS) = fsm_meta.sessionID(13, 0);
 							pkgAddr(WINDOW_BITS-1, 0) = fsm_meta.meta.seqNumb(WINDOW_BITS-1, 0);
 							// Only notify about new data available
-							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort));
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, rxSar.owner));
 							dropDataFifoOut.write(false);
 						}
 						else
@@ -1326,7 +1334,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 #if !(RX_DDR_BYPASS)					
 						if (!rxSar.gap && (fsm_meta.meta.seqNumb == rxSar.recvd) && (free_space > fsm_meta.meta.length))
 #else
-						if ((fsm_meta.meta.seqNumb == rxSar.recvd) && ((rxbuffer_max_data_count - rxbuffer_data_count) > 375))
+						if (admit)
 #endif
 						{
 							rxEng2eventEng_setEvent.write(event(ACK, fsm_meta.sessionID));
@@ -1337,6 +1345,11 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 							rxEng2eventEng_setEvent.write(event(ACK_NODELAY, fsm_meta.sessionID));	
 						}
 						
+					}
+					// ACK a segment below the window (zero-window probe, keep-alive), so the peer learns the current window
+					else if ((ap_int<32>)(fsm_meta.meta.seqNumb - rxSar.recvd) < 0)
+					{
+						rxEng2eventEng_setEvent.write(event(ACK_NODELAY, fsm_meta.sessionID));
 					}
 
 
@@ -1404,22 +1417,27 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 					ap_uint<4> rx_win_shift = (fsm_meta.meta.winScale == 0) ? 0 : WINDOW_SCALE_BITS;
 					ap_uint<4> tx_win_shift = fsm_meta.meta.winScale;
 					// Initialize rxSar, SEQ + phantom byte for recvd and head pointer, offset to 0, gap set to false
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, rx_win_shift));
+					rxSarRecvd init(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, rx_win_shift);
 					// Initialize receive window
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, false, tx_win_shift, fsm_meta.meta.mss))); //TODO maybe include count check
 #else
 					// Initialize rxSar, SEQ + phantom byte, last '1' for makes sure appd is initialized
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, 1));
+					rxSarRecvd init(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1, fsm_meta.meta.seqNumb+1, 0, false, 1);
 					// Initialize receive window
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, 0, fsm_meta.meta.winSize, txSar.cong_window, 0, false))); //TODO maybe include count check
 #endif
+					// Passive open: the listening port's owner owns the session, active open: keep the owner
+					ap_uint<OWNER_BITS> owner = (tcpState == CLOSED) ? fsm_meta.owner : rxSar.owner;
+					init.owner = owner;
+					init.setOwner = (tcpState == CLOSED);
+					rxEng2rxSar_upd_req.write(init);
 					// Set SYN_ACK event
 					rxEng2eventEng_setEvent.write(event(SYN_ACK, fsm_meta.sessionID));
 					// Change State to SYN_RECEIVED
 					rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, SYN_RECEIVED, 1));
 
                     // Fire notification
-                    rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, false, true));
+                    rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, false, true, owner));
 				}
 				else if (tcpState == SYN_RECEIVED)// && mh_meta.seqNumb+1 == rxSar.recvd) // Maybe Check for seq
 				{
@@ -1435,7 +1453,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						rxEng2eventEng_setEvent.write(rstEvent(fsm_meta.sessionID, fsm_meta.meta.seqNumb+1)); //length == 0
 						rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, CLOSED, 1));
 						// The application already got the "opened" notification for this session
-						rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true));
+						rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true, rxSar.owner));
 					}
 				}
 				else // Any synchronized state
@@ -1517,12 +1535,17 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 				// std::cout<<" free_space"<<free_space<<std::endl;
 				rxEng2timer_clearRetransmitTimer.write(rxRetransmitTimerUpdate(fsm_meta.sessionID, (fsm_meta.meta.ackNumb == txSar.nextByte)));
 				// Check state and if FIN in order, Current out of order FINs are not accepted
-				if ((tcpState == ESTABLISHED || tcpState == FIN_WAIT_1 || tcpState == FIN_WAIT_2) && (rxSar.recvd == fsm_meta.meta.seqNumb))
+				// A FIN with data also needs the owner's credit
+				ap_uint<16> beats = (fsm_meta.meta.length + 63) >> 6;
+				if ((tcpState == ESTABLISHED || tcpState == FIN_WAIT_1 || tcpState == FIN_WAIT_2) && (rxSar.recvd == fsm_meta.meta.seqNumb) && (rxSar.credit >= beats))
 				{
 					rxEng2txSar_upd_req.write((rxTxSarQuery(fsm_meta.sessionID, fsm_meta.meta.ackNumb, fsm_meta.meta.winSize, txSar.cong_window, txSar.count, txSar.fastRetransmitted))); //TODO include count check
 
 					// +1 for phantom byte, there might be data too
-					rxEng2rxSar_upd_req.write(rxSarRecvd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, rxSar.offset,rxSar.gap)); //diff to ACK
+					rxSarRecvd upd(fsm_meta.sessionID, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, fsm_meta.meta.seqNumb+fsm_meta.meta.length+1, rxSar.offset,rxSar.gap); //diff to ACK
+					upd.owner = rxSar.owner;
+					upd.beats = beats;
+					rxEng2rxSar_upd_req.write(upd);
 
 					// Clear the probe timer
 					rxEng2timer_clearProbeTimer.write(fsm_meta.sessionID);
@@ -1538,13 +1561,13 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						rxBufferWriteCmd.write(mmCmd(pkgAddr, fsm_meta.meta.length));
 #endif
 						// Tell Application new data is available and connection got closed
-						rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true));
+						rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.meta.length, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true, rxSar.owner));
 						dropDataFifoOut.write(false);
 					}
 					else if (tcpState == ESTABLISHED)
 					{
 						// Tell Application connection got closed
-						rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true)); //CLOSE
+						rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true, rxSar.owner)); //CLOSE
 					}
 
 					// Update state
@@ -1615,7 +1638,7 @@ void rxTcpFSM(			stream<rxFsmMetaData>&					fsmMetaDataFifo,
 						if (fsm_meta.meta.seqNumb == rxSar.recvd)
 						{
 							//tell application, RST occurred, abort
-							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true)); //RESET
+							rxEng2rxApp_notification.write(appNotification(fsm_meta.sessionID, fsm_meta.srcIpAddress, fsm_meta.dstIpPort, true, rxSar.owner)); //RESET
 							rxEng2stateTable_upd_req.write(stateQuery(fsm_meta.sessionID, CLOSED, 1)); //TODO maybe some TIME_WAIT state
 							rxEng2timer_clearRetransmitTimer.write(rxRetransmitTimerUpdate(fsm_meta.sessionID, true));
 						}
@@ -1972,7 +1995,7 @@ template <int WIDTH>
 void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 				stream<sessionLookupReply>&			sLookup2rxEng_rsp,
 				stream<sessionState>&				stateTable2rxEng_upd_rsp,
-				stream<bool>&						portTable2rxEng_rsp,
+				stream<portTableRsp>&				portTable2rxEng_rsp,
 				stream<rxSarEntry>&					rxSar2rxEng_upd_rsp,
 				stream<rxTxSarReply>&				txSar2rxEng_upd_rsp,
 #if !(RX_DDR_BYPASS)
@@ -2230,7 +2253,7 @@ void rx_engine(	stream<net_axis<WIDTH> >&					ipRxData,
 template void rx_engine<DATA_WIDTH>(	stream<net_axis<DATA_WIDTH> >&					ipRxData,
 				stream<sessionLookupReply>&			sLookup2rxEng_rsp,
 				stream<sessionState>&				stateTable2rxEng_upd_rsp,
-				stream<bool>&						portTable2rxEng_rsp,
+				stream<portTableRsp>&				portTable2rxEng_rsp,
 				stream<rxSarEntry>&					rxSar2rxEng_upd_rsp,
 				stream<rxTxSarReply>&				txSar2rxEng_upd_rsp,
 #if !(RX_DDR_BYPASS)

@@ -45,8 +45,8 @@ int main()
 
 
 	stream<ap_uint<16> > rxPortTableIn("rxPortTableIn");
-	stream<bool> rxPortTableOut("rxPortTableOut");
-	stream<ap_uint<16> > rxAppListenIn("rxAppListenIn");
+	stream<portTableRsp> rxPortTableOut("rxPortTableOut");
+	stream<appListenReq> rxAppListenIn("rxAppListenIn");
 	stream<bool> rxAppListenOut("rxAppListenOut");
 	//stream<ap_uint<16> > rxAppCloseIn("rxAppCloseIn");
 	//stream<ap_uint<1> > txAppGetPortIn("txAppGetPortIn");
@@ -112,13 +112,13 @@ int main()
 				break;
 			case 5:
 				outputFile << "Try to listen on " << randPort << std::endl;
-				rxAppListenIn.write(randPort);
+				rxAppListenIn.write(appListenReq(randPort, 0));
 				randPort = rand() % 65535;
 				break;
 			case 7:
 				if (!isOpen)
 				{
-					rxAppListenIn.write(80);
+					rxAppListenIn.write(appListenReq(80, 0));
 					outputFile << "Start listening on port 80"<< std::endl;
 					isOpen = true;
 				}
@@ -132,7 +132,7 @@ int main()
 					rxPortTableOut, rxAppListenOut,txAppGetPortOut);
 		if (!rxPortTableOut.empty())
 		{
-			rxPortTableOut.read(currBool);
+			currBool = rxPortTableOut.read().open;
 			outputFile << "Port 80 is open: " << (currBool ? "yes" : "no");
 			outputFile << std::endl;
 		}
@@ -149,7 +149,7 @@ int main()
 		}*/
 		if (count == 20)
 		{
-			rxAppListenIn.write(0x0007);
+			rxAppListenIn.write(appListenReq(0x0007, 0));
 		}
 		if (count == 40)
 		{

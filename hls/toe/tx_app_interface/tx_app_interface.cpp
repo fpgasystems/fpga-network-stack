@@ -212,6 +212,7 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 					//stream<ap_uint<1> >&			txApp2portTable_port_req,
 					stream<stateQuery>&				txApp2stateTable_upd_req,
 					stream<event>&					txApp2eventEng_setEvent,
+					stream<rxSarOwner>&				txApp2rxSar_owner,
 					stream<openStatus>&				rtTimer2txApp_notification,
 					ap_uint<32>						myIpAddress)
 {
@@ -308,6 +309,7 @@ void tx_app_interface(	stream<appTxMeta>&			appTxDataReqMetadata,
 				//txApp2portTable_port_req,
 				txApp2stateTable_upd_req,
 				txApp2eventEng_mergeEvent,
+				txApp2rxSar_owner,
 				rtTimer2txApp_notification,
 				myIpAddress);
 
@@ -344,5 +346,6 @@ template void tx_app_interface<DATA_WIDTH>(	stream<appTxMeta>&			appTxDataReqMet
 					//stream<ap_uint<1> >&			txApp2portTable_port_req,
 					stream<stateQuery>&				txApp2stateTable_upd_req,
 					stream<event>&					txApp2eventEng_setEvent,
+					stream<rxSarOwner>&				txApp2rxSar_owner,
 					stream<openStatus>&				rtTimer2txApp_notification,
 					ap_uint<32>						myIpAddress);

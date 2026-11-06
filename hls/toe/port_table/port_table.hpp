@@ -27,6 +27,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.// Copyright (c) 2015 Xilinx, Inc.
 ************************************************/
 
+#include "../toe.hpp"
 #include "../toe_internals.hpp"
 
 using namespace hls;
@@ -44,9 +45,9 @@ struct portTableEntry
  *
  */
 void port_table(stream<ap_uint<16> >&		rxEng2portTable_check_req,
-				stream<ap_uint<16> >&		rxApp2portTable_listen_req,
+				stream<appListenReq>&		rxApp2portTable_listen_req,
 				//stream<ap_uint<1> >&		txApp2portTable_port_req,
 				stream<ap_uint<16> >&		sLookup2portTable_releasePort,
-				stream<bool>&				portTable2rxEng_check_rsp,
+				stream<portTableRsp>&		portTable2rxEng_check_rsp,
 				stream<bool>&				portTable2rxApp_listen_rsp,
 				stream<ap_uint<16> >&		portTable2txApp_port_rsp);

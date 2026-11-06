@@ -33,10 +33,10 @@ using namespace hls;
 
 int main()
 {
-	stream<ap_uint<16> >				appListenPortReq;
+	stream<appListenReq>				appListenPortReq;
 	stream<bool>						portTable2rxApp_listen_rsp;
 	stream<bool>						appListenPortRsp;
-	stream<ap_uint<16> >				rxApp2porTable_listen_req;
+	stream<appListenReq>				rxApp2porTable_listen_req;
 
 	bool response;
 	int count = 0;
@@ -54,7 +54,7 @@ int main()
 
 		if (count == 20)
 		{
-			appListenPortReq.write(80);
+			appListenPortReq.write(appListenReq(80, 0));
 		}
 		if (!appListenPortRsp.empty())
 		{

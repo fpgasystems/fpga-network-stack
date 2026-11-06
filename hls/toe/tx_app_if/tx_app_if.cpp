@@ -65,6 +65,7 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 				//stream<ap_uint<1> >&			txApp2portTable_port_req,
 				stream<stateQuery>&				txApp2stateTable_upd_req,
 				stream<event>&					txApp2eventEng_setEvent,
+				stream<rxSarOwner>&				txApp2rxSar_owner,
 				stream<openStatus>&				rtTimer2txApp_notification,
 				ap_uint<32>						myIpAddress)
 {
@@ -74,6 +75,9 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 	enum taiFsmStateType {IDLE, CLOSE_CONN};
 	static taiFsmStateType tai_fsmState = IDLE;
 	static ap_uint<16> tai_closeSessionID;
+	// One open at a time, its owner goes to the rx_sar_table with the session ID
+	static bool tai_openPending = false;
+	static ap_uint<OWNER_BITS> tai_openOwner;
 
 	ipTuple server_addr;
 	//fourTuple tuple;
@@ -82,10 +86,12 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 	ap_uint<16> freePort;
 	openStatus openSessionStatus;
 
-	if (!appOpenConnReq.empty() && !portTable2txApp_port_rsp.empty())
+	if (!tai_openPending && !appOpenConnReq.empty() && !portTable2txApp_port_rsp.empty())
 	{
 		appOpenConnReq.read(server_addr);
 		portTable2txApp_port_rsp.read(freePort);
+		tai_openOwner = server_addr.owner;
+		tai_openPending = true;
 		// Implicit creationAllowed <= true
 		txApp2sLookup_req.write(fourTuple(myIpAddress, reverse(server_addr.ip_address), reverse(freePort), reverse(server_addr.ip_port)));
 		//tai_waitFreePort = false;
@@ -98,9 +104,11 @@ void tx_app_if(	stream<ipTuple>&				appOpenConnReq,
 		{
 			// Read session
 			sLookup2txApp_rsp.read(session);
+			tai_openPending = false;
 			// Get session state
 			if (session.hit)
 			{
+				txApp2rxSar_owner.write(rxSarOwner(session.sessionID, tai_openOwner));
 				txApp2eventEng_setEvent.write(event(SYN, session.sessionID));
 				txApp2stateTable_upd_req.write(stateQuery(session.sessionID, SYN_SENT, 1));
 			}

@@ -123,6 +123,8 @@ struct rxSarEntry
 	ap_uint<32> head;
 	ap_uint<32> offset;
 	bool gap;
+	ap_uint<OWNER_BITS> owner;
+	ap_uint<16> credit; // Owner's credit, only set in replies to the rx_engine
 };
 
 struct rxSarReply
@@ -152,20 +154,43 @@ struct rxSarRecvd
 	ap_uint<32> head;
 	ap_uint<32> offset;
 	bool gap;
+	ap_uint<OWNER_BITS> owner;
+	ap_uint<1> setOwner; // With init: write the owner (passive open)
+	ap_uint<16> beats; // Credit taken from the owner by an admitted segment
 	rxSarRecvd() {}
 	rxSarRecvd(ap_uint<16> id)
-				:sessionID(id), recvd(0), write(0), init(0) {}
+				:sessionID(id), recvd(0), write(0), init(0), setOwner(0), beats(0) {}
 	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd)
-				:sessionID(id), recvd(recvd), head(0), offset(0), gap(0), write(1), init(0) {}
+				:sessionID(id), recvd(recvd), head(0), offset(0), gap(0), write(1), init(0), setOwner(0), beats(0) {}
 	// rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<4> win_shift)
 	// 				:sessionID(id), recvd(recvd), win_shift(win_shift), write(1), init(1) {}
 
 	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<32>offset, bool gap)
-				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), write(1), init(0) {}
+				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), write(1), init(0), setOwner(0), beats(0) {}
 	rxSarRecvd(ap_uint<16> id, ap_uint<32> recvd, ap_uint<32> head, ap_uint<32>offset, bool gap, ap_uint<4> win_shift)
-				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), win_shift(win_shift), write(1), init(1) {}
+				:sessionID(id), recvd(recvd), head(head), offset(offset), gap(gap), win_shift(win_shift), write(1), init(1), setOwner(0), beats(0) {}
 };
 
+// Owner of an actively opened session
+struct rxSarOwner
+{
+	ap_uint<16> sessionID;
+	ap_uint<OWNER_BITS> owner;
+	rxSarOwner() {}
+	rxSarOwner(ap_uint<16> id, ap_uint<OWNER_BITS> owner)
+				:sessionID(id), owner(owner) {}
+};
+
+
+// Port table reply to the rx_engine, owner set for listening ports only
+struct portTableRsp
+{
+	bool open;
+	ap_uint<OWNER_BITS> owner;
+	portTableRsp() {}
+	portTableRsp(bool open, ap_uint<OWNER_BITS> owner)
+				:open(open), owner(owner) {}
+};
 
 struct rxSarAppd
 {

@@ -29,6 +29,7 @@
 #define TOE_HPP_INCLUDED
 
 #include "../axi_utils.hpp"
+#include "toe_config.hpp"
 
 const uint16_t TCP_PROTOCOL = 0x06;
 
@@ -42,6 +43,27 @@ struct ipTuple
 {
 	ap_uint<32>	ip_address;
 	ap_uint<16>	ip_port;
+	ap_uint<OWNER_BITS> owner;
+};
+
+// Listen request, port[15] set stops listening on port[14:0]
+struct appListenReq
+{
+	ap_uint<16> port;
+	ap_uint<OWNER_BITS> owner;
+	appListenReq() {}
+	appListenReq(ap_uint<16> port, ap_uint<OWNER_BITS> owner)
+		:port(port), owner(owner) {}
+};
+
+// Credit returned to an owner, in 64 B beats
+struct rxCredit
+{
+	ap_uint<OWNER_BITS> owner;
+	ap_uint<12> beats;
+	rxCredit() {}
+	rxCredit(ap_uint<OWNER_BITS> owner, ap_uint<12> beats)
+		:owner(owner), beats(beats) {}
 };
 
 struct mmCmd
@@ -105,19 +127,20 @@ struct appNotification
 	ap_uint<16>			dstPort;
 	bool				closed;
     bool                opened;
+	ap_uint<OWNER_BITS>	owner;
 	appNotification() {}
-	appNotification(ap_uint<16> id, ap_uint<16> len, ap_uint<32> addr, ap_uint<16> port)
-				:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(false), opened(false) {}
+	appNotification(ap_uint<16> id, ap_uint<16> len, ap_uint<32> addr, ap_uint<16> port, ap_uint<OWNER_BITS> owner)
+				:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(false), opened(false), owner(owner) {}
 	appNotification(ap_uint<16> id, bool closed)
-				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(false) {}
+				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(false), owner(0) {}
     appNotification(ap_uint<16> id, bool closed, bool opened)
-				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(opened) {}
-	appNotification(ap_uint<16> id, ap_uint<32> addr, ap_uint<16> port, bool closed, bool opened)
-				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed), opened(opened) {}
-	appNotification(ap_uint<16> id, ap_uint<32> addr, ap_uint<16> port, bool closed)
-				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed), opened(false) {}
-	appNotification(ap_uint<16> id, ap_uint<16> len, ap_uint<32> addr, ap_uint<16> port, bool closed)
-			:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(closed), opened(false) {}
+				:sessionID(id), length(0), ipAddress(0),  dstPort(0), closed(closed), opened(opened), owner(0) {}
+	appNotification(ap_uint<16> id, ap_uint<32> addr, ap_uint<16> port, bool closed, bool opened, ap_uint<OWNER_BITS> owner)
+				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed), opened(opened), owner(owner) {}
+	appNotification(ap_uint<16> id, ap_uint<32> addr, ap_uint<16> port, bool closed, ap_uint<OWNER_BITS> owner)
+				:sessionID(id), length(0), ipAddress(addr),  dstPort(port), closed(closed), opened(false), owner(owner) {}
+	appNotification(ap_uint<16> id, ap_uint<16> len, ap_uint<32> addr, ap_uint<16> port, bool closed, ap_uint<OWNER_BITS> owner)
+			:sessionID(id), length(len), ipAddress(addr), dstPort(port), closed(closed), opened(false), owner(owner) {}
 };
 
 
@@ -176,7 +199,7 @@ void toe(	// Data & Memory Interface
 			//hls::stream<rtlSessionUpdateRequest>&		sessionDelete_req,
 			//hls::stream<ap_uint<14> >&					writeNewSessionId,
 			// Application Interface
-			hls::stream<ap_uint<16> >&					listenPortReq,
+			hls::stream<appListenReq>&					listenPortReq,
 			// This is disabled for the time being, due to complexity concerns
 			//hls::stream<ap_uint<16> >&					appClosePortIn,
 			hls::stream<appReadRequest>&					rxDataReq,
@@ -191,6 +214,7 @@ void toe(	// Data & Memory Interface
 			hls::stream<net_axis<WIDTH> >&						rxDataRsp,
 			hls::stream<openStatus>&						openConnRsp,
 			hls::stream<appTxRsp>&						txDataRsp,
+			hls::stream<rxCredit>&						rxCreditIn,
 			//IP Address Input
 			ap_uint<32>								myIpAddress,
 			//statistic
