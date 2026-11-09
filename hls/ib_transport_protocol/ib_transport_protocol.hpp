@@ -434,12 +434,13 @@ struct ibhMeta
 struct exhMeta
 {
 	bool		isNak;
+	bool		isRnr;
 	ap_uint<22> numPkg; //TODO how many bits does this need?
 	exhMeta() {}
 	exhMeta(bool isNak)
-		:isNak(isNak), numPkg(1) {}
+		:isNak(isNak), isRnr(false), numPkg(1) {}
 	exhMeta(bool isNak, ap_uint<22> numPkg)
-		:isNak(isNak), numPkg(numPkg) {}
+		:isNak(isNak), isRnr(false), numPkg(numPkg) {}
 };
 
 /**
@@ -514,6 +515,14 @@ public:
 	bool isNAK()
 	{
 		return (header(6,5) == 0x3);
+	}
+	// Syndrome bits 6:5 = 01: the responder had no receive for the request with this PSN. It
+	// acknowledges the requests before it only; this one is to be sent again after the RNR timer
+	// (bits 4:0). Taken for an ACK, it would complete the refused request, which the responder
+	// never accepted, and the QP would not make progress again.
+	bool isRNR()
+	{
+		return (header(6,5) == 0x1);
 	}
 };
 
